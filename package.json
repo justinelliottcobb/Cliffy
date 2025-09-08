@@ -1,0 +1,42 @@
+{
+  "name": "cliffy",
+  "version": "0.1.0",
+  "description": "Revolutionary reactive web framework using Clifford/Geometric Algebra as the mathematical foundation",
+  "type": "module",
+  "workspaces": [
+    "cliffy-typescript",
+    "cliffy-purescript", 
+    "examples/*"
+  ],
+  "scripts": {
+    "build:rust": "wasm-pack build cliffy-wasm --target web --out-dir pkg --features simd",
+    "build:typescript": "cd cliffy-typescript && npm run build",
+    "build:purescript": "cd cliffy-purescript && spago build",
+    "build": "npm run build:rust && npm run build:typescript && npm run build:purescript",
+    "dev": "concurrently \"npm run dev:examples\" \"npm run watch:rust\"",
+    "dev:examples": "cd examples/collaborative-editor && npm run dev",
+    "watch:rust": "cargo watch -x 'build --workspace'",
+    "test": "cargo test --workspace && npm run test:typescript",
+    "test:typescript": "cd cliffy-typescript && npm test",
+    "bench": "cargo bench --workspace"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "cargo-watch": "^8.4.0"
+  },
+  "keywords": [
+    "geometric-algebra",
+    "clifford-algebra", 
+    "reactive-programming",
+    "webassembly",
+    "distributed-systems",
+    "collaborative-editing",
+    "webgpu"
+  ],
+  "author": "Cliffy Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/cliffy-team/cliffy.git"
+  }
+}

@@ -1,0 +1,19 @@
+[package]
+name = "cliffy-components"
+version = "0.1.0"
+edition = "2021"
+description = "Component system for Cliffy web framework"
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+cliffy-frp = { path = "../cliffy-frp" }
+cliffy-dom = { path = "../cliffy-dom" }
+serde = { workspace = true }
+nalgebra = { workspace = true }
+num-traits = { workspace = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true }
+js-sys = { workspace = true }
+slotmap = "1.0"
+fxhash = "0.2"
+uuid = "1.0"

@@ -1,0 +1,15 @@
+[package]
+name = "cliffy-protocols"
+version = "0.1.0"
+edition = "2021"
+description = "Distributed consensus protocols using geometric algebra"
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+cliffy-frp = { path = "../cliffy-frp" }
+tokio = { workspace = true }
+serde = { workspace = true }
+nalgebra = { workspace = true }
+num-traits = { workspace = true }
+uuid = "1.0"
+dashmap = "5.5"

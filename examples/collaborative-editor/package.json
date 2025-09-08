@@ -1,0 +1,25 @@
+{
+  "name": "cliffy-collaborative-editor",
+  "version": "0.1.0",
+  "description": "Collaborative text editor demonstrating Cliffy geometric algebra",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "build:wasm": "wasm-pack build ../../cliffy-wasm --target web --out-dir ../examples/collaborative-editor/src/wasm"
+  },
+  "dependencies": {
+    "@cliffy/typescript": "file:../../cliffy-typescript",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "vite": "^5.0.0",
+    "@vitejs/plugin-react": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "typescript": "^5.3.0"
+  }
+}

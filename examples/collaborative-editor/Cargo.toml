@@ -1,0 +1,16 @@
+[package]
+name = "collaborative-editor"
+version = "0.1.0"
+edition = "2021"
+description = "Collaborative text editor using Cliffy geometric algebra for conflict resolution"
+
+[dependencies]
+cliffy-core = { path = "../../cliffy-core" }
+cliffy-frp = { path = "../../cliffy-frp" }
+cliffy-protocols = { path = "../../cliffy-protocols" }
+tokio = { workspace = true, features = ["full"] }
+serde = { workspace = true }
+uuid = "1.0"
+warp = "0.3"
+tokio-tungstenite = "0.20"
+futures-util = "0.3"

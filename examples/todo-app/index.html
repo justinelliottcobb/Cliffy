@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cliffy TodoApp - Algebraic TSX Example</title>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+        
+        body {
+            margin: 0;
+            padding: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        
+        .todo-app {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 15px;
+            border-bottom: 1px solid #eee;
+            transition: all 0.3s ease;
+        }
+        
+        .todo-item:hover {
+            background: #f9f9f9;
+        }
+        
+        .todo-item.completed {
+            opacity: 0.6;
+        }
+        
+        .todo-item input[type="checkbox"] {
+            margin-right: 15px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .todo-text {
+            flex: 1;
+            font-size: 16px;
+        }
+        
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #ff4444;
+            font-size: 24px;
+            cursor: pointer;
+            padding: 5px 10px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        
+        .delete-btn:hover {
+            background: #ff4444;
+            color: white;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+        }
+        
+        .filter-btn:hover {
+            background: #f0f4ff;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+        }
+        
+        .add-todo input {
+            outline: none;
+            border: 2px solid #e0e0e0;
+            transition: border-color 0.2s ease;
+        }
+        
+        .add-todo input:focus {
+            border-color: #667eea;
+        }
+        
+        .add-todo button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        
+        .add-todo button:not(:disabled):hover {
+            background: #45a049;
+            transform: translateY(-1px);
+        }
+        
+        .todo-stats {
+            font-weight: 500;
+            color: #555;
+        }
+        
+        footer {
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+        
+        footer ul {
+            list-style: none;
+            padding: 0;
+        }
+        
+        footer li {
+            margin: 5px 0;
+            color: #777;
+        }
+        
+        /* Geometric transformation effects */
+        .todo-item.completed .todo-text {
+            transform: scale(0.95) translateX(10px);
+        }
+        
+        /* Loading state */
+        .loading {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 200px;
+            color: #666;
+            font-size: 18px;
+        }
+        
+        /* Error state */
+        .error {
+            background: #ffe6e6;
+            border: 1px solid #ffcccc;
+            color: #cc0000;
+            padding: 15px;
+            border-radius: 6px;
+            margin: 20px;
+        }
+        
+        /* Development info */
+        .dev-info {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.8);
+            color: white;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            max-width: 300px;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="loading">
+        Loading Cliffy TodoApp...
+    </div>
+    
+    <!-- Development info panel -->
+    <div class="dev-info">
+        <strong>Cliffy TodoApp</strong><br>
+        Framework: Algebraic TSX<br>
+        State: Geometric Behaviors<br>
+        Rendering: Direct Graph Projection<br>
+        <small>Open DevTools to explore the framework</small>
+    </div>
+
+    <!-- Main application script -->
+    <script type="module" src="src/main.ts"></script>
+    
+    <!-- Development script for debugging -->
+    <script>
+        // Add some helpful debugging utilities
+        window.addEventListener('load', () => {
+            console.log('%c🚀 Cliffy TodoApp Loaded', 'color: #667eea; font-size: 16px; font-weight: bold;');
+            console.log('%cThis app demonstrates:', 'color: #333; font-weight: bold;');
+            console.log('• Algebraic TSX compilation to dataflow graphs');
+            console.log('• Geometric behaviors for reactive state management');
+            console.log('• Algebraic control flow combinators (When, For, Map)');
+            console.log('• Geometric transformations for UI effects');
+            console.log('• Direct graph projection to DOM (no virtual DOM)');
+            console.log(' ');
+            console.log('%cTry interacting with the app and watch the console for updates!', 'color: #667eea;');
+        });
+        
+        // Error handling
+        window.addEventListener('error', (e) => {
+            console.error('Cliffy TodoApp Error:', e.error);
+        });
+        
+        // Performance monitoring
+        if (typeof performance !== 'undefined' && performance.mark) {
+            performance.mark('cliffy-app-start');
+            window.addEventListener('load', () => {
+                performance.mark('cliffy-app-loaded');
+                try {
+                    performance.measure('cliffy-load-time', 'cliffy-app-start', 'cliffy-app-loaded');
+                    const measure = performance.getEntriesByName('cliffy-load-time')[0];
+                    console.log(`%c⚡ Cliffy load time: ${measure.duration.toFixed(2)}ms`, 'color: #4CAF50; font-weight: bold;');
+                } catch (e) {
+                    // Ignore measurement errors
+                }
+            });
+        }
+    </script>
+</body>
+</html>
