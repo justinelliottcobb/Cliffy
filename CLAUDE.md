@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Core Architecture
 
-Cliffy is a revolutionary web framework that uses **Clifford/Geometric Algebra** as its mathematical foundation, replacing traditional virtual DOM with **Algebraic TSX** - a compile-time graph specification language.
+Cliffy is an experimental web framework that uses **Clifford/Geometric Algebra** as its mathematical foundation, exploring alternatives to traditional virtual DOM with **Algebraic TSX** - a compile-time graph specification language.
 
 ### Key Paradigm Shift
 - **Traditional React**: JSX → Virtual DOM → Reconciliation → DOM Updates
@@ -33,7 +33,7 @@ Creates a **geometric dataflow graph** where:
 - **`geometric-runtime.ts`**: Direct graph-to-DOM projection (no virtual DOM)
 - **`behavior.ts`**: Geometric behaviors using multivector mathematics
 
-#### 3. State Management Revolution
+#### 3. State Management Approach
 All state uses **GeometricBehavior<T>** with Clifford algebra operations:
 ```tsx
 const todosState = createGeometricBehavior<Todo[]>([]);
@@ -145,4 +145,4 @@ Extend geometric operations in `cliffy-core/src/lib.rs` for new mathematical tra
 - **Minimal JavaScript**: Core logic in optimized WASM
 - **Incremental Updates**: Only changed behaviors trigger DOM updates
 
-The framework represents a fundamental paradigm shift from imperative UI frameworks to mathematical/algebraic UI specification using Clifford algebra as the foundation.
+The framework explores an alternative approach to UI development, using mathematical/algebraic specification with Clifford algebra as the foundation.
