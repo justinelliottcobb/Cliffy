@@ -28,9 +28,31 @@ The framework consists of several layers:
 - `cliffy-dom`: Geometric virtual DOM implementation
 - `cliffy-components`: Reusable algebraic components
 
+### Build Tools
+- `vite-plugin-algebraic-tsx`: Transforms TSX syntax to jsx() function calls
+
 ### Language Bindings
 - TypeScript (primary interface)
 - PureScript (functional programming approach)
+
+## Algebraic TSX Support
+
+The framework now supports true TSX syntax through a Vite plugin:
+
+```tsx
+// Write beautiful TSX with algebraic combinators:
+<div>
+  <When condition={isVisible$}>
+    <h1>Hello Cliffy!</h1>
+  </When>
+  
+  <For each={items$} key={item => item.id}>
+    {(item$) => <div>{item$.map(i => i.name)}</div>}
+  </For>
+</div>
+```
+
+This gets transformed at build time into geometric dataflow graphs.
 
 ## Build System
 
@@ -63,11 +85,35 @@ npm run test:typescript     # TypeScript tests
 
 ## Examples
 
+### Basic Counter (TypeScript + Algebraic TSX)
+Demonstrates fundamental concepts with the new TSX syntax:
+
+```bash
+cd examples/algebraic-tsx-test
+npm run dev
+```
+
 ### Todo App (TypeScript)
-Basic algebraic TSX example demonstrating geometric behaviors:
+Classic TodoMVC with geometric behaviors:
 
 ```bash
 cd examples/todo-app
+npm run dev
+```
+
+### Form Validation
+Complex state management and validation:
+
+```bash
+cd examples/form-validation
+npm run dev
+```
+
+### Geometric Animations
+Showcases Clifford algebra transformations:
+
+```bash
+cd examples/geometric-animations
 npm run dev
 ```
 
@@ -84,10 +130,11 @@ npm run dev
 This is an experimental project exploring novel approaches to UI frameworks. The geometric algebra implementation is under active development and may not compile successfully.
 
 ### Current Focus
-- Implementing core Clifford algebra operations
-- Developing algebraic control flow combinators
-- Optimizing WASM performance with SIMD
-- Building example applications
+- ✅ Core Clifford algebra operations
+- ✅ Algebraic control flow combinators
+- ✅ Vite plugin for TSX transformation
+- 🚧 WASM performance optimization with SIMD
+- 🚧 Example applications
 
 ## CI/CD Pipeline
 

@@ -62,3 +62,6 @@ export type {
   ComponentFunction,
   JSXElement // Legacy
 } from './types';
+
+// JSX Runtime Type Declarations
+export type * from './jsx-runtime';
