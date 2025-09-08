@@ -11,14 +11,7 @@ serde = { workspace = true }
 nalgebra = { workspace = true }
 num-traits = { workspace = true }
 wasm-bindgen = { workspace = true }
-web-sys = { workspace = true }
-js-sys = { workspace = true }
-slotmap = "1.0"
-fxhash = "0.2"
-
-[dependencies.web-sys]
-version = "0.3"
-features = [
+web-sys = { workspace = true, features = [
   "console",
   "Document",
   "Element",
@@ -32,4 +25,7 @@ features = [
   "HtmlButtonElement",
   "MouseEvent",
   "KeyboardEvent",
-]
+] }
+js-sys = { workspace = true }
+slotmap = "1.0"
+fxhash = "0.2"

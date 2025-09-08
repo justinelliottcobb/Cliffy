@@ -7,10 +7,7 @@ members = [
     "cliffy-gpu",
     "cliffy-dom",
     "cliffy-components",
-    "examples/todo-app",
-    "examples/dashboard",
-    "examples/collaborative-editor",
-    "examples/3d-visualization"
+    "examples/collaborative-editor"
 ]
 resolver = "2"
 
@@ -31,6 +28,3 @@ codegen-units = 1
 [profile.release.package."*"]
 opt-level = 3
 
-# WASM SIMD optimization
-[target.wasm32-unknown-unknown]
-rustflags = ["-C", "target-feature=+simd128"]
