@@ -1,0 +1,18 @@
+{
+  "name": "cliffy-form-validation",
+  "version": "0.1.0",
+  "description": "Form validation example with complex state management",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "cliffy-typescript": "file:../../cliffy-typescript"
+  },
+  "devDependencies": {
+    "typescript": "^5.0.0",
+    "vite": "^4.4.0"
+  }
+}
