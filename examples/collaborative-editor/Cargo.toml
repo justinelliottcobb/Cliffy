@@ -11,6 +11,6 @@ cliffy-protocols = { path = "../../cliffy-protocols" }
 tokio = { workspace = true, features = ["full"] }
 serde = { workspace = true }
 uuid = "1.0"
-warp = "0.3"
+warp = "0.4"
 tokio-tungstenite = "0.21"
 futures-util = "0.3"
