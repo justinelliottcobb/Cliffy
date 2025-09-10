@@ -10,5 +10,5 @@ wgpu = "0.19"
 bytemuck = { version = "1.14", features = ["derive"] }
 pollster = "0.3"
 tokio = { workspace = true }
-num-traits = { workspace = true }
-nalgebra = { workspace = true }
+amari-core = { workspace = true }
+amari-fusion = { workspace = true }

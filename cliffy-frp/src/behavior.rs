@@ -1,55 +1,70 @@
-use cliffy_core::{Multivector, cl4_1::ConformalMultivector, cl3_0::Multivector3D};
-use num_traits::Float;
+//! FRP behavior system using Amari geometric algebra through cliffy-core
+
+use cliffy_core::{
+    ReactiveMultivector, Multivector3D, ConformalMultivector, 
+    AmariMultivector, GA3, GA4_1, constructors
+};
+use amari_core::{Multivector, scalar_traits::Float};
+use amari_fusion::{GeometricProduct, GradeSelection};
 use serde::{Deserialize, Serialize};
 use std::sync::{Arc, RwLock};
 use tokio::sync::{watch, broadcast};
 use std::time::{Duration, Instant};
 
+/// A time-varying geometric behavior that wraps Amari multivectors with reactive capabilities
 #[derive(Debug, Clone)]
-pub struct GeometricBehavior<T: Float + Send + Sync + Clone, const N: usize> {
-    current_state: Arc<RwLock<Multivector<T, N>>>,
-    receiver: watch::Receiver<Multivector<T, N>>,
-    sender: watch::Sender<Multivector<T, N>>,
+pub struct GeometricBehavior<M: Multivector> {
+    current_state: Arc<RwLock<ReactiveMultivector<M>>>,
+    receiver: watch::Receiver<ReactiveMultivector<M>>,
+    sender: watch::Sender<ReactiveMultivector<M>>,
     time_started: Instant,
 }
 
-impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricBehavior<T, N> {
-    pub fn new(initial_value: Multivector<T, N>) -> Self {
-        let (sender, receiver) = watch::channel(initial_value.clone());
+impl<M> GeometricBehavior<M> 
+where 
+    M: Multivector + Clone + Send + Sync + 'static,
+{
+    /// Create a new geometric behavior with an initial value
+    pub fn new(initial_value: M) -> Self {
+        let reactive_value = ReactiveMultivector::new(initial_value);
+        let (sender, receiver) = watch::channel(reactive_value.clone());
         
         Self {
-            current_state: Arc::new(RwLock::new(initial_value)),
+            current_state: Arc::new(RwLock::new(reactive_value)),
             receiver,
             sender,
             time_started: Instant::now(),
         }
     }
 
-    pub fn constant(value: Multivector<T, N>) -> Self {
+    /// Create a constant behavior that never changes
+    pub fn constant(value: M) -> Self {
         Self::new(value)
     }
 
-    pub fn transform<F>(&self, f: F) -> Self 
+    /// Transform this behavior by applying a function to its values
+    pub fn transform<F, N>(&self, f: F) -> GeometricBehavior<N> 
     where
-        F: Fn(&Multivector<T, N>) -> Multivector<T, N> + Send + Sync + 'static,
+        F: Fn(&M) -> N + Send + Sync + 'static,
+        N: Multivector + Clone + Send + Sync + 'static,
     {
         let mut new_receiver = self.receiver.clone();
-        let (new_sender, new_rx) = watch::channel(
-            f(&self.receiver.borrow().clone())
-        );
+        let initial_transformed = f(&self.receiver.borrow().inner);
+        let (new_sender, new_rx) = watch::channel(ReactiveMultivector::new(initial_transformed));
 
         let f = Arc::new(f);
         let sender_clone = new_sender.clone();
         
         tokio::spawn(async move {
             while new_receiver.changed().await.is_ok() {
-                let current_value = new_receiver.borrow().clone();
-                let transformed = f(&current_value);
-                let _ = sender_clone.send(transformed);
+                let current_value = new_receiver.borrow();
+                let transformed = f(&current_value.inner);
+                let reactive_result = ReactiveMultivector::new(transformed);
+                let _ = sender_clone.send(reactive_result);
             }
         });
 
-        Self {
+        GeometricBehavior {
             current_state: Arc::new(RwLock::new(new_rx.borrow().clone())),
             receiver: new_rx,
             sender: new_sender,
@@ -57,110 +72,33 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricBehavior
         }
     }
 
-    pub fn with_rotor(&self, rotor_behavior: &GeometricBehavior<T, N>) -> Self {
-        let self_receiver = self.receiver.clone();
-        let rotor_receiver = rotor_behavior.receiver.clone();
-        
-        let initial_state = {
-            let state = self_receiver.borrow().clone();
-            let rotor = rotor_receiver.borrow().clone();
-            rotor.sandwich(&state)
-        };
-
-        let (sender, receiver) = watch::channel(initial_state.clone());
-
-        let sender_clone = sender.clone();
-        tokio::spawn(async move {
-            let mut self_rx = self_receiver;
-            let mut rotor_rx = rotor_receiver;
-            
-            loop {
-                tokio::select! {
-                    Ok(_) = self_rx.changed() => {
-                        let state = self_rx.borrow().clone();
-                        let rotor = rotor_rx.borrow().clone();
-                        let result = rotor.sandwich(&state);
-                        let _ = sender_clone.send(result);
-                    }
-                    Ok(_) = rotor_rx.changed() => {
-                        let state = self_rx.borrow().clone();
-                        let rotor = rotor_rx.borrow().clone();
-                        let result = rotor.sandwich(&state);
-                        let _ = sender_clone.send(result);
-                    }
-                    else => break,
-                }
-            }
-        });
-
-        Self {
-            current_state: Arc::new(RwLock::new(initial_state)),
-            receiver,
-            sender,
-            time_started: self.time_started,
-        }
-    }
-
-    pub fn sample(&self) -> Multivector<T, N> {
+    /// Sample the current value of this behavior
+    pub fn sample(&self) -> ReactiveMultivector<M> {
         self.receiver.borrow().clone()
     }
 
-    pub fn sample_at_conformal_point(&self, point: &ConformalMultivector<T>) -> Multivector<T, N> 
-    where
-        T: From<f64>,
-    {
-        let current = self.sample();
-        let time_elapsed = self.time_started.elapsed().as_secs_f64();
-        let time_factor = T::from(time_elapsed);
+    /// Update the behavior with a new value
+    pub fn update(&self, new_value: M) {
+        let reactive_value = ReactiveMultivector::new(new_value);
         
-        current.scale(time_factor)
-    }
-
-    pub fn geometric_derivative(&self, dt: Duration) -> Self {
-        let dt_secs = dt.as_secs_f64();
-        let dt_val = T::from(dt_secs).unwrap();
-
-        let mut prev_receiver = self.receiver.clone();
-        let (sender, receiver) = watch::channel(Multivector::zero());
-
-        let sender_clone = sender.clone();
-        tokio::spawn(async move {
-            let mut prev_value = prev_receiver.borrow().clone();
-            
-            while prev_receiver.changed().await.is_ok() {
-                let current_value = prev_receiver.borrow().clone();
-                let derivative = (current_value - prev_value.clone()).scale(
-                    T::one() / dt_val
-                );
-                prev_value = current_value;
-                let _ = sender_clone.send(derivative);
-            }
-        });
-
-        Self {
-            current_state: Arc::new(RwLock::new(Multivector::zero())),
-            receiver,
-            sender,
-            time_started: Instant::now(),
-        }
-    }
-
-    pub fn update(&self, new_value: Multivector<T, N>) {
         if let Ok(mut state) = self.current_state.write() {
-            *state = new_value.clone();
+            *state = reactive_value.clone();
         }
-        let _ = self.sender.send(new_value);
+        let _ = self.sender.send(reactive_value);
     }
 
-    pub fn combine<F>(&self, other: &Self, f: F) -> Self
+    /// Combine two behaviors using a function
+    pub fn combine<N, R, F>(&self, other: &GeometricBehavior<N>, f: F) -> GeometricBehavior<R>
     where
-        F: Fn(&Multivector<T, N>, &Multivector<T, N>) -> Multivector<T, N> + Send + Sync + 'static,
+        F: Fn(&M, &N) -> R + Send + Sync + 'static,
+        N: Multivector + Clone + Send + Sync + 'static,
+        R: Multivector + Clone + Send + Sync + 'static,
     {
         let self_rx = self.receiver.clone();
         let other_rx = other.receiver.clone();
         
-        let initial = f(&self_rx.borrow(), &other_rx.borrow());
-        let (sender, receiver) = watch::channel(initial.clone());
+        let initial = f(&self_rx.borrow().inner, &other_rx.borrow().inner);
+        let (sender, receiver) = watch::channel(ReactiveMultivector::new(initial));
 
         let f = Arc::new(f);
         let sender_clone = sender.clone();
@@ -172,49 +110,115 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricBehavior
             loop {
                 tokio::select! {
                     Ok(_) = self_receiver.changed() => {
-                        let self_val = self_receiver.borrow().clone();
-                        let other_val = other_receiver.borrow().clone();
-                        let result = f(&self_val, &other_val);
-                        let _ = sender_clone.send(result);
+                        let self_val = &self_receiver.borrow().inner;
+                        let other_val = &other_receiver.borrow().inner;
+                        let result = f(self_val, other_val);
+                        let reactive_result = ReactiveMultivector::new(result);
+                        let _ = sender_clone.send(reactive_result);
                     }
                     Ok(_) = other_receiver.changed() => {
-                        let self_val = self_receiver.borrow().clone();
-                        let other_val = other_receiver.borrow().clone();
-                        let result = f(&self_val, &other_val);
-                        let _ = sender_clone.send(result);
+                        let self_val = &self_receiver.borrow().inner;
+                        let other_val = &other_receiver.borrow().inner;
+                        let result = f(self_val, other_val);
+                        let reactive_result = ReactiveMultivector::new(result);
+                        let _ = sender_clone.send(reactive_result);
                     }
                     else => break,
                 }
             }
         });
 
-        Self {
-            current_state: Arc::new(RwLock::new(initial)),
+        GeometricBehavior {
+            current_state: Arc::new(RwLock::new(receiver.borrow().clone())),
             receiver,
             sender,
             time_started: self.time_started,
         }
     }
+}
 
-    pub fn integrate(&self, dt: Duration) -> Self {
-        let dt_val = T::from(dt.as_secs_f64()).unwrap();
-        let mut input_rx = self.receiver.clone();
-        
-        let (sender, receiver) = watch::channel(Multivector::zero());
+impl<M> GeometricBehavior<M> 
+where 
+    M: Multivector + GeometricProduct<M> + Clone + Send + Sync + 'static,
+{
+    /// Apply a rotor transformation to this behavior
+    pub fn with_rotor(&self, rotor_behavior: &GeometricBehavior<M>) -> Self {
+        self.combine(rotor_behavior, |state, rotor| {
+            rotor.sandwich(state)
+        })
+    }
+
+    /// Geometric product with another behavior
+    pub fn geometric_product(&self, other: &Self) -> Self {
+        self.combine(other, |a, b| a.geometric_product(b))
+    }
+}
+
+/// Specialized behaviors for 3D geometric algebra (GA3)
+impl GeometricBehavior<GA3<f64>> {
+    /// Create a 3D vector behavior
+    pub fn vector3d(x: f64, y: f64, z: f64) -> Self {
+        Self::new(GA3::vector([x, y, z]))
+    }
+
+    /// Create a scalar behavior
+    pub fn scalar(value: f64) -> Self {
+        Self::new(GA3::scalar(value))
+    }
+
+    /// Create a rotor behavior from angle and bivector
+    pub fn rotor(angle: f64, bivector: &GA3<f64>) -> Self {
+        let half_angle = angle / 2.0;
+        let rotor = GA3::scalar(half_angle.cos()) + bivector.normalized() * half_angle.sin();
+        Self::new(rotor)
+    }
+
+    /// Compute the geometric derivative with respect to time
+    pub fn geometric_derivative(&self, dt: Duration) -> Self {
+        let dt_secs = dt.as_secs_f64();
+        let mut prev_receiver = self.receiver.clone();
+        let (sender, receiver) = watch::channel(ReactiveMultivector::new(GA3::zero()));
+
         let sender_clone = sender.clone();
-
         tokio::spawn(async move {
-            let mut accumulated = Multivector::zero();
+            let mut prev_value = prev_receiver.borrow().inner.clone();
             
-            while input_rx.changed().await.is_ok() {
-                let current = input_rx.borrow().clone();
-                accumulated = accumulated + current.scale(dt_val);
-                let _ = sender_clone.send(accumulated.clone());
+            while prev_receiver.changed().await.is_ok() {
+                let current_value = prev_receiver.borrow().inner.clone();
+                let derivative = (current_value - prev_value.clone()) * (1.0 / dt_secs);
+                prev_value = current_value;
+                let _ = sender_clone.send(ReactiveMultivector::new(derivative));
             }
         });
 
         Self {
-            current_state: Arc::new(RwLock::new(Multivector::zero())),
+            current_state: Arc::new(RwLock::new(ReactiveMultivector::new(GA3::zero()))),
+            receiver,
+            sender,
+            time_started: Instant::now(),
+        }
+    }
+
+    /// Integrate this behavior over time
+    pub fn integrate(&self, dt: Duration) -> Self {
+        let dt_secs = dt.as_secs_f64();
+        let mut input_rx = self.receiver.clone();
+        
+        let (sender, receiver) = watch::channel(ReactiveMultivector::new(GA3::zero()));
+        let sender_clone = sender.clone();
+
+        tokio::spawn(async move {
+            let mut accumulated = GA3::zero();
+            
+            while input_rx.changed().await.is_ok() {
+                let current = input_rx.borrow().inner.clone();
+                accumulated = accumulated + current * dt_secs;
+                let _ = sender_clone.send(ReactiveMultivector::new(accumulated.clone()));
+            }
+        });
+
+        Self {
+            current_state: Arc::new(RwLock::new(ReactiveMultivector::new(GA3::zero()))),
             receiver,
             sender,
             time_started: Instant::now(),
@@ -222,72 +226,122 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricBehavior
     }
 }
 
-pub fn interpolate_rotors<T: Float + Send + Sync + Clone>(
-    from: GeometricBehavior<T, 8>,
-    to: GeometricBehavior<T, 8>,
-    t: T
-) -> GeometricBehavior<T, 8> {
+/// Specialized behaviors for conformal geometric algebra (GA4_1) 
+impl GeometricBehavior<GA4_1<f64>> {
+    /// Create a conformal point behavior
+    pub fn conformal_point(x: f64, y: f64, z: f64) -> Self {
+        Self::new(GA4_1::point([x, y, z]))
+    }
+
+    /// Sample at a specific conformal point with time-based scaling
+    pub fn sample_at_conformal_point(&self, _point: &GA4_1<f64>) -> ReactiveMultivector<GA4_1<f64>> {
+        let current = self.sample();
+        let time_elapsed = self.time_started.elapsed().as_secs_f64();
+        
+        // Apply time-based transformation using Amari operations
+        let time_scaled = current.inner.clone() * time_elapsed;
+        ReactiveMultivector::new(time_scaled)
+    }
+}
+
+/// Interpolation functions for behaviors
+pub fn interpolate_rotors(
+    from: GeometricBehavior<GA3<f64>>,
+    to: GeometricBehavior<GA3<f64>>,
+    t: f64
+) -> GeometricBehavior<GA3<f64>> {
     from.combine(&to, move |a, b| {
-        let log_diff = (b.geometric_product(&a.conjugate())).log();
-        let interpolated_log = log_diff.scale(t);
-        let interpolated_rotor = interpolated_log.exp();
-        a.geometric_product(&interpolated_rotor)
+        // Use Amari's interpolation capabilities
+        amari_fusion::slerp(a, b, t)
+    })
+}
+
+/// Linear interpolation between two behaviors
+pub fn lerp_behaviors<M>(
+    from: GeometricBehavior<M>,
+    to: GeometricBehavior<M>,
+    t: M::Scalar
+) -> GeometricBehavior<M>
+where
+    M: Multivector + Clone + Send + Sync + 'static,
+    M::Scalar: Float,
+    M: std::ops::Add<Output = M> + std::ops::Mul<M::Scalar, Output = M>,
+{
+    from.combine(&to, move |a, b| {
+        a.clone() * (M::Scalar::one() - t) + b.clone() * t
     })
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use cliffy_core::cl3_0::{e1, e2, rotor};
     use std::time::Duration;
     use tokio::time::sleep;
 
     #[tokio::test]
     async fn test_geometric_behavior_transform() {
-        let initial = Multivector3D::scalar(1.0);
-        let behavior = GeometricBehavior::new(initial.clone());
+        let behavior = GeometricBehavior::scalar(1.0);
         
-        let doubled = behavior.transform(|mv| mv.scale(2.0));
+        let doubled = behavior.transform(|mv| mv.clone() * 2.0);
         
-        assert_eq!(doubled.sample().coeffs[0], 2.0);
+        assert_eq!(doubled.sample().inner.scalar_part(), 2.0);
         
-        behavior.update(Multivector3D::scalar(3.0));
+        behavior.update(GA3::scalar(3.0));
         sleep(Duration::from_millis(10)).await;
         
-        assert_eq!(doubled.sample().coeffs[0], 6.0);
+        assert_eq!(doubled.sample().inner.scalar_part(), 6.0);
     }
 
     #[tokio::test]
     async fn test_rotor_behavior() {
-        let point = e1::<f64>();
-        let bivector = e1::<f64>().geometric_product(&e2::<f64>());
+        let point_behavior = GeometricBehavior::vector3d(1.0, 0.0, 0.0);
+        let bivector = GA3::bivector([0.0, 0.0, 1.0]); // e1^e2
         let angle = std::f64::consts::PI / 2.0;
-        let rotor_mv = rotor(angle, &bivector);
-        
-        let point_behavior = GeometricBehavior::new(point);
-        let rotor_behavior = GeometricBehavior::new(rotor_mv);
+        let rotor_behavior = GeometricBehavior::rotor(angle, &bivector);
         
         let rotated = point_behavior.with_rotor(&rotor_behavior);
         let result = rotated.sample();
         
         // After π/2 rotation around z-axis, e1 should become e2
-        assert!((result.coeffs[2] - 1.0).abs() < 1e-10);
+        let y_component = result.inner.vector_part()[1];
+        assert!((y_component - 1.0).abs() < 1e-10);
     }
 
     #[tokio::test]
     async fn test_geometric_derivative() {
-        let behavior = GeometricBehavior::new(Multivector3D::scalar(0.0));
+        let behavior = GeometricBehavior::scalar(0.0);
         let dt = Duration::from_millis(100);
         let derivative = behavior.geometric_derivative(dt);
         
         // Update with a linear function of time
-        behavior.update(Multivector3D::scalar(1.0));
+        behavior.update(GA3::scalar(1.0));
         sleep(Duration::from_millis(50)).await;
-        behavior.update(Multivector3D::scalar(2.0));
+        behavior.update(GA3::scalar(2.0));
         sleep(Duration::from_millis(50)).await;
         
         // Derivative should be approximately 10.0 (change of 1.0 over 0.1s)
         let deriv_value = derivative.sample();
-        assert!((deriv_value.coeffs[0] - 10.0).abs() < 1.0);
+        assert!((deriv_value.inner.scalar_part() - 10.0).abs() < 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_combine_behaviors() {
+        let a = GeometricBehavior::scalar(3.0);
+        let b = GeometricBehavior::scalar(4.0);
+        
+        let sum = a.combine(&b, |x, y| x.clone() + y.clone());
+        assert_eq!(sum.sample().inner.scalar_part(), 7.0);
+        
+        let product = a.combine(&b, |x, y| x.geometric_product(y));
+        assert_eq!(product.sample().inner.scalar_part(), 12.0);
+    }
+
+    #[tokio::test]
+    async fn test_conformal_behavior() {
+        let point_behavior = GeometricBehavior::conformal_point(1.0, 2.0, 3.0);
+        let sample = point_behavior.sample();
+        
+        // Should create a valid conformal point representation
+        assert!(sample.inner.magnitude() > 0.0);
     }
 }

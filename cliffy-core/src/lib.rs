@@ -1,300 +1,298 @@
-use nalgebra::SVector;
-use num_traits::{Float, Zero, One};
+//! Cliffy Core - FRP wrapper types over Amari geometric algebra
+//! 
+//! This crate provides reactive wrappers around Amari's geometric algebra types,
+//! adding functional reactive programming capabilities while leveraging Amari's
+//! optimized geometric algebra implementations.
+
+use amari_core::{Multivector, GA3, GA4_1, GA4_4};
+use amari_fusion::{GeometricProduct, Exponential, Logarithm, GradeSelection};
 use serde::{Deserialize, Serialize};
-use std::ops::{Add, Mul, Sub};
+use std::sync::Arc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct Multivector<T: Float, const N: usize> {
-    pub coeffs: SVector<T, N>,
+// Re-export Amari types for convenience
+pub use amari_core::{Multivector as AmariMultivector, GA3, GA4_1, GA4_4};
+pub use amari_fusion::*;
+
+/// Cliffy type aliases using Amari's geometric algebra spaces
+pub type Multivector3D<T> = GA3<T>;
+pub type ConformalMultivector<T> = GA4_1<T>;  
+pub type SpacetimeMultivector<T> = GA4_4<T>;
+
+/// A reactive wrapper around Amari multivectors that adds FRP capabilities
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ReactiveMultivector<M: Multivector> {
+    /// The underlying Amari multivector
+    pub inner: M,
+    /// Unique identifier for change tracking
+    pub version: u64,
+    /// Timestamp when this value was last updated
+    pub updated_at: std::time::SystemTime,
 }
 
-pub type Cl3_0<T> = Multivector<T, 8>;   // 3D Euclidean: 1 + 3 + 3 + 1 = 8 basis elements
-pub type Cl4_1<T> = Multivector<T, 32>;  // Conformal: 2^5 = 32 basis elements  
-pub type Cl4_4<T> = Multivector<T, 256>; // Spacetime: 2^8 = 256 basis elements
-
-impl<T: Float, const N: usize> Multivector<T, N> {
-    pub fn new(coeffs: SVector<T, N>) -> Self {
-        Self { coeffs }
-    }
-
-    pub fn zero() -> Self {
+impl<M: Multivector> ReactiveMultivector<M> {
+    /// Create a new reactive multivector
+    pub fn new(inner: M) -> Self {
         Self {
-            coeffs: SVector::zeros(),
+            inner,
+            version: next_version(),
+            updated_at: std::time::SystemTime::now(),
         }
     }
 
-    pub fn scalar(value: T) -> Self {
-        let mut coeffs = SVector::zeros();
-        coeffs[0] = value;
-        Self { coeffs }
+    /// Get the underlying Amari multivector
+    pub fn value(&self) -> &M {
+        &self.inner
     }
 
+    /// Update the value, incrementing the version counter
+    pub fn update(&mut self, new_value: M) {
+        self.inner = new_value;
+        self.version = next_version();
+        self.updated_at = std::time::SystemTime::now();
+    }
+
+    /// Apply a transformation function to the underlying multivector
+    pub fn map<F>(&self, f: F) -> Self 
+    where 
+        F: FnOnce(&M) -> M,
+    {
+        Self::new(f(&self.inner))
+    }
+
+    /// Check if this reactive multivector has been updated since the given version
+    pub fn changed_since(&self, version: u64) -> bool {
+        self.version > version
+    }
+
+    /// Get the current version number
+    pub fn version(&self) -> u64 {
+        self.version
+    }
+}
+
+impl<M: Multivector + GeometricProduct<M>> ReactiveMultivector<M> {
+    /// Geometric product with another reactive multivector
     pub fn geometric_product(&self, other: &Self) -> Self {
-        let mut result = Self::zero();
-        
-        for i in 0..N {
-            for j in 0..N {
-                let coeff = self.coeffs[i] * other.coeffs[j];
-                let (k, sign) = geometric_product_table(i, j);
-                if k < N {
-                    result.coeffs[k] = result.coeffs[k] + coeff * T::from(sign).unwrap();
-                }
-            }
-        }
-        
-        result
+        Self::new(self.inner.geometric_product(&other.inner))
     }
 
-    pub fn sandwich(&self, x: &Self) -> Self {
-        let conjugate = self.conjugate();
-        self.geometric_product(x).geometric_product(&conjugate)
+    /// Sandwich product: self * other * self.reverse()
+    pub fn sandwich(&self, other: &Self) -> Self {
+        Self::new(self.inner.sandwich(&other.inner))
     }
+}
 
-    pub fn conjugate(&self) -> Self {
-        let mut result = self.clone();
-        
-        for i in 1..N {
-            if grade_of_basis(i) % 2 == 1 {
-                result.coeffs[i] = -result.coeffs[i];
-            }
-        }
-        
-        result
-    }
-
+impl<M: Multivector + Exponential> ReactiveMultivector<M> {
+    /// Exponential map
     pub fn exp(&self) -> Self {
-        let mut result = Self::scalar(T::one());
-        let mut term = self.clone();
-        let mut factorial = T::one();
-
-        for n in 1..20 {
-            factorial = factorial * T::from(n).unwrap();
-            result = result + term.scale(T::one() / factorial);
-            term = term.geometric_product(self);
-        }
-
-        result
+        Self::new(self.inner.exp())
     }
+}
 
+impl<M: Multivector + Logarithm> ReactiveMultivector<M> {
+    /// Logarithm
     pub fn log(&self) -> Self {
-        let scalar_part = self.coeffs[0];
-        let vector_part = self.grade_projection(1);
-        
-        let magnitude = scalar_part * scalar_part + vector_part.magnitude_squared();
-        let log_magnitude = magnitude.sqrt().ln();
-        
-        if vector_part.is_zero() {
-            Self::scalar(log_magnitude)
-        } else {
-            let angle = (vector_part.magnitude() / scalar_part).atan();
-            Self::scalar(log_magnitude) + vector_part.normalize().scale(angle)
-        }
-    }
-
-    pub fn grade_projection(&self, grade: usize) -> Self {
-        let mut result = Self::zero();
-        
-        for i in 0..N {
-            if grade_of_basis(i) == grade {
-                result.coeffs[i] = self.coeffs[i];
-            }
-        }
-        
-        result
-    }
-
-    pub fn magnitude_squared(&self) -> T {
-        self.coeffs.iter().map(|&x| x * x).fold(T::zero(), |acc, x| acc + x)
-    }
-
-    pub fn magnitude(&self) -> T {
-        self.magnitude_squared().sqrt()
-    }
-
-    pub fn normalize(&self) -> Self {
-        let mag = self.magnitude();
-        if mag > T::zero() {
-            self.scale(T::one() / mag)
-        } else {
-            self.clone()
-        }
-    }
-
-    pub fn scale(&self, scalar: T) -> Self {
-        Self {
-            coeffs: self.coeffs * scalar,
-        }
-    }
-
-    pub fn is_zero(&self) -> bool {
-        self.coeffs.iter().all(|&x| x == T::zero())
+        Self::new(self.inner.log())
     }
 }
 
-impl<T: Float, const N: usize> Add for Multivector<T, N> {
-    type Output = Self;
+impl<M: Multivector + GradeSelection> ReactiveMultivector<M> {
+    /// Grade projection
+    pub fn grade(&self, k: usize) -> Self {
+        Self::new(self.inner.grade(k))
+    }
 
-    fn add(self, other: Self) -> Self::Output {
-        Self {
-            coeffs: self.coeffs + other.coeffs,
-        }
+    /// Scalar part (grade 0)
+    pub fn scalar(&self) -> Self {
+        self.grade(0)
+    }
+
+    /// Vector part (grade 1)  
+    pub fn vector(&self) -> Self {
+        self.grade(1)
+    }
+
+    /// Bivector part (grade 2)
+    pub fn bivector(&self) -> Self {
+        self.grade(2)
     }
 }
 
-impl<T: Float, const N: usize> Sub for Multivector<T, N> {
-    type Output = Self;
+/// Global version counter for tracking changes
+static VERSION_COUNTER: AtomicU64 = AtomicU64::new(0);
 
-    fn sub(self, other: Self) -> Self::Output {
-        Self {
-            coeffs: self.coeffs - other.coeffs,
-        }
-    }
+fn next_version() -> u64 {
+    VERSION_COUNTER.fetch_add(1, Ordering::Relaxed)
 }
 
-impl<T: Float, const N: usize> Mul<T> for Multivector<T, N> {
-    type Output = Self;
-
-    fn mul(self, scalar: T) -> Self::Output {
-        self.scale(scalar)
-    }
-}
-
-fn geometric_product_table(i: usize, j: usize) -> (usize, i8) {
-    let basis_i = i;
-    let basis_j = j;
-    let result_basis = basis_i ^ basis_j;
-    
-    let sign = if count_swaps(basis_i, basis_j) % 2 == 0 { 1 } else { -1 };
-    
-    (result_basis, sign)
-}
-
-fn count_swaps(a: usize, b: usize) -> usize {
-    let mut count = 0;
-    for i in 0..8 {
-        if (a >> i) & 1 == 1 {
-            for j in 0..i {
-                if (b >> j) & 1 == 1 {
-                    count += 1;
-                }
-            }
-        }
-    }
-    count
-}
-
-fn grade_of_basis(basis: usize) -> usize {
-    basis.count_ones() as usize
-}
-
-pub mod cl3_0 {
+/// Cliffy-specific constructors for common geometric algebra operations
+pub mod constructors {
     use super::*;
+    use amari_core::scalar_traits::Float;
 
-    pub type Multivector3D<T> = Cl3_0<T>;
-
-    pub fn e1<T: Float>() -> Multivector3D<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[1] = T::one();
-        Multivector3D::new(coeffs)
+    /// Create a reactive scalar multivector
+    pub fn scalar<T: Float>(value: T) -> ReactiveMultivector<GA3<T>> {
+        ReactiveMultivector::new(GA3::scalar(value))
     }
 
-    pub fn e2<T: Float>() -> Multivector3D<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[2] = T::one();
-        Multivector3D::new(coeffs)
+    /// Create a reactive 3D vector
+    pub fn vector3d<T: Float>(x: T, y: T, z: T) -> ReactiveMultivector<GA3<T>> {
+        ReactiveMultivector::new(GA3::vector([x, y, z]))
     }
 
-    pub fn e3<T: Float>() -> Multivector3D<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[4] = T::one();
-        Multivector3D::new(coeffs)
-    }
-
-    pub fn rotor<T: Float>(angle: T, bivector: &Multivector3D<T>) -> Multivector3D<T> {
+    /// Create a reactive rotor from angle and bivector
+    pub fn rotor<T: Float>(angle: T, bivector: &GA3<T>) -> ReactiveMultivector<GA3<T>> {
         let half_angle = angle / T::from(2.0).unwrap();
-        let cos_half = half_angle.cos();
-        let sin_half = half_angle.sin();
-        
-        Multivector3D::scalar(cos_half) + bivector.normalize().scale(sin_half)
-    }
-}
-
-pub mod cl4_1 {
-    use super::*;
-
-    pub type ConformalMultivector<T> = Cl4_1<T>;
-
-    pub fn einf<T: Float>() -> ConformalMultivector<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[16] = T::one();
-        ConformalMultivector::new(coeffs)
+        let rotor = GA3::scalar(half_angle.cos()) + bivector.normalized() * half_angle.sin();
+        ReactiveMultivector::new(rotor)
     }
 
-    pub fn e0<T: Float>() -> ConformalMultivector<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[8] = T::one();
-        ConformalMultivector::new(coeffs)
+    /// Create a reactive conformal point
+    pub fn conformal_point<T: Float>(x: T, y: T, z: T) -> ReactiveMultivector<GA4_1<T>> {
+        ReactiveMultivector::new(GA4_1::point([x, y, z]))
     }
 
-    pub fn point<T: Float>(x: T, y: T, z: T) -> ConformalMultivector<T> {
-        let e1 = cl3_0::e1::<T>();
-        let e2 = cl3_0::e2::<T>();
-        let e3 = cl3_0::e3::<T>();
-        let einf = self::einf::<T>();
-        let e0 = self::e0::<T>();
-
-        let point_3d = e1.scale(x) + e2.scale(y) + e3.scale(z);
-        let radius_squared = x * x + y * y + z * z;
-        
-        point_3d + e0 + einf.scale(radius_squared / T::from(2.0).unwrap())
-    }
-}
-
-pub mod cl4_4 {
-    use super::*;
-
-    pub type SpacetimeMultivector<T> = Cl4_4<T>;
-
+    /// Create a reactive spacetime interval
     pub fn spacetime_interval<T: Float>(
         t: T, x: T, y: T, z: T
-    ) -> SpacetimeMultivector<T> {
-        let mut coeffs = SVector::zeros();
-        coeffs[0] = t * t - x * x - y * y - z * z;
-        SpacetimeMultivector::new(coeffs)
+    ) -> ReactiveMultivector<GA4_4<T>> {
+        ReactiveMultivector::new(GA4_4::spacetime_vector([t, x, y, z]))
+    }
+}
+
+/// Interpolation utilities for reactive multivectors
+pub mod interpolation {
+    use super::*;
+    use amari_core::scalar_traits::Float;
+
+    /// Linear interpolation between two reactive multivectors
+    pub fn lerp<M: Multivector + Clone>(
+        a: &ReactiveMultivector<M>,
+        b: &ReactiveMultivector<M>, 
+        t: M::Scalar
+    ) -> ReactiveMultivector<M>
+    where
+        M::Scalar: Float,
+        M: std::ops::Add<Output = M> + std::ops::Mul<M::Scalar, Output = M>,
+    {
+        let one_minus_t = M::Scalar::one() - t;
+        let result = a.inner.clone() * one_minus_t + b.inner.clone() * t;
+        ReactiveMultivector::new(result)
+    }
+
+    /// Spherical linear interpolation for rotors
+    pub fn slerp<T: Float>(
+        a: &ReactiveMultivector<GA3<T>>,
+        b: &ReactiveMultivector<GA3<T>>,
+        t: T
+    ) -> ReactiveMultivector<GA3<T>> {
+        // Use Amari's rotor slerp functionality
+        let result = amari_fusion::slerp(&a.inner, &b.inner, t);
+        ReactiveMultivector::new(result)
+    }
+}
+
+/// Animation utilities for reactive multivectors
+pub mod animation {
+    use super::*;
+    use std::time::{Duration, SystemTime};
+
+    /// An animated reactive multivector that changes over time
+    #[derive(Debug, Clone)]
+    pub struct AnimatedMultivector<M: Multivector> {
+        pub start: ReactiveMultivector<M>,
+        pub end: ReactiveMultivector<M>,
+        pub duration: Duration,
+        pub start_time: SystemTime,
+    }
+
+    impl<M: Multivector + Clone> AnimatedMultivector<M> 
+    where
+        M: std::ops::Add<Output = M> + std::ops::Mul<M::Scalar, Output = M>,
+        M::Scalar: amari_core::scalar_traits::Float,
+    {
+        /// Create a new animation between two values
+        pub fn new(
+            start: ReactiveMultivector<M>,
+            end: ReactiveMultivector<M>,
+            duration: Duration,
+        ) -> Self {
+            Self {
+                start,
+                end,
+                duration,
+                start_time: SystemTime::now(),
+            }
+        }
+
+        /// Sample the animation at the current time
+        pub fn sample(&self) -> ReactiveMultivector<M> {
+            let elapsed = self.start_time.elapsed().unwrap_or(Duration::ZERO);
+            let t = (elapsed.as_secs_f64() / self.duration.as_secs_f64()).min(1.0);
+            let t_scalar = M::Scalar::from(t).unwrap_or(M::Scalar::zero());
+            
+            interpolation::lerp(&self.start, &self.end, t_scalar)
+        }
+
+        /// Check if the animation is complete
+        pub fn is_complete(&self) -> bool {
+            self.start_time.elapsed().unwrap_or(Duration::ZERO) >= self.duration
+        }
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use super::cl3_0::*;
+    use super::constructors::*;
 
     #[test]
-    fn test_geometric_product_associativity() {
-        let a = Multivector3D::scalar(2.0);
-        let b = e1::<f64>();
-        let c = e2::<f64>();
-
-        let left = (a.geometric_product(&b)).geometric_product(&c);
-        let right = a.geometric_product(&(b.geometric_product(&c)));
-
-        assert!((left.coeffs - right.coeffs).magnitude() < 1e-10);
+    fn test_reactive_multivector_creation() {
+        let scalar_mv = scalar(42.0);
+        assert_eq!(scalar_mv.value().scalar_part(), 42.0);
     }
 
     #[test]
-    fn test_rotor_exp() {
-        let bivector = e1::<f64>().geometric_product(&e2::<f64>());
-        let angle = std::f64::consts::PI / 4.0;
+    fn test_reactive_multivector_versioning() {
+        let mut mv = scalar(1.0);
+        let initial_version = mv.version();
         
-        let rotor1 = rotor(angle, &bivector);
-        let rotor2 = bivector.scale(-angle / 2.0).exp();
+        mv.update(GA3::scalar(2.0));
+        assert!(mv.version() > initial_version);
+        assert!(mv.changed_since(initial_version));
+    }
 
-        assert!((rotor1.coeffs - rotor2.coeffs).magnitude() < 1e-10);
+    #[test] 
+    fn test_reactive_geometric_product() {
+        let a = vector3d(1.0, 0.0, 0.0);
+        let b = vector3d(0.0, 1.0, 0.0);
+        let product = a.geometric_product(&b);
+        
+        // Should produce a bivector
+        let bivector_part = product.bivector();
+        assert!(bivector_part.value().magnitude() > 0.0);
     }
 
     #[test]
-    fn test_magnitude() {
-        let v = e1::<f64>() + e2::<f64>() + e3::<f64>();
-        assert!((v.magnitude() - 3.0f64.sqrt()).abs() < 1e-10);
+    fn test_interpolation() {
+        let start = scalar(0.0);
+        let end = scalar(10.0);
+        let mid = interpolation::lerp(&start, &end, 0.5);
+        
+        assert_eq!(mid.value().scalar_part(), 5.0);
+    }
+
+    #[test]
+    fn test_animation() {
+        use std::time::Duration;
+        
+        let start = scalar(0.0);
+        let end = scalar(10.0);
+        let anim = animation::AnimatedMultivector::new(start, end, Duration::from_secs(1));
+        
+        let sample = anim.sample();
+        assert!(sample.value().scalar_part() >= 0.0);
+        assert!(sample.value().scalar_part() <= 10.0);
     }
 }
