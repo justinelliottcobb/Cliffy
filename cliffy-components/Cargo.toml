@@ -9,8 +9,8 @@ cliffy-core = { path = "../cliffy-core" }
 cliffy-frp = { path = "../cliffy-frp" }
 cliffy-dom = { path = "../cliffy-dom" }
 serde = { workspace = true }
-nalgebra = { workspace = true }
-num-traits = { workspace = true }
+amari-core = { workspace = true }
+amari-fusion = { workspace = true }
 wasm-bindgen = { workspace = true }
 web-sys = { workspace = true }
 js-sys = { workspace = true }
