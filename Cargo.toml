@@ -7,6 +7,7 @@ members = [
     "cliffy-gpu",
     "cliffy-dom",
     "cliffy-components",
+    "cliffy-alive",
     "examples/collaborative-editor"
 ]
 resolver = "2"
@@ -27,4 +28,3 @@ codegen-units = 1
 
 [profile.release.package."*"]
 opt-level = 3
-
