@@ -33,7 +33,15 @@ Creates a **geometric dataflow graph** where:
 - **`geometric-runtime.ts`**: Direct graph-to-DOM projection (no virtual DOM)
 - **`behavior.ts`**: Geometric behaviors using multivector mathematics
 
-#### 3. State Management Approach
+#### 3. Living UI System (`cliffy-alive`)
+- **Revolutionary Paradigm**: UI components are living cells in 8-dimensional geometric space
+- **Cellular Automata**: Each UI element is a cell with DNA, energy, and lifecycle
+- **Evolutionary Adaptation**: Real-time evolution based on user interaction fitness
+- **8D Geometric Space**: Position (x,y), size (width,height), visual properties (z-index, opacity, rotation, scale)
+- **Genetic Algorithm**: DNA-based behavior with traits, affinities, mutation, and crossover
+- **Autonomous Organization**: Cells self-organize spatially based on genetic affinities
+
+#### 4. State Management Approach
 All state uses **GeometricBehavior<T>** with Clifford algebra operations:
 ```tsx
 const todosState = createGeometricBehavior<Todo[]>([]);
@@ -70,6 +78,9 @@ npm test
 cargo test --workspace      # Rust unit/integration tests
 npm run test:typescript     # TypeScript/Vitest tests
 
+# Living UI system tests
+cargo test -p cliffy-alive   # Cellular automata and evolution tests
+
 # Linting and type checking
 npm run lint                # ESLint for TypeScript
 npm run type-check          # TypeScript compiler checks
@@ -82,6 +93,9 @@ cd examples/todo-app && npm run dev
 
 # Collaborative editor (distributed CRDT example)
 cd examples/collaborative-editor && npm run dev
+
+# Living UI playground (cellular automata demo)
+cd examples/living-ui && npm run dev
 ```
 
 ## Critical Architecture Concepts
@@ -98,6 +112,14 @@ Replace JavaScript control structures with mathematical operations:
 - Updates use Clifford algebra: translations, rotations, scaling operations
 - Reactive system based on multivector mathematics
 
+### Living UI Cellular Automata
+- **Biological UI**: Components are living cells with DNA, energy, age, and fitness
+- **8D Geometric Space**: Each cell exists in position(x,y) + size(w,h) + visual(z,opacity,rotation,scale)
+- **Evolutionary Pressure**: User interactions provide fitness feedback for natural selection
+- **Genetic System**: Cells have DNA with traits (energy_efficiency, cooperation) and affinities to other cell types
+- **Autonomous Organization**: Spatial forces organize cells based on genetic affinities and energy sources
+- **Real-time Evolution**: Population evolves through selection, crossover, and mutation based on user behavior
+
 ### Direct Graph Projection (No Virtual DOM)
 - TSX compiles at **build-time** to optimized geometric dataflow graphs
 - **Runtime**: Only data flows through pre-compiled graph structure
@@ -112,6 +134,13 @@ Replace JavaScript control structures with mathematical operations:
 3. **Updates**: Apply geometric transformations using Clifford algebra operations
 4. **Components**: Return `AlgebraicElement` structures, not virtual DOM
 
+### Working with Living UI
+1. **Cell Creation**: Use `UICell::new(cell_type)` to create living UI components
+2. **DNA Programming**: Define cell behavior through genetic traits and affinities
+3. **Energy Sources**: Position energy sources to guide cell organization and survival
+4. **Evolution Config**: Set selection pressures and mutation rates for desired adaptation
+5. **Organism Management**: Use `UIOrganismField` to manage cell populations and evolution
+
 ### WASM Integration Points
 - **`cliffy-wasm/src/lib.rs`**: Rust-WASM boundary definitions
 - **Build Process**: `wasm-pack` generates TypeScript bindings automatically
@@ -120,7 +149,7 @@ Replace JavaScript control structures with mathematical operations:
 ### Multi-Language Bindings
 - **TypeScript**: Primary development interface (`cliffy-typescript/`)
 - **PureScript**: Functional programming interface (`cliffy-purescript/`)
-- **Rust**: Core mathematical operations (`cliffy-core/`)
+- **Rust**: Core mathematical operations (`cliffy-core/`, `cliffy-alive/`)
 
 ## Framework Extension Points
 
@@ -133,6 +162,12 @@ Add to `algebraic-combinators.ts` following the pattern of existing combinators 
 ### Clifford Algebra Extensions
 Extend geometric operations in `cliffy-core/src/lib.rs` for new mathematical transformations.
 
+### Living UI Cell Types
+Add new cell types in `cliffy-alive/src/ui_cell.rs` by extending the `UICellType` enum and implementing their specific behaviors.
+
+### Evolution Strategies
+Implement custom evolution strategies in `cliffy-alive/src/evolution.rs` by extending the `EvolutionStrategy` enum.
+
 ## Performance Characteristics
 
 ### Compile-Time Optimizations
@@ -144,5 +179,27 @@ Extend geometric operations in `cliffy-core/src/lib.rs` for new mathematical tra
 - **Zero Virtual DOM**: Direct mathematical transformations to DOM
 - **Minimal JavaScript**: Core logic in optimized WASM
 - **Incremental Updates**: Only changed behaviors trigger DOM updates
+- **Living UI Optimization**: Cellular automata run in separate threads, spatial indexing for collision detection
 
-The framework explores an alternative approach to UI development, using mathematical/algebraic specification with Clifford algebra as the foundation.
+## Current Project State
+
+### Implemented Modules
+- **`cliffy-core`**: Complete Clifford algebra implementation with SIMD optimization
+- **`cliffy-wasm`**: WASM bindings for browser integration
+- **`cliffy-typescript`**: Algebraic TSX framework with geometric behaviors
+- **`cliffy-alive`**: Revolutionary living UI system with cellular automata and evolutionary algorithms
+
+### Recent Development
+- **Living UI System**: Just completed comprehensive implementation of cellular automata-based UI
+- **8D Geometric Space**: UI cells exist in 8-dimensional space for complete visual control
+- **Genetic Algorithms**: Full DNA system with traits, affinities, selection, crossover, and mutation
+- **Test Suite**: Comprehensive test coverage for cell behavior, organism management, evolution, and WASM integration
+- **Branch Status**: Code is on `cliffy-alive-living-ui` branch, ready for merge
+
+### Next Development Priorities
+1. **Living UI Examples**: Create interactive demos showcasing evolutionary UI adaptation
+2. **Performance Optimization**: Profile and optimize cellular automata for real-world applications
+3. **Integration Layer**: Bridge between Algebraic TSX and Living UI for hybrid applications
+4. **Documentation**: Complete API documentation for the living UI system
+
+The framework explores revolutionary approaches to UI development, using mathematical/algebraic specification with Clifford algebra as the foundation, and now includes living cellular automata that evolve based on user interactions.
