@@ -4,8 +4,8 @@
 //! reproduce, and evolve. It uses Amari's cellular automata foundation to create
 //! complex emergent behaviors from simple local rules.
 
-use amari_core::GA3;
-use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
+use cliffy_core::GA3;
+// use amari_automata::{AutomatonField, AutomatonCell, CellularRule}; // Not yet published
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

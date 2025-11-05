@@ -26,6 +26,7 @@ Creates a **geometric dataflow graph** where:
 - **Clifford Algebra Implementation**: Supports Cl(3,0), Cl(4,1), Cl(4,4) algebras
 - **High-Performance Math**: SIMD-optimized geometric operations
 - **WASM Bindings**: Direct integration with TypeScript layer
+- **⚠️ Note**: Originally intended to use `amari-wasm` for geometric functions. Current `cliffy-core` implementation may be redundant and subject to refactoring.
 
 #### 2. TypeScript Framework (`cliffy-typescript`)
 - **`algebraic-jsx.ts`**: JSX factory that creates geometric dataflow graphs
@@ -40,6 +41,16 @@ Creates a **geometric dataflow graph** where:
 - **8D Geometric Space**: Position (x,y), size (width,height), visual properties (z-index, opacity, rotation, scale)
 - **Genetic Algorithm**: DNA-based behavior with traits, affinities, mutation, and crossover
 - **Autonomous Organization**: Cells self-organize spatially based on genetic affinities
+
+**⚠️ Status**: Implementation complete but currently non-functional due to missing external dependencies:
+- **External Dependencies**:
+  - `amari-core` (path: ../../amari/amari-core) - Cellular automata foundation
+  - `amari-fusion` (path: ../../amari/amari-fusion) - Geometric product operations
+- **Impact**: Cannot compile; blocks workspace-level cargo commands
+- **Source Files**: Complete implementation with 7 modules (~164KB of Rust code)
+  - `ui_cell.rs` (30,910 bytes), `ui_organism.rs` (24,003 bytes), `evolution.rs` (23,896 bytes)
+  - `metabolism.rs` (18,699 bytes), `nervous_system.rs` (29,179 bytes), `physics.rs` (27,603 bytes)
+- **Test Suite**: Complete test coverage (4 test files, ~35KB)
 
 #### 4. State Management Approach
 All state uses **GeometricBehavior<T>** with Clifford algebra operations:
@@ -75,11 +86,13 @@ npm run watch:rust          # Cargo watch for Rust changes
 npm test
 
 # Individual test suites
-cargo test --workspace      # Rust unit/integration tests
+cargo test --workspace      # ⚠️ Currently blocked by cliffy-alive dependencies
 npm run test:typescript     # TypeScript/Vitest tests
 
-# Living UI system tests
-cargo test -p cliffy-alive   # Cellular automata and evolution tests
+# Individual crate tests (workaround)
+cargo test -p cliffy-core
+cargo test -p cliffy-wasm
+# cargo test -p cliffy-alive   # ⚠️ Blocked by missing amari dependencies
 
 # Linting and type checking
 npm run lint                # ESLint for TypeScript
@@ -94,8 +107,20 @@ cd examples/todo-app && npm run dev
 # Collaborative editor (distributed CRDT example)
 cd examples/collaborative-editor && npm run dev
 
-# Living UI playground (cellular automata demo)
-cd examples/living-ui && npm run dev
+# Basic counter (fundamental patterns)
+cd examples/basic-counter && npm run dev
+
+# Form validation (complex state management)
+cd examples/form-validation && npm run dev
+
+# Geometric animations (transformation showcase)
+cd examples/geometric-animations && npm run dev
+
+# Geometric visualization (3D interactive demos with Three.js)
+cd examples/geometric-visualization && npm run dev
+
+# ⚠️ Living UI playground - Not yet created (planned)
+# cd examples/living-ui && npm run dev
 ```
 
 ## Critical Architecture Concepts
@@ -184,22 +209,112 @@ Implement custom evolution strategies in `cliffy-alive/src/evolution.rs` by exte
 ## Current Project State
 
 ### Implemented Modules
-- **`cliffy-core`**: Complete Clifford algebra implementation with SIMD optimization
+- **`cliffy-core`**: Clifford algebra implementation (⚠️ may be redundant with amari)
 - **`cliffy-wasm`**: WASM bindings for browser integration
 - **`cliffy-typescript`**: Algebraic TSX framework with geometric behaviors
-- **`cliffy-alive`**: Revolutionary living UI system with cellular automata and evolutionary algorithms
+  - All documented files present: `algebraic-jsx.ts`, `algebraic-combinators.ts`, `geometric-runtime.ts`, `behavior.ts`, etc.
+- **`cliffy-frp`**: Functional reactive programming primitives
+- **`cliffy-dom`**: DOM manipulation layer
+- **`cliffy-protocols`**: Communication protocols
+- **`cliffy-gpu`**: GPU acceleration support
+- **`cliffy-components`**: Reusable component library
+- **`cliffy-alive`**: Living UI implementation (⚠️ non-functional due to missing dependencies)
+
+### Working Examples
+All examples are implemented and contain source code:
+- ✅ `basic-counter` - Fundamental Cliffy patterns
+- ✅ `todo-app` - Complete TodoMVC with algebraic TSX
+- ✅ `form-validation` - Complex state management and validation
+- ✅ `geometric-animations` - Transformation showcase
+- ✅ `geometric-visualization` - 3D interactive demos with Three.js
+- ✅ `collaborative-editor` - Real-time CRDT editor
+- ✅ `algebraic-tsx-test` - Vite plugin testing
+- ✅ `dashboard` - Dashboard example
+- ❌ `living-ui` - Planned but not yet created
 
 ### Recent Development
-- **Living UI System**: Just completed comprehensive implementation of cellular automata-based UI
-- **8D Geometric Space**: UI cells exist in 8-dimensional space for complete visual control
-- **Genetic Algorithms**: Full DNA system with traits, affinities, selection, crossover, and mutation
-- **Test Suite**: Comprehensive test coverage for cell behavior, organism management, evolution, and WASM integration
-- **Branch Status**: Code is on `cliffy-alive-living-ui` branch, ready for merge
+- **Living UI System**: Source implementation complete with comprehensive modules:
+  - 7 core modules: ui_cell, ui_organism, evolution, metabolism, nervous_system, physics, renderer
+  - 4 test files: ui_cell_test, organism_test, evolution_test, integration_test
+  - Total: ~164KB of Rust source + ~35KB of tests
+- **8D Geometric Space**: Fully implemented in ui_cell.rs
+- **Genetic Algorithms**: Complete DNA system with traits, affinities, selection, crossover, and mutation
+- **Branch Status**: Code on `cliffy-alive-living-ui` branch
+
+### Known Issues & Blockers
+
+#### 1. Missing External Dependencies (Critical)
+`cliffy-alive` depends on external `amari` project that is not present:
+- `amari-core` (../../amari/amari-core) - Cellular automata foundation
+- `amari-fusion` (../../amari/amari-fusion) - Geometric product operations
+
+**Impact**:
+- ❌ Cannot compile `cliffy-alive`
+- ❌ Blocks all workspace-level cargo commands (`cargo test --workspace`, `cargo build --workspace`)
+- ❌ Prevents Living UI functionality
+
+**Workarounds**:
+- Build individual crates: `cargo build -p cliffy-core`, `cargo build -p cliffy-wasm`
+- Temporarily remove `cliffy-alive` from workspace members in `Cargo.toml`
+
+#### 2. Dependency Strategy Resolved ✅
+**Decision Made**: Complete migration to Amari for all geometric operations.
+
+**Implementation Status**:
+- ✅ `cliffy-core` now depends on `amari-core = "0.9.8"`
+- ✅ `cliffy-alive` now depends on `amari-core = "0.9.8"` and `amari-fusion = "0.9.8"`
+- ✅ Redundant geometric algebra code removed from cliffy-core (299 lines → 104 lines)
+- ✅ `cliffy-core` now provides ONLY `ReactiveMultivector<T>` wrapper
+- ⚠️  API mismatch: cliffy-alive code expects `GA3`/`GA4_1` type aliases that don't exist in Amari 0.9.8
+
+**Amari API Reality**:
+```rust
+// Amari 0.9.8 provides:
+pub struct Multivector<const P: usize, const Q: usize, const R: usize>
+
+// cliffy-alive expects (doesn't exist):
+use amari_core::{GA3, GA4_1, scalar_traits::Float};
+```
+
+**Next Step**: Add type alias compatibility layer or rewrite cliffy-alive to use actual Amari API
 
 ### Next Development Priorities
-1. **Living UI Examples**: Create interactive demos showcasing evolutionary UI adaptation
-2. **Performance Optimization**: Profile and optimize cellular automata for real-world applications
-3. **Integration Layer**: Bridge between Algebraic TSX and Living UI for hybrid applications
-4. **Documentation**: Complete API documentation for the living UI system
+1. **API Compatibility Layer**: Add type aliases to cliffy-core to bridge Amari API mismatch
+   - Create `GA3<T>` → `Multivector<3,0,0>` alias
+   - Create `GA4_1<T>` → `Multivector<4,1,0>` alias
+   - Re-export `scalar_traits` module
+2. **Fix cliffy-alive Compilation Issues**:
+   - Create missing `renderer` module
+   - Fix syntax error in `ui_cell.rs` (literal `\n` in imports)
+   - Resolve `amari-automata` dependency (commented out, not published)
+3. **Living UI Examples**: Create `examples/living-ui` demo once cliffy-alive compiles
+4. **Integration Testing**: Verify end-to-end compilation and functionality
+5. **Documentation**: Complete API documentation for the living UI system
+
+## Workspace Structure
+
+### Rust Workspace (`Cargo.toml`)
+Current workspace members:
+- `cliffy-core` - Geometric algebra core (may be redundant)
+- `cliffy-frp` - Functional reactive programming
+- `cliffy-wasm` - WASM bindings
+- `cliffy-protocols` - Communication protocols
+- `cliffy-gpu` - GPU acceleration
+- `cliffy-dom` - DOM manipulation
+- `cliffy-components` - Component library
+- `cliffy-alive` - Living UI (⚠️ broken dependencies)
+- `examples/collaborative-editor` - CRDT example with Rust backend
+
+### NPM Workspace (`package.json`)
+Current npm workspaces:
+- `cliffy-typescript` - Main TypeScript framework
+- `cliffy-purescript` - PureScript bindings
+- `vite-plugin-algebraic-tsx` - Build-time TSX transformation plugin
+- `examples/*` - All example applications (8 total)
+
+### Build Tooling
+- **Vite Plugin**: `vite-plugin-algebraic-tsx` transforms TSX at build time into geometric dataflow graphs
+- **WASM Integration**: `wasm-pack` builds Rust → WASM with TypeScript bindings
+- **Multi-Language**: TypeScript (primary), PureScript (functional), Rust (core math)
 
 The framework explores revolutionary approaches to UI development, using mathematical/algebraic specification with Clifford algebra as the foundation, and now includes living cellular automata that evolve based on user interactions.

@@ -4,7 +4,7 @@
 //! that allow UI elements to evolve and improve over time based on user
 //! interaction patterns and environmental pressures.
 
-use amari_core::GA3;
+use cliffy_core::GA3;
 use rand::{Rng, thread_rng};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;

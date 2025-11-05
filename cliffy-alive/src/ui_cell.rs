@@ -4,13 +4,12 @@
 //! a geometric state using Amari's multivectors and participates in the cellular
 //! automaton that drives UI evolution and behavior.
 
-use amari_core::{GA3, scalar_traits::Float};
+use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
 // use amari_automata::{AutomatonCell, CellularRule};
-use amari_fusion::GeometricProduct;
-use cliffy_core::ReactiveMultivector;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;\nuse rand;
+use uuid::Uuid;
+use rand;
 
 use crate::{LivingComponent, UIEnergy, UITime, AliveConfig};
 
@@ -151,7 +150,7 @@ pub struct UICell {
     state: CellState,
     
     /// Geometric state using Amari multivectors (8D: x,y,w,h,z,opacity,rotation,scale)
-    geometric_state: ReactiveMultivector<GA3<f64>>,
+    geometric_state: ReactiveMultivector<GA3>,
     
     /// Current energy level
     energy: UIEnergy,
@@ -442,7 +441,7 @@ impl UICell {
     }
     
     /// Create a new UI cell at a specific position
-    pub fn new_at_position(cell_type: UICellType, position: GA3<f64>) -> Self {
+    pub fn new_at_position(cell_type: UICellType, position: GA3) -> Self {
         let id = Uuid::new_v4();
         let geometric_state = ReactiveMultivector::new(position);
         let energy = cell_type.base_energy_cost() * 10.0; // Start with 10x base cost
@@ -571,7 +570,7 @@ impl UICell {
     }
     
     /// Create offspring cell
-    pub fn reproduce(&mut self, position: GA3<f64>) -> Option<UICell> {
+    pub fn reproduce(&mut self, position: GA3) -> Option<UICell> {
         if self.state != CellState::Reproducing {
             return None;
         }
@@ -623,7 +622,7 @@ impl UICell {
     // === Methods for test support ===
     
     /// Get the cell's 8D geometric nucleus state
-    pub fn nucleus(&self) -> &ReactiveMultivector<GA3<f64>> {
+    pub fn nucleus(&self) -> &ReactiveMultivector<GA3> {
         &self.geometric_state
     }
 
@@ -833,7 +832,7 @@ pub enum InteractionType {
 }
 
 impl LivingComponent for UICell {
-    fn geometric_state(&self) -> &ReactiveMultivector<GA3<f64>> {
+    fn geometric_state(&self) -> &ReactiveMultivector<GA3> {
         &self.geometric_state
     }
     

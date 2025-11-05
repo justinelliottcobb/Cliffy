@@ -13,10 +13,8 @@ pub mod physics;
 pub mod nervous_system;
 pub mod renderer;
 
-use amari_core::{GA3, GA4_1, scalar_traits::Float};
+use cliffy_core::{GA3, GA4_1, ReactiveMultivector, scalar_traits::Float};
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
-use amari_fusion::GeometricProduct;
-use cliffy_core::ReactiveMultivector;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -42,7 +40,7 @@ pub type UICoordinates = (usize, usize);
 /// Core trait for all living UI components
 pub trait LivingComponent: Send + Sync {
     /// Get the current geometric state of this component
-    fn geometric_state(&self) -> &ReactiveMultivector<GA3<f64>>;
+    fn geometric_state(&self) -> &ReactiveMultivector<GA3>;
     
     /// Get the current energy level
     fn energy_level(&self) -> UIEnergy;

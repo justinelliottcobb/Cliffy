@@ -3,7 +3,7 @@
 //! This module implements a neural network-like system that allows UI organisms
 //! to sense, process, and respond to user interactions in sophisticated ways.
 
-use amari_core::GA3;
+use cliffy_core::GA3;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -76,7 +76,7 @@ impl SensorType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stimulus {
     pub sensor_type: SensorType,
-    pub position: GA3<f64>,
+    pub position: GA3,
     pub intensity: f64,
     pub duration: UITime,
     pub timestamp: UITime,
@@ -85,7 +85,7 @@ pub struct Stimulus {
 
 impl Stimulus {
     /// Create a new stimulus
-    pub fn new(sensor_type: SensorType, position: GA3<f64>, intensity: f64) -> Self {
+    pub fn new(sensor_type: SensorType, position: GA3, intensity: f64) -> Self {
         Self {
             sensor_type,
             position,
@@ -103,13 +103,13 @@ impl Stimulus {
     }
     
     /// Check if the stimulus affects a cell at a given position
-    pub fn affects_position(&self, position: &GA3<f64>) -> bool {
+    pub fn affects_position(&self, position: &GA3) -> bool {
         let distance = (self.position - position.clone()).magnitude();
         distance <= self.sensor_type.detection_range()
     }
     
     /// Calculate the stimulus intensity at a given position
-    pub fn intensity_at(&self, position: &GA3<f64>) -> f64 {
+    pub fn intensity_at(&self, position: &GA3) -> f64 {
         let distance = (self.position - position.clone()).magnitude();
         let range = self.sensor_type.detection_range();
         
@@ -161,8 +161,8 @@ pub enum Action {
     },
     /// Physical movement
     Movement {
-        force: GA3<f64>,
-        torque: GA3<f64>,
+        force: GA3,
+        torque: GA3,
     },
     /// Energy manipulation
     EnergyChange {
@@ -476,7 +476,7 @@ impl CellNeuralNetwork {
     }
     
     /// Process a stimulus and generate responses
-    pub fn process_stimulus(&mut self, stimulus: Stimulus, cell_position: &GA3<f64>) -> Vec<Response> {
+    pub fn process_stimulus(&mut self, stimulus: Stimulus, cell_position: &GA3) -> Vec<Response> {
         // Check if stimulus affects this cell
         if !stimulus.affects_position(cell_position) {
             return Vec::new();
@@ -755,7 +755,7 @@ impl NervousSystem {
     }
     
     /// Update all neural networks
-    pub fn update(&mut self, dt: UITime, cell_positions: &HashMap<Uuid, GA3<f64>>) -> HashMap<Uuid, Vec<Response>> {
+    pub fn update(&mut self, dt: UITime, cell_positions: &HashMap<Uuid, GA3>) -> HashMap<Uuid, Vec<Response>> {
         let mut all_responses = HashMap::new();
         
         // Process queued stimuli
