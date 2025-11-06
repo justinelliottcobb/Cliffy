@@ -3,7 +3,7 @@
 //! This module implements a neural network-like system that allows UI organisms
 //! to sense, process, and respond to user interactions in sophisticated ways.
 
-use cliffy_core::GA3;
+use cliffy_core::{GA3, ga_helpers::vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -564,11 +564,11 @@ impl CellNeuralNetwork {
                 glow_delta: intensity * 0.5,
             }],
             "movement" => vec![Action::Movement {
-                force: GA3::vector([
+                force: vector3(
                     (rand::random::<f64>() - 0.5) * intensity,
                     (rand::random::<f64>() - 0.5) * intensity,
-                    0.0,
-                ]),
+                    0.0
+                ),
                 torque: GA3::zero(),
             }],
             "energy_change" => vec![Action::EnergyChange {
@@ -842,7 +842,7 @@ mod tests {
 
     #[test]
     fn test_stimulus_creation() {
-        let position = GA3::vector([1.0, 2.0, 0.0]);
+        let position = vector3(1.0, 2.0, 0.0);
         let stimulus = Stimulus::new(SensorType::Touch, position, 0.8);
         
         assert_eq!(stimulus.sensor_type, SensorType::Touch);
@@ -851,11 +851,11 @@ mod tests {
     
     #[test]
     fn test_stimulus_affects_position() {
-        let stimulus_pos = GA3::vector([0.0, 0.0, 0.0]);
+        let stimulus_pos = vector3(0.0, 0.0, 0.0);
         let stimulus = Stimulus::new(SensorType::Touch, stimulus_pos, 1.0);
         
-        let close_pos = GA3::vector([0.5, 0.0, 0.0]);
-        let far_pos = GA3::vector([5.0, 0.0, 0.0]);
+        let close_pos = vector3(0.5, 0.0, 0.0);
+        let far_pos = vector3(5.0, 0.0, 0.0);
         
         assert!(stimulus.affects_position(&close_pos));
         assert!(!stimulus.affects_position(&far_pos));
@@ -882,8 +882,8 @@ mod tests {
     #[test]
     fn test_nervous_system() {
         let mut system = NervousSystem::new();
-        let position = GA3::vector([0.0, 0.0, 0.0]);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let position = vector3(0.0, 0.0, 0.0);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         system.add_cell(&cell);
         assert!(system.get_network(&cell.id()).is_some());

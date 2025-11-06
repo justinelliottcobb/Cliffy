@@ -465,7 +465,7 @@ mod tests {
     fn test_metabolism_manager() {
         let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let consumption = manager.calculate_energy_consumption(
             &cell,
@@ -481,7 +481,7 @@ mod tests {
     fn test_cell_vitals() {
         let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let vitals = CellVitals::calculate(&cell, &manager);
         
@@ -507,7 +507,7 @@ mod tests {
     fn test_reproduction_requirements() {
         let mut manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
-        let mut cell = UICell::new(UICellType::ButtonCore, position);
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         // Young cell with lots of energy should be able to reproduce
         cell.add_energy(200.0);

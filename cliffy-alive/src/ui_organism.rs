@@ -107,7 +107,12 @@ impl UIOrganismField {
             history: Vec::new(),
         }
     }
-    
+
+    /// Get the total time the organism has been alive
+    pub fn total_time(&self) -> UITime {
+        self.total_time
+    }
+
     /// Plant a seed cell at the specified coordinates
     pub fn plant_seed(&mut self, x: usize, y: usize, cell_type: UICellType) -> Result<Uuid, AliveError> {
         if x >= self.dimensions.0 || y >= self.dimensions.1 {
@@ -118,8 +123,9 @@ impl UIOrganismField {
             return Err(AliveError::CellAlreadyExists { x, y });
         }
         
-        let position = GA3::vector([x as f64, y as f64, 0.0]);
-        let cell = UICell::new(cell_type, position);
+        use cliffy_core::ga_helpers::vector3;
+        let position = vector3(x as f64, y as f64, 0.0);
+        let cell = UICell::new_at_position(cell_type, position);
         let id = cell.id();
         
         self.grid[y][x] = Some(cell);
@@ -207,8 +213,9 @@ impl UIOrganismField {
                     // Check for reproduction
                     if cell.can_reproduce(self.config.reproduction_threshold) {
                         if let Some(offspring_pos) = self.find_empty_neighbor(x, y) {
+                            use cliffy_core::ga_helpers::vector3;
                             cell.start_reproduction();
-                            let position = GA3::vector([offspring_pos.0 as f64, offspring_pos.1 as f64, 0.0]);
+                            let position = vector3(offspring_pos.0 as f64, offspring_pos.1 as f64, 0.0);
                             if let Some(offspring) = cell.reproduce(position) {
                                 cells_to_add.push((offspring_pos.0, offspring_pos.1, offspring));
                             }

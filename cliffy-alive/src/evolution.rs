@@ -377,7 +377,7 @@ impl EvolutionEngine {
         let recent_interactions: Vec<_> = self
             .interaction_history
             .iter()
-            .filter(|event| event.timestamp > organism.total_time - 10.0) // Last 10 time units
+            .filter(|event| event.timestamp > organism.total_time() - 10.0) // Last 10 time units
             .collect();
         
         // Update trait memory based on successful interactions
@@ -544,7 +544,7 @@ impl EvolutionEngine {
         let recent_interactions: Vec<_> = self
             .interaction_history
             .iter()
-            .filter(|event| event.timestamp > organism.total_time - 10.0)
+            .filter(|event| event.timestamp > organism.total_time() - 10.0)
             .collect();
         
         if !recent_interactions.is_empty() {
@@ -614,7 +614,7 @@ mod tests {
     fn test_fitness_calculation() {
         let engine = EvolutionEngine::natural_selection();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let fitness = engine.calculate_natural_fitness(&cell);
         assert!(fitness >= 0.0 && fitness <= 1.0);
@@ -656,7 +656,7 @@ mod tests {
     fn test_trait_fitness() {
         let engine = EvolutionEngine::natural_selection();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let mut target_traits = HashMap::new();
         target_traits.insert("energy_efficiency".to_string(), 0.8);

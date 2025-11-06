@@ -514,12 +514,12 @@ impl UICell {
     
     /// Get the genome
     pub fn genome(&self) -> &CellGenome {
-        &self.genome
+        &self.dna
     }
-    
+
     /// Get mutable genome for mutations
     pub fn genome_mut(&mut self) -> &mut CellGenome {
-        &mut self.genome
+        &mut self.dna
     }
     
     /// Connect to another cell
@@ -630,8 +630,8 @@ impl UICell {
     pub fn position(&self) -> Position2D {
         let state = self.geometric_state.sample();
         Position2D {
-            x: state.scalar(), // Dimension 0
-            y: state.e1(),     // Dimension 1
+            x: state.scalar_part(), // Dimension 0
+            y: state.vector_component(0), // Dimension 1 (e1)
         }
     }
 
@@ -639,29 +639,29 @@ impl UICell {
     pub fn size(&self) -> Size2D {
         let state = self.geometric_state.sample();
         Size2D {
-            width: state.e2().abs().max(10.0),  // Dimension 2, minimum size
-            height: state.e3().abs().max(10.0), // Dimension 3, minimum size
+            width: state.vector_component(1).abs().max(10.0),  // Dimension 2 (e2), minimum size
+            height: state.vector_component(2).abs().max(10.0), // Dimension 3 (e3), minimum size
         }
     }
 
     /// Get opacity (0.0 to 1.0)
     pub fn opacity(&self) -> f64 {
         let state = self.geometric_state.sample();
-        ((state.e12() + 1.0) / 2.0).clamp(0.0, 1.0) // Dimension 5, normalized to 0-1
+        ((state.get(3) + 1.0) / 2.0).clamp(0.0, 1.0) // Dimension 5 (e12 bivector), normalized to 0-1
     }
 
     /// Get scale factor
     pub fn scale(&self) -> f64 {
         let state = self.geometric_state.sample();
-        state.e23().abs().max(0.1) // Dimension 7, minimum scale
+        state.get(6).abs().max(0.1) // Dimension 7 (e23 bivector), minimum scale
     }
 
     /// Set position
     pub fn set_position(&mut self, x: f64, y: f64) {
         let mut current = self.geometric_state.sample();
         current.set_scalar(x);
-        current.set_e1(y);
-        self.geometric_state.set_value(current);
+        current.set_vector_component(0, y); // e1
+        self.geometric_state.set(current);
     }
 
     /// Calculate affinity to another cell based on DNA
@@ -745,11 +745,11 @@ impl UICell {
         let mut current = self.geometric_state.sample();
         let random_dx = (rand::random::<f64>() - 0.5) * strength * 20.0;
         let random_dy = (rand::random::<f64>() - 0.5) * strength * 20.0;
-        
-        current.set_scalar(current.scalar() + random_dx);
-        current.set_e1(current.e1() + random_dy);
-        
-        self.geometric_state.set_value(current);
+
+        current.set_scalar(current.scalar_part() + random_dx);
+        current.set_vector_component(0, current.vector_component(0) + random_dy); // e1
+
+        self.geometric_state.set(current);
     }
 
     /// Apply stress to the cell
@@ -807,8 +807,8 @@ impl UICell {
         // Update opacity based on brightness gene
         if let Some(brightness) = self.dna.traits.get("display_brightness") {
             let mut current = self.geometric_state.sample();
-            current.set_e12(brightness * 2.0 - 1.0); // Convert 0-1 to -1-1
-            self.geometric_state.set_value(current);
+            current.set(3, brightness * 2.0 - 1.0); // e12 bivector component, convert 0-1 to -1-1
+            self.geometric_state.set(current);
         }
     }
 
@@ -850,8 +850,8 @@ impl UICell {
         let energy_cost = self.cell_type.base_energy_cost() * dt;
         self.energy -= energy_cost;
 
-        // Update vitals
-        self.vitals.health = (self.energy / (self.cell_type.base_energy_cost() * 10.0)).min(1.0).max(0.0);
+        // Update vitals (health is derived from energy level and stress)
+        // Note: Health can be calculated as a function of energy and stress_level when needed
 
         // Check if cell should die
         if self.energy <= 0.0 {
@@ -933,7 +933,7 @@ mod tests {
     #[test]
     fn test_cell_creation() {
         let position = GA3::scalar(1.0);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         assert_eq!(cell.cell_type(), UICellType::ButtonCore);
         assert_eq!(cell.state(), CellState::Alive);
@@ -944,7 +944,7 @@ mod tests {
     #[test]
     fn test_cell_energy_management() {
         let position = GA3::scalar(1.0);
-        let mut cell = UICell::new(UICellType::ButtonCore, position);
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let initial_energy = cell.energy_level();
         cell.add_energy(10.0);
@@ -959,7 +959,7 @@ mod tests {
     #[test]
     fn test_cell_reproduction() {
         let position = GA3::scalar(1.0);
-        let mut cell = UICell::new(UICellType::ButtonCore, position);
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         // Add enough energy for reproduction
         cell.add_energy(100.0);
@@ -1003,7 +1003,7 @@ mod tests {
     #[test]
     fn test_cell_step() {
         let position = GA3::scalar(1.0);
-        let mut cell = UICell::new(UICellType::ButtonCore, position);
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         let initial_energy = cell.energy_level();
         let initial_age = cell.age();

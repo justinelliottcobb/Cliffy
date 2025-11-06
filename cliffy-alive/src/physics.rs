@@ -3,7 +3,7 @@
 //! This module implements physical simulation using Amari's geometric algebra
 //! to create natural movement, forces, and interactions for living UI elements.
 
-use cliffy_core::{GA3, Multivector, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{GA3, Multivector, ReactiveMultivector, scalar_traits::Float, ga_helpers::vector3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -177,14 +177,14 @@ impl CellPhysics {
     /// Apply a force to the cell
     pub fn apply_force(&mut self, force: GA3) {
         if !self.is_kinematic {
-            self.acceleration = self.acceleration + force / self.mass;
+            self.acceleration = self.acceleration + force * (1.0 / self.mass);
         }
     }
-    
+
     /// Apply a torque to the cell
     pub fn apply_torque(&mut self, torque: GA3) {
         if !self.is_kinematic {
-            self.angular_acceleration = self.angular_acceleration + torque / self.moment_of_inertia;
+            self.angular_acceleration = self.angular_acceleration + torque * (1.0 / self.moment_of_inertia);
         }
     }
     
@@ -262,53 +262,55 @@ impl Force {
         }
     }
     
-    fn calculate_gravity(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+    fn calculate_gravity(&self, _position: &GA3, physics: &CellPhysics) -> GA3 {
         // Simple gravitational force toward direction
-        self.direction * (self.strength * physics.mass)
+        &self.direction * (self.strength * physics.mass)
     }
-    
-    fn calculate_electromagnetic(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_electromagnetic(&self, _position: &GA3, physics: &CellPhysics) -> GA3 {
         // Force based on charge and electromagnetic field
-        self.direction * (self.strength * physics.charge)
+        &self.direction * (self.strength * physics.charge)
     }
-    
-    fn calculate_spring(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_spring(&self, position: &GA3, _physics: &CellPhysics) -> GA3 {
         // Spring force: F = -k * displacement
-        let displacement = position.clone() - self.direction; // direction as rest position
-        displacement * (-self.strength)
+        let displacement = position - &self.direction; // direction as rest position
+        &displacement * (-self.strength)
     }
-    
-    fn calculate_damping(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_damping(&self, _position: &GA3, physics: &CellPhysics) -> GA3 {
         // Damping force: F = -b * velocity
-        physics.velocity * (-self.strength)
+        &physics.velocity * (-self.strength)
     }
-    
-    fn calculate_user_interaction(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_user_interaction(&self, _position: &GA3, _physics: &CellPhysics) -> GA3 {
         // Direct force application
-        self.direction * self.strength
+        &self.direction * self.strength
     }
-    
-    fn calculate_thermal(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_thermal(&self, _position: &GA3, _physics: &CellPhysics) -> GA3 {
         // Random thermal motion
         use rand::Rng;
+        use cliffy_core::Vector;
         let mut rng = rand::thread_rng();
-        
-        GA3::vector([
+
+        let thermal_vec = Vector::<3, 0, 0>::from_components(
             rng.gen_range(-1.0..=1.0),
             rng.gen_range(-1.0..=1.0),
             rng.gen_range(-1.0..=1.0),
-        ]) * self.strength
+        );
+        &GA3::from_vector(&thermal_vec) * self.strength
     }
-    
-    fn calculate_pressure(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_pressure(&self, _position: &GA3, _physics: &CellPhysics) -> GA3 {
         // Pressure force away from crowded areas
-        self.direction * self.strength
+        &self.direction * self.strength
     }
-    
-    fn calculate_alignment(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
+
+    fn calculate_alignment(&self, _position: &GA3, physics: &CellPhysics) -> GA3 {
         // Force to align velocity with neighbors
-        let velocity_diff = self.direction - physics.velocity;
-        velocity_diff * self.strength
+        let velocity_diff = &self.direction - &physics.velocity;
+        &velocity_diff * self.strength
     }
 }
 
@@ -537,15 +539,15 @@ impl PhysicsEngine {
                 let distance = distance_vector.magnitude();
                 
                 if distance <= force.range && distance > 0.0 {
-                    let force_vector = force.calculate_force_at(pos_a, 
+                    let force_vector = force.calculate_force_at(pos_a,
                         self.cell_physics.get(id_a).unwrap());
-                    
+
                     // Apply force to both cells (Newton's third law)
                     if let Some(physics_a) = self.cell_physics.get_mut(id_a) {
-                        physics_a.apply_force(force_vector);
+                        physics_a.apply_force(force_vector.clone());
                     }
                     if let Some(physics_b) = self.cell_physics.get_mut(id_b) {
-                        physics_b.apply_force(force_vector * -1.0);
+                        physics_b.apply_force(&force_vector * -1.0);
                     }
                 }
             }
@@ -574,10 +576,9 @@ impl PhysicsEngine {
                         let distance = distance_vector.magnitude();
                         
                         if distance > 0.0 && distance < 3.0 {
-                            let spring_force = distance_vector.normalize().unwrap_or_else(|| Multivector::zero()) * 
-                                self.config.connection_spring_strength * 
-                                (3.0 - distance) / 3.0;
-                            
+                            let spring_constant = self.config.connection_spring_strength * (3.0 - distance) / 3.0;
+                            let spring_force = distance_vector.normalize().unwrap_or_else(|| Multivector::zero()) * spring_constant;
+
                             physics.apply_force(spring_force);
                         }
                     }
@@ -670,10 +671,10 @@ impl PhysicsEngine {
         
         // Apply impulse
         if let Some(physics_a) = self.cell_physics.get_mut(&id_a) {
-            physics_a.set_velocity(vel_a - impulse / mass_a);
+            physics_a.set_velocity(vel_a - impulse * (1.0 / mass_a));
         }
         if let Some(physics_b) = self.cell_physics.get_mut(&id_b) {
-            physics_b.set_velocity(vel_b + impulse / mass_b);
+            physics_b.set_velocity(vel_b + impulse * (1.0 / mass_b));
         }
     }
     
@@ -707,7 +708,7 @@ impl PhysicsEngine {
     /// Apply an impulse to a cell
     pub fn apply_impulse(&mut self, cell_id: &Uuid, impulse: GA3) {
         if let Some(physics) = self.cell_physics.get_mut(cell_id) {
-            let velocity_change = impulse / physics.mass;
+            let velocity_change = impulse * (1.0 / physics.mass);
             physics.set_velocity(physics.velocity + velocity_change);
         }
     }
@@ -737,7 +738,7 @@ mod tests {
 
     #[test]
     fn test_cell_physics_creation() {
-        let position = GA3::vector([1.0, 2.0, 0.0]);
+        let position = vector3(1.0, 2.0, 0.0);
         let physics = CellPhysics::new(position, UICellType::ButtonCore);
         
         assert_eq!(physics.mass, 2.0);
@@ -747,8 +748,8 @@ mod tests {
     
     #[test]
     fn test_force_calculation() {
-        let force = Force::new(ForceType::Gravity, 1.0, GA3::vector([0.0, -1.0, 0.0]));
-        let position = GA3::vector([0.0, 0.0, 0.0]);
+        let force = Force::new(ForceType::Gravity, 1.0, vector3(0.0, -1.0, 0.0));
+        let position = vector3(0.0, 0.0, 0.0);
         let physics = CellPhysics::new(position, UICellType::ButtonCore);
         
         let calculated_force = force.calculate_force_at(&position, &physics);
@@ -758,8 +759,8 @@ mod tests {
     #[test]
     fn test_physics_engine() {
         let mut engine = PhysicsEngine::default();
-        let position = GA3::vector([0.0, 0.0, 0.0]);
-        let cell = UICell::new(UICellType::ButtonCore, position);
+        let position = vector3(0.0, 0.0, 0.0);
+        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
         
         engine.add_cell(&cell);
         assert!(engine.get_physics(&cell.id()).is_some());
@@ -777,11 +778,11 @@ mod tests {
     
     #[test]
     fn test_physics_update() {
-        let position = GA3::vector([0.0, 0.0, 0.0]);
+        let position = vector3(0.0, 0.0, 0.0);
         let mut physics = CellPhysics::new(position, UICellType::ButtonCore);
         
         // Apply a force
-        let force = GA3::vector([1.0, 0.0, 0.0]);
+        let force = vector3(1.0, 0.0, 0.0);
         physics.apply_force(force);
         
         // Update physics
@@ -795,10 +796,10 @@ mod tests {
     
     #[test]
     fn test_kinetic_energy() {
-        let position = GA3::vector([0.0, 0.0, 0.0]);
+        let position = vector3(0.0, 0.0, 0.0);
         let mut physics = CellPhysics::new(position, UICellType::ButtonCore);
         
-        physics.set_velocity(GA3::vector([2.0, 0.0, 0.0]));
+        physics.set_velocity(vector3(2.0, 0.0, 0.0));
         let ke = physics.kinetic_energy();
         
         // KE = 0.5 * m * v²
