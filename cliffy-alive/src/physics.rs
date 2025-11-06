@@ -170,13 +170,15 @@ impl CellPhysics {
         self.position.set(new_position);
 
         // Update velocity: v = v + a*dt
-        self.velocity = &old_velocity + &self.acceleration * dt;
+        let accel_delta = &self.acceleration * dt;
+        self.velocity = &old_velocity + &accel_delta;
 
         // Apply friction to velocity
         self.velocity = &self.velocity * (1.0 - self.friction * dt);
 
         // Update angular motion
-        self.angular_velocity = &self.angular_velocity + &self.angular_acceleration * dt;
+        let angular_accel_delta = &self.angular_acceleration * dt;
+        self.angular_velocity = &self.angular_velocity + &angular_accel_delta;
         self.angular_velocity = &self.angular_velocity * (1.0 - self.friction * dt);
         
         // Reset acceleration (will be recalculated by forces)
@@ -187,14 +189,16 @@ impl CellPhysics {
     /// Apply a force to the cell
     pub fn apply_force(&mut self, force: GA3) {
         if !self.is_kinematic {
-            self.acceleration = &self.acceleration + &force * (1.0 / self.mass);
+            let force_accel = &force * (1.0 / self.mass);
+            self.acceleration = &self.acceleration + &force_accel;
         }
     }
 
     /// Apply a torque to the cell
     pub fn apply_torque(&mut self, torque: GA3) {
         if !self.is_kinematic {
-            self.angular_acceleration = &self.angular_acceleration + &torque * (1.0 / self.moment_of_inertia);
+            let torque_accel = &torque * (1.0 / self.moment_of_inertia);
+            self.angular_acceleration = &self.angular_acceleration + &torque_accel;
         }
     }
     
@@ -655,36 +659,38 @@ impl PhysicsEngine {
         
         // Separate objects
         let overlap = collision_distance - distance;
-        let separation = normal * (overlap * 0.5);
-        
+        let separation = &normal * (overlap * 0.5);
+
         // Update positions
         if let Some(physics_a) = self.cell_physics.get_mut(&id_a) {
-            let new_pos = physics_a.position_vector() - separation;
+            let new_pos = physics_a.position_vector() - &separation;
             physics_a.set_position(new_pos);
         }
         if let Some(physics_b) = self.cell_physics.get_mut(&id_b) {
-            let new_pos = physics_b.position_vector() + separation;
+            let new_pos = physics_b.position_vector() + &separation;
             physics_b.set_position(new_pos);
         }
-        
+
         // Calculate collision response velocities
-        let relative_velocity = vel_b - vel_a;
-        let velocity_along_normal = relative_velocity.scalar_product(normal);
-        
+        let relative_velocity = &vel_b - &vel_a;
+        let velocity_along_normal = relative_velocity.scalar_product(&normal);
+
         if velocity_along_normal > 0.0 {
             return; // Objects separating
         }
-        
+
         let elasticity = (elasticity_a + elasticity_b) * 0.5;
         let impulse_magnitude = -(1.0 + elasticity) * velocity_along_normal / (1.0/mass_a + 1.0/mass_b);
-        let impulse = normal * impulse_magnitude;
-        
+        let impulse = &normal * impulse_magnitude;
+
         // Apply impulse
         if let Some(physics_a) = self.cell_physics.get_mut(&id_a) {
-            physics_a.set_velocity(vel_a - impulse * (1.0 / mass_a));
+            let impulse_a = &impulse * (1.0 / mass_a);
+            physics_a.set_velocity(&vel_a - &impulse_a);
         }
         if let Some(physics_b) = self.cell_physics.get_mut(&id_b) {
-            physics_b.set_velocity(vel_b + impulse * (1.0 / mass_b));
+            let impulse_b = &impulse * (1.0 / mass_b);
+            physics_b.set_velocity(&vel_b + &impulse_b);
         }
     }
     
