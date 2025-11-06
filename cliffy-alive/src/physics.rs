@@ -807,8 +807,8 @@ mod tests {
         
         // Should have moved in the positive x direction
         let new_position = physics.position_vector();
-        let vector_part = new_position.vector_part();
-        assert!(vector_part[0] > 0.0);
+        let x_component = new_position.vector_component(0);
+        assert!(x_component > 0.0);
     }
     
     #[test]

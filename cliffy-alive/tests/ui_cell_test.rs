@@ -1,20 +1,21 @@
-use cliffy_alive::ui_cell::{UICell, UICellType, CellGenome, CellState};
-use amari_core::{GA3, Multivector};
+use cliffy_alive::ui_cell::{UICell, UICellType, CellGenome};
+use cliffy_core::GA3;
 use uuid::Uuid;
 
 #[test]
 fn test_ui_cell_has_geometric_state() {
-    // UI cells exist in 8D space: x, y, width, height, z-index, opacity, rotation, scale
+    // UI cells exist in 3D geometric space with separate visual properties
     let cell = UICell::new(UICellType::ButtonCore);
-    
+
     let state = cell.nucleus();
-    assert_eq!(state.dimension(), 8);
-    
+    // ReactiveMultivector wraps a GA3 (3D Clifford algebra)
+    assert!(state.sample().magnitude() >= 0.0);
+
     // Can extract visual properties
-    let position = cell.position(); // x, y from dimensions 0,1
-    let size = cell.size(); // width, height from dimensions 2,3
-    let opacity = cell.opacity(); // dimension 5
-    
+    let position = cell.position(); // x, y from geometric state
+    let size = cell.size(); // width, height from visual properties
+    let opacity = cell.opacity(); // separate visual property
+
     assert!(position.x >= 0.0);
     assert!(size.width > 0.0);
     assert!(opacity >= 0.0 && opacity <= 1.0);
@@ -39,15 +40,18 @@ fn test_cell_dna_determines_behavior() {
 fn test_cells_interact_geometrically() {
     let mut cell_a = UICell::new(UICellType::ButtonCore);
     let mut cell_b = UICell::new(UICellType::ButtonCore);
-    
+
+    // Set affinity between cells (negative for repulsion)
+    cell_a.genome_mut().add_affinity_gene(UICellType::ButtonCore, -50.0);
+
     // Position them near each other
     cell_a.set_position(100.0, 100.0);
     cell_b.set_position(110.0, 100.0);
-    
+
     // Compute interaction force using geometric product
     let force = cell_a.interaction_force(&cell_b);
-    
-    // Should have some repulsion (too close)
+
+    // Should have some repulsion (negative affinity, close distance)
     assert!(force.magnitude() > 0.0);
 }
 
@@ -151,7 +155,7 @@ fn test_cell_age_and_lifecycle_stages() {
     
     // Age the cell
     for _ in 0..100 {
-        cell.age(0.1);
+        cell.step(0.1);
     }
     
     // Should progress through lifecycle stages

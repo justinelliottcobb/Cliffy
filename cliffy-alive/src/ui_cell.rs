@@ -934,7 +934,7 @@ impl LivingComponent for UICell {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use amari_core::GA3;
+    use cliffy_core::GA3;
 
     #[test]
     fn test_cell_creation() {
@@ -990,8 +990,8 @@ mod tests {
         
         genome1.set_gene("test_gene", 0.8);
         genome2.set_gene("test_gene", 0.2);
-        
-        let offspring_genome = genome1.crossover(&genome2);
+
+        let offspring_genome = genome1.crossover(&genome2, 0.5);
         let offspring_value = offspring_genome.get_gene("test_gene");
         
         // Should be one of the parent values

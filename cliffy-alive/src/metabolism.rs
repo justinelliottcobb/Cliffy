@@ -465,26 +465,33 @@ mod tests {
     fn test_metabolism_manager() {
         let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
+
         let consumption = manager.calculate_energy_consumption(
             &cell,
             &[MetabolicProcess::Respiration],
             1.0,
         );
-        
+
         assert!(consumption > 0.0);
-        assert!(manager.can_reproduce(&cell)); // Should have enough energy initially
+
+        // Add energy above reproduction threshold and age the cell
+        cell.add_energy(180.0); // Total: 20 + 180 = 200 > 150 threshold
+        cell.step(6.0); // Age to 6.0 > 5.0 required
+        assert!(manager.can_reproduce(&cell));
     }
     
     #[test]
     fn test_cell_vitals() {
         let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
-        let cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+        let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
+
+        // Add energy to reach Healthy status (> 0.8 * 200 capacity = > 160 energy)
+        cell.add_energy(145.0); // Total: 20 + 145 = 165 > 160
+
         let vitals = CellVitals::calculate(&cell, &manager);
-        
+
         assert_eq!(vitals.lifecycle_stage, LifecycleStage::Juvenile);
         assert!(vitals.energy_level > 0.0);
         assert!(vitals.metabolic_efficiency > 0.0);
@@ -505,16 +512,18 @@ mod tests {
     
     #[test]
     fn test_reproduction_requirements() {
-        let mut manager = MetabolismManager::default();
+        let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
         let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
-        // Young cell with lots of energy should be able to reproduce
+
+        // Cell with lots of energy and sufficient age should be able to reproduce
         cell.add_energy(200.0);
+        cell.step(6.0); // Age to 6.0 > 5.0 required
         assert!(manager.can_reproduce(&cell));
-        
-        // Drain energy below threshold
-        cell.consume_energy(300.0);
+
+        // Drain energy below threshold (150.0)
+        let current_energy = cell.energy_level();
+        cell.consume_energy(current_energy - 100.0); // Leave only 100.0 < 150.0 threshold
         assert!(!manager.can_reproduce(&cell));
     }
 }
