@@ -277,12 +277,13 @@ impl UIOrganismField {
                 }
             }
         }
-        
+
         // Distribute energy based on distance (closer cells get more)
+        let num_cells = cells_in_range.len();
         for (x, y, distance) in cells_in_range {
             if let Some(cell) = &mut self.grid[y][x] {
                 let distance_factor = 1.0 - (distance / source.radius as f64);
-                let energy_for_cell = energy_to_distribute * distance_factor / cells_in_range.len() as f64;
+                let energy_for_cell = energy_to_distribute * distance_factor / num_cells as f64;
                 cell.add_energy(energy_for_cell);
             }
         }

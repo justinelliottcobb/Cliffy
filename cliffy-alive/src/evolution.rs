@@ -556,13 +556,14 @@ impl EvolutionEngine {
             self.performance_metrics.interaction_success_rate = 
                 success_count as f64 / recent_interactions.len() as f64;
         }
-        
+
         // Calculate diversity index (simplified)
+        let num_traits = trait_sums.len();
         let mut diversity = 0.0;
         for trait_values in trait_sums.values() {
             diversity += trait_values.abs(); // Simplified diversity measure
         }
-        self.performance_metrics.diversity_index = diversity / trait_sums.len() as f64;
+        self.performance_metrics.diversity_index = diversity / num_traits as f64;
     }
     
     /// Get current performance metrics

@@ -165,19 +165,19 @@ impl CellPhysics {
         let old_velocity = self.velocity.clone();
         
         // Update position: x = x + v*dt + 0.5*a*dt²
-        let position_delta = old_velocity * dt + self.acceleration * (0.5 * dt * dt);
-        let new_position = old_position + position_delta;
-        self.position.update(new_position);
-        
+        let position_delta = &old_velocity * dt + &self.acceleration * (0.5 * dt * dt);
+        let new_position = &old_position + &position_delta;
+        self.position.set(new_position);
+
         // Update velocity: v = v + a*dt
-        self.velocity = old_velocity + self.acceleration * dt;
-        
+        self.velocity = &old_velocity + &self.acceleration * dt;
+
         // Apply friction to velocity
-        self.velocity = self.velocity * (1.0 - self.friction * dt);
-        
+        self.velocity = &self.velocity * (1.0 - self.friction * dt);
+
         // Update angular motion
-        self.angular_velocity = self.angular_velocity + self.angular_acceleration * dt;
-        self.angular_velocity = self.angular_velocity * (1.0 - self.friction * dt);
+        self.angular_velocity = &self.angular_velocity + &self.angular_acceleration * dt;
+        self.angular_velocity = &self.angular_velocity * (1.0 - self.friction * dt);
         
         // Reset acceleration (will be recalculated by forces)
         self.acceleration = GA3::zero();
@@ -187,14 +187,14 @@ impl CellPhysics {
     /// Apply a force to the cell
     pub fn apply_force(&mut self, force: GA3) {
         if !self.is_kinematic {
-            self.acceleration = self.acceleration + force * (1.0 / self.mass);
+            self.acceleration = &self.acceleration + &force * (1.0 / self.mass);
         }
     }
 
     /// Apply a torque to the cell
     pub fn apply_torque(&mut self, torque: GA3) {
         if !self.is_kinematic {
-            self.angular_acceleration = self.angular_acceleration + torque * (1.0 / self.moment_of_inertia);
+            self.angular_acceleration = &self.angular_acceleration + &torque * (1.0 / self.moment_of_inertia);
         }
     }
     
@@ -212,7 +212,7 @@ impl CellPhysics {
     
     /// Set position directly (for teleportation, initial placement, etc.)
     pub fn set_position(&mut self, position: GA3) {
-        self.position.update(position);
+        self.position.set(position);
     }
     
     /// Set velocity directly
@@ -718,8 +718,8 @@ impl PhysicsEngine {
     /// Apply an impulse to a cell
     pub fn apply_impulse(&mut self, cell_id: &Uuid, impulse: GA3) {
         if let Some(physics) = self.cell_physics.get_mut(cell_id) {
-            let velocity_change = impulse * (1.0 / physics.mass);
-            physics.set_velocity(physics.velocity + velocity_change);
+            let velocity_change = &impulse * (1.0 / physics.mass);
+            physics.set_velocity(&physics.velocity + &velocity_change);
         }
     }
     

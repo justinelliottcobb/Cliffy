@@ -105,13 +105,13 @@ impl Stimulus {
     
     /// Check if the stimulus affects a cell at a given position
     pub fn affects_position(&self, position: &GA3) -> bool {
-        let distance = (self.position - position.clone()).magnitude();
+        let distance = (&self.position - position).magnitude();
         distance <= self.sensor_type.detection_range()
     }
-    
+
     /// Calculate the stimulus intensity at a given position
     pub fn intensity_at(&self, position: &GA3) -> f64 {
-        let distance = (self.position - position.clone()).magnitude();
+        let distance = (&self.position - position).magnitude();
         let range = self.sensor_type.detection_range();
         
         if distance > range {
@@ -693,11 +693,13 @@ impl CellNeuralNetwork {
     
     /// Update configuration
     pub fn set_config(&mut self, config: NetworkConfig) {
+        // Extract values before moving config
+        let learning_rate = config.learning_rate;
         self.config = config;
-        
+
         // Update all neurons with new learning rate
         for neuron in self.neurons.values_mut() {
-            neuron.learning_rate = config.learning_rate;
+            neuron.learning_rate = learning_rate;
         }
     }
 }
