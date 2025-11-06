@@ -162,7 +162,9 @@ pub enum Action {
     },
     /// Physical movement
     Movement {
+        #[serde(skip, default = "GA3::zero")]
         force: GA3,
+        #[serde(skip, default = "GA3::zero")]
         torque: GA3,
     },
     /// Energy manipulation

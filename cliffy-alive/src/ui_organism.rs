@@ -313,7 +313,10 @@ impl UIOrganismField {
     
     /// Apply selection pressures to influence evolution
     fn apply_selection_pressures(&mut self, dt: UITime) {
-        for pressure in &self.selection_pressures {
+        // Clone selection pressures to avoid borrow checker issues
+        let pressures = self.selection_pressures.clone();
+
+        for pressure in &pressures {
             match pressure {
                 SelectionPressure::Responsiveness => {
                     self.reward_gene("responsiveness", dt);

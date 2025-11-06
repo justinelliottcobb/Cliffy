@@ -642,12 +642,12 @@ impl PhysicsEngine {
         let (pos_a, pos_b, vel_a, vel_b, mass_a, mass_b, elasticity_a, elasticity_b) = {
             let physics_a = self.cell_physics.get(&id_a).unwrap();
             let physics_b = self.cell_physics.get(&id_b).unwrap();
-            
+
             (
                 physics_a.position_vector(),
                 physics_b.position_vector(),
-                physics_a.velocity,
-                physics_b.velocity,
+                physics_a.velocity.clone(),
+                physics_b.velocity.clone(),
                 physics_a.mass,
                 physics_b.mass,
                 physics_a.elasticity,
@@ -664,11 +664,11 @@ impl PhysicsEngine {
 
         // Update positions
         if let Some(physics_a) = self.cell_physics.get_mut(&id_a) {
-            let new_pos = physics_a.position_vector() - &separation;
+            let new_pos = physics_a.position_vector() - separation.clone();
             physics_a.set_position(new_pos);
         }
         if let Some(physics_b) = self.cell_physics.get_mut(&id_b) {
-            let new_pos = physics_b.position_vector() + &separation;
+            let new_pos = physics_b.position_vector() + separation;
             physics_b.set_position(new_pos);
         }
 
@@ -767,8 +767,8 @@ mod tests {
     fn test_force_calculation() {
         let force = Force::new(ForceType::Gravity, 1.0, vector3(0.0, -1.0, 0.0));
         let position = vector3(0.0, 0.0, 0.0);
-        let physics = CellPhysics::new(position, UICellType::ButtonCore);
-        
+        let physics = CellPhysics::new(position.clone(), UICellType::ButtonCore);
+
         let calculated_force = force.calculate_force_at(&position, &physics);
         assert!(calculated_force.magnitude() > 0.0);
     }

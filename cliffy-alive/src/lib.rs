@@ -170,7 +170,19 @@ impl AliveUI {
     
     /// Render the current state to the DOM
     pub fn render(&self) -> Result<(), RenderError> {
-        self.renderer.render(&self.organism)
+        // Clear the rendering surface first
+        self.renderer.clear()?;
+
+        // Render each cell in the organism
+        for y in 0..self.organism.dimensions().1 {
+            for x in 0..self.organism.dimensions().0 {
+                if let Some(cell) = self.organism.get_cell(x, y) {
+                    self.renderer.render_cell(cell, (x, y))?;
+                }
+            }
+        }
+
+        Ok(())
     }
     
     /// Get statistics about the living UI
