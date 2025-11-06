@@ -4,14 +4,14 @@
 //! a geometric state using Amari's multivectors and participates in the cellular
 //! automaton that drives UI evolution and behavior.
 
-use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{scalar_traits::Float, ReactiveMultivector, GA3};
 // use amari_automata::{AutomatonCell, CellularRule};
+use rand;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
-use rand;
 
-use crate::{LivingComponent, UIEnergy, UITime, AliveConfig};
+use crate::{LivingComponent, UIEnergy, UITime};
 
 /// Different types of UI cells that can exist in the organism
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -72,7 +72,7 @@ impl UICellType {
             UICellType::DataVisualization => 3.5,
         }
     }
-    
+
     /// Get the preferred neighbors for this cell type
     pub fn preferred_neighbors(&self) -> Vec<UICellType> {
         match self {
@@ -94,7 +94,7 @@ impl UICellType {
             UICellType::DataVisualization => vec![UICellType::DataDisplay],
         }
     }
-    
+
     /// Get the growth probability for this cell type
     pub fn growth_probability(&self) -> f64 {
         match self {
@@ -142,10 +142,10 @@ pub enum CellState {
 pub struct UICell {
     /// Unique identifier for this cell
     id: Uuid,
-    
+
     /// Type of UI element this cell represents
     cell_type: UICellType,
-    
+
     /// Current state of the cell
     state: CellState,
 
@@ -155,28 +155,28 @@ pub struct UICell {
 
     /// Current energy level
     energy: UIEnergy,
-    
+
     /// Age of the cell in time units
     age: UITime,
-    
+
     /// Genetic information for evolution
     pub dna: CellGenome,
-    
+
     /// Fitness value for evolution
     fitness: f64,
-    
+
     /// Cell vitals tracking
     vitals: CellVitals,
-    
+
     /// Interaction history for fitness calculation
     interaction_history: HashMap<String, f64>,
-    
+
     /// Connections to neighboring cells
     connections: HashMap<Uuid, ConnectionStrength>,
-    
+
     /// Visual properties
     visual_properties: VisualProperties,
-    
+
     /// Behavioral properties
     behavioral_properties: BehaviorProperties,
 }
@@ -197,7 +197,7 @@ impl Position2D {
         let dy = self.y - other.y;
         (dx * dx + dy * dy).sqrt()
     }
-    
+
     pub fn distance_to_center(&self) -> f64 {
         (self.x * self.x + self.y * self.y).sqrt()
     }
@@ -243,7 +243,7 @@ impl CellVitals {
             interaction_count: 0,
         }
     }
-    
+
     pub fn is_healthy(&self) -> bool {
         self.stress_level < 0.7
     }
@@ -264,7 +264,7 @@ impl CellGenome {
     pub fn new() -> Self {
         let mut genes = HashMap::new();
         let mut traits = HashMap::new();
-        
+
         // Initialize default genes
         genes.insert("growth_rate".to_string(), 0.5);
         genes.insert("energy_efficiency".to_string(), 0.7);
@@ -272,31 +272,31 @@ impl CellGenome {
         genes.insert("adaptability".to_string(), 0.4);
         genes.insert("visual_appeal".to_string(), 0.5);
         genes.insert("responsiveness".to_string(), 0.8);
-        
+
         // Initialize default traits
         traits.insert("display_brightness".to_string(), 0.5);
         traits.insert("update_frequency".to_string(), 0.5);
         traits.insert("user_engagement".to_string(), 0.3);
-        
-        Self { 
-            genes, 
+
+        Self {
+            genes,
             traits,
-            affinities: HashMap::new()
+            affinities: HashMap::new(),
         }
     }
-    
+
     pub fn get_gene(&self, name: &str) -> f64 {
         self.genes.get(name).copied().unwrap_or(0.5)
     }
-    
+
     pub fn set_gene(&mut self, name: &str, value: f64) {
         self.genes.insert(name.to_string(), value.clamp(0.0, 1.0));
     }
-    
+
     pub fn mutate(&mut self, rate: f64) {
         use rand::Rng;
         let mut rng = rand::thread_rng();
-        
+
         for (_, value) in self.genes.iter_mut() {
             if rng.gen::<f64>() < rate {
                 let delta = rng.gen_range(-0.1..=0.1);
@@ -304,14 +304,14 @@ impl CellGenome {
             }
         }
     }
-    
+
     pub fn crossover(&self, other: &CellGenome, _crossover_rate: f64) -> CellGenome {
         use rand::Rng;
         let mut rng = rand::thread_rng();
         let mut new_genes = HashMap::new();
         let mut new_traits = HashMap::new();
         let mut new_affinities = HashMap::new();
-        
+
         // Combine genes from both parents
         for key in self.genes.keys() {
             let value = if rng.gen::<f64>() < 0.5 {
@@ -321,7 +321,7 @@ impl CellGenome {
             };
             new_genes.insert(key.clone(), value);
         }
-        
+
         // Combine traits
         for key in self.traits.keys().chain(other.traits.keys()) {
             let value = if rng.gen::<f64>() < 0.5 {
@@ -331,7 +331,7 @@ impl CellGenome {
             };
             new_traits.insert(key.clone(), value);
         }
-        
+
         // Combine affinities
         for key in self.affinities.keys().chain(other.affinities.keys()) {
             let value = if rng.gen::<f64>() < 0.5 {
@@ -341,24 +341,24 @@ impl CellGenome {
             };
             new_affinities.insert(*key, value);
         }
-        
-        CellGenome { 
+
+        CellGenome {
             genes: new_genes,
             traits: new_traits,
-            affinities: new_affinities
+            affinities: new_affinities,
         }
     }
-    
+
     /// Add affinity gene for a cell type
     pub fn add_affinity_gene(&mut self, cell_type: UICellType, affinity: f64) {
         self.affinities.insert(cell_type, affinity);
     }
-    
+
     /// Calculate affinity to another genome
     pub fn calculate_affinity(&self, _other: &CellGenome, other_type: UICellType) -> f64 {
         self.affinities.get(&other_type).copied().unwrap_or(0.0)
     }
-    
+
     /// Check if has genes from another genome
     pub fn has_genes_from(&self, other: &CellGenome) -> bool {
         for (key, _) in &other.genes {
@@ -368,23 +368,23 @@ impl CellGenome {
         }
         false
     }
-    
+
     /// Calculate similarity to another genome
     pub fn similarity_to(&self, other: &CellGenome) -> f64 {
         let mut total_diff = 0.0;
         let mut count = 0;
-        
+
         for (key, value) in &self.genes {
             if let Some(other_value) = other.genes.get(key) {
                 total_diff += (value - other_value).abs();
                 count += 1;
             }
         }
-        
+
         if count == 0 {
             return 0.0;
         }
-        
+
         1.0 - (total_diff / count as f64)
     }
 }
@@ -403,7 +403,7 @@ pub struct VisualProperties {
 impl Default for VisualProperties {
     fn default() -> Self {
         Self {
-            color: [0.2, 0.5, 0.8, 1.0],     // Blue
+            color: [0.2, 0.5, 0.8, 1.0], // Blue
             size: 1.0,
             opacity: 1.0,
             border_width: 1.0,
@@ -416,11 +416,11 @@ impl Default for VisualProperties {
 /// Behavioral properties of a UI cell
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BehaviorProperties {
-    pub interaction_radius: f64,    // How far the cell can sense interactions
-    pub response_speed: f64,        // How quickly it responds to stimuli
-    pub memory_capacity: usize,     // How many past events it remembers
-    pub learning_rate: f64,         // How quickly it adapts
-    pub social_tendency: f64,       // Tendency to connect with neighbors
+    pub interaction_radius: f64, // How far the cell can sense interactions
+    pub response_speed: f64,     // How quickly it responds to stimuli
+    pub memory_capacity: usize,  // How many past events it remembers
+    pub learning_rate: f64,      // How quickly it adapts
+    pub social_tendency: f64,    // Tendency to connect with neighbors
 }
 
 impl Default for BehaviorProperties {
@@ -445,15 +445,15 @@ impl UICell {
     pub fn new(cell_type: UICellType) -> Self {
         Self::new_at_position(cell_type, GA3::scalar(0.0))
     }
-    
+
     /// Create a new UI cell at a specific position
     pub fn new_at_position(cell_type: UICellType, position: GA3) -> Self {
         let id = Uuid::new_v4();
         let geometric_state = ReactiveMultivector::new(position);
         let energy = cell_type.base_energy_cost() * 10.0; // Start with 10x base cost
-        
+
         let mut visual_props = VisualProperties::default();
-        
+
         // Customize appearance based on cell type
         match cell_type {
             UICellType::ButtonCore => {
@@ -480,7 +480,7 @@ impl UICell {
             }
             _ => {} // Use defaults
         }
-        
+
         Self {
             id,
             cell_type,
@@ -497,27 +497,27 @@ impl UICell {
             behavioral_properties: BehaviorProperties::default(),
         }
     }
-    
+
     /// Get the cell type
     pub fn cell_type(&self) -> UICellType {
         self.cell_type
     }
-    
+
     /// Get the current state
     pub fn state(&self) -> CellState {
         self.state
     }
-    
+
     /// Get visual properties
     pub fn visual_properties(&self) -> &VisualProperties {
         &self.visual_properties
     }
-    
+
     /// Get behavioral properties
     pub fn behavioral_properties(&self) -> &BehaviorProperties {
         &self.behavioral_properties
     }
-    
+
     /// Get the genome
     pub fn genome(&self) -> &CellGenome {
         &self.dna
@@ -527,32 +527,32 @@ impl UICell {
     pub fn genome_mut(&mut self) -> &mut CellGenome {
         &mut self.dna
     }
-    
+
     /// Connect to another cell
     pub fn connect_to(&mut self, other_id: Uuid, strength: ConnectionStrength) {
         self.connections.insert(other_id, strength);
     }
-    
+
     /// Disconnect from another cell
     pub fn disconnect_from(&mut self, other_id: &Uuid) {
         self.connections.remove(other_id);
     }
-    
+
     /// Get connection strength to another cell
     pub fn connection_strength(&self, other_id: &Uuid) -> ConnectionStrength {
         self.connections.get(other_id).copied().unwrap_or(0.0)
     }
-    
+
     /// Get all connections
     pub fn connections(&self) -> &HashMap<Uuid, ConnectionStrength> {
         &self.connections
     }
-    
+
     /// Add energy to the cell
     pub fn add_energy(&mut self, amount: UIEnergy) {
         self.energy += amount;
     }
-    
+
     /// Consume energy from the cell
     pub fn consume_energy(&mut self, amount: UIEnergy) -> bool {
         if self.energy >= amount {
@@ -562,71 +562,73 @@ impl UICell {
             false
         }
     }
-    
+
     /// Check if the cell can reproduce
     pub fn can_reproduce(&self, threshold: UIEnergy) -> bool {
         self.energy >= threshold && self.state == CellState::Alive
     }
-    
+
     /// Start reproduction process
     pub fn start_reproduction(&mut self) {
         if self.state == CellState::Alive {
             self.state = CellState::Reproducing;
         }
     }
-    
+
     /// Create offspring cell
     pub fn reproduce(&mut self, position: GA3) -> Option<UICell> {
         if self.state != CellState::Reproducing {
             return None;
         }
-        
+
         // Cost energy for reproduction
         let reproduction_cost = self.cell_type.base_energy_cost() * 5.0;
         if !self.consume_energy(reproduction_cost) {
             return None;
         }
-        
+
         // Create offspring with mutated genome
         let mut offspring = UICell::new_at_position(self.cell_type, position);
         offspring.dna = self.dna.clone();
         offspring.dna.mutate(0.05); // 5% mutation rate
-        
+
         // Return to normal state
         self.state = CellState::Alive;
-        
+
         Some(offspring)
     }
-    
+
     /// Update visual properties based on genome
     pub fn update_appearance(&mut self) {
         let appeal_gene = self.dna.get_gene("visual_appeal");
         let energy_ratio = (self.energy / 100.0).clamp(0.0, 1.0);
-        
+
         // Adjust visual properties based on genes and energy
         self.visual_properties.glow_intensity = appeal_gene * energy_ratio;
         self.visual_properties.opacity = 0.3 + 0.7 * energy_ratio;
         self.visual_properties.size = 0.5 + 1.5 * energy_ratio;
     }
-    
+
     /// React to user interaction
     pub fn on_interaction(&mut self, interaction_type: InteractionType, intensity: f64) {
         match interaction_type {
             InteractionType::Click => {
                 self.add_energy(intensity * 10.0);
-                self.visual_properties.glow_intensity = (self.visual_properties.glow_intensity + 0.5).min(1.0);
+                self.visual_properties.glow_intensity =
+                    (self.visual_properties.glow_intensity + 0.5).min(1.0);
             }
             InteractionType::Hover => {
                 self.visual_properties.size = (self.visual_properties.size * 1.1).min(2.0);
             }
             InteractionType::Focus => {
-                self.visual_properties.border_width = (self.visual_properties.border_width * 1.5).min(5.0);
+                self.visual_properties.border_width =
+                    (self.visual_properties.border_width * 1.5).min(5.0);
             }
         }
     }
-    
+
     // === Methods for test support ===
-    
+
     /// Get the cell's 8D geometric nucleus state
     pub fn nucleus(&self) -> &ReactiveMultivector<GA3> {
         &self.geometric_state
@@ -636,7 +638,7 @@ impl UICell {
     pub fn position(&self) -> Position2D {
         let state = self.geometric_state.sample();
         Position2D {
-            x: state.scalar_part(), // Dimension 0
+            x: state.scalar_part(),       // Dimension 0
             y: state.vector_component(0), // Dimension 1 (e1)
         }
     }
@@ -645,7 +647,7 @@ impl UICell {
     pub fn size(&self) -> Size2D {
         let state = self.geometric_state.sample();
         Size2D {
-            width: state.vector_component(1).abs().max(10.0),  // Dimension 2 (e2), minimum size
+            width: state.vector_component(1).abs().max(10.0), // Dimension 2 (e2), minimum size
             height: state.vector_component(2).abs().max(10.0), // Dimension 3 (e3), minimum size
         }
     }
@@ -679,18 +681,18 @@ impl UICell {
     pub fn interaction_force(&self, other: &UICell) -> Force2D {
         let my_pos = self.position();
         let other_pos = other.position();
-        
+
         let dx = other_pos.x - my_pos.x;
         let dy = other_pos.y - my_pos.y;
         let distance = (dx * dx + dy * dy).sqrt();
-        
+
         if distance < 1.0 {
             return Force2D { x: 0.0, y: 0.0 };
         }
-        
+
         let affinity = self.affinity_to(other);
         let force_magnitude = affinity / (distance * distance);
-        
+
         Force2D {
             x: force_magnitude * dx / distance,
             y: force_magnitude * dy / distance,
@@ -702,11 +704,11 @@ impl UICell {
         let base_cost = self.cell_type.base_energy_cost() * dt;
         let efficiency = self.dna.get_gene("energy_efficiency");
         let actual_cost = base_cost * (2.0 - efficiency);
-        
+
         if !self.consume_energy(actual_cost) {
             self.state = CellState::Dying;
         }
-        
+
         Ok(())
     }
 
@@ -775,7 +777,8 @@ impl UICell {
 
     /// Record interaction for fitness calculation
     pub fn record_interaction(&mut self, interaction_type: &str, value: f64) {
-        self.interaction_history.insert(interaction_type.to_string(), value);
+        self.interaction_history
+            .insert(interaction_type.to_string(), value);
     }
 
     /// Set fitness value
@@ -805,7 +808,11 @@ impl UICell {
 
     /// Get update frequency based on genetics
     pub fn get_update_frequency(&self) -> f64 {
-        self.dna.traits.get("update_frequency").copied().unwrap_or(0.5)
+        self.dna
+            .traits
+            .get("update_frequency")
+            .copied()
+            .unwrap_or(0.5)
     }
 
     /// Express genes to update visual properties
@@ -840,7 +847,10 @@ impl UICell {
 
     /// Check if the cell is alive
     pub fn is_alive(&self) -> bool {
-        matches!(self.state, CellState::Alive | CellState::Reproducing | CellState::Focused)
+        matches!(
+            self.state,
+            CellState::Alive | CellState::Reproducing | CellState::Focused
+        )
     }
 
     /// Publicly accessible energy_level (delegates to trait method)
@@ -878,26 +888,26 @@ impl LivingComponent for UICell {
     fn geometric_state(&self) -> &ReactiveMultivector<GA3> {
         &self.geometric_state
     }
-    
+
     fn energy_level(&self) -> UIEnergy {
         self.energy
     }
-    
+
     fn step(&mut self, dt: UITime) {
         self.age += dt;
-        
+
         // Base metabolism - consume energy over time
         let base_cost = self.cell_type.base_energy_cost() * dt;
         let efficiency = self.dna.get_gene("energy_efficiency");
         let actual_cost = base_cost * (2.0 - efficiency); // More efficient = less cost
-        
+
         if !self.consume_energy(actual_cost) {
             // Not enough energy - start dying
             if self.state == CellState::Alive {
                 self.state = CellState::Dying;
             }
         }
-        
+
         // Update state based on energy
         match self.state {
             CellState::Dying => {
@@ -913,19 +923,22 @@ impl LivingComponent for UICell {
             }
             _ => {}
         }
-        
+
         // Update appearance based on current state
         self.update_appearance();
     }
-    
+
     fn is_alive(&self) -> bool {
-        matches!(self.state, CellState::Alive | CellState::Reproducing | CellState::Mutating)
+        matches!(
+            self.state,
+            CellState::Alive | CellState::Reproducing | CellState::Mutating
+        )
     }
-    
+
     fn id(&self) -> Uuid {
         self.id
     }
-    
+
     fn age(&self) -> UITime {
         self.age
     }
@@ -940,82 +953,82 @@ mod tests {
     fn test_cell_creation() {
         let position = GA3::scalar(1.0);
         let cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+
         assert_eq!(cell.cell_type(), UICellType::ButtonCore);
         assert_eq!(cell.state(), CellState::Alive);
         assert!(cell.is_alive());
         assert!(cell.energy_level() > 0.0);
     }
-    
+
     #[test]
     fn test_cell_energy_management() {
         let position = GA3::scalar(1.0);
         let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+
         let initial_energy = cell.energy_level();
         cell.add_energy(10.0);
         assert_eq!(cell.energy_level(), initial_energy + 10.0);
-        
+
         assert!(cell.consume_energy(5.0));
         assert_eq!(cell.energy_level(), initial_energy + 5.0);
-        
+
         assert!(!cell.consume_energy(1000.0));
     }
-    
+
     #[test]
     fn test_cell_reproduction() {
         let position = GA3::scalar(1.0);
         let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+
         // Add enough energy for reproduction
         cell.add_energy(100.0);
-        
+
         assert!(cell.can_reproduce(50.0));
         cell.start_reproduction();
         assert_eq!(cell.state(), CellState::Reproducing);
-        
+
         let offspring_pos = GA3::scalar(2.0);
         let offspring = cell.reproduce(offspring_pos);
         assert!(offspring.is_some());
-        
+
         let offspring = offspring.unwrap();
         assert_eq!(offspring.cell_type(), UICellType::ButtonCore);
         assert!(offspring.is_alive());
     }
-    
+
     #[test]
     fn test_genome_operations() {
         let mut genome1 = CellGenome::new();
         let mut genome2 = CellGenome::new();
-        
+
         genome1.set_gene("test_gene", 0.8);
         genome2.set_gene("test_gene", 0.2);
 
         let offspring_genome = genome1.crossover(&genome2, 0.5);
         let offspring_value = offspring_genome.get_gene("test_gene");
-        
+
         // Should be one of the parent values
         assert!(offspring_value == 0.8 || offspring_value == 0.2);
-        
+
         // Test mutation
         let original_value = genome1.get_gene("growth_rate");
         genome1.mutate(1.0); // 100% mutation rate
         let mutated_value = genome1.get_gene("growth_rate");
-        
+
         // Value might have changed due to mutation
         assert!(mutated_value >= 0.0 && mutated_value <= 1.0);
     }
-    
+
     #[test]
     fn test_cell_step() {
         let position = GA3::scalar(1.0);
         let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+
         let initial_energy = cell.energy_level();
         let initial_age = cell.age();
-        
+
         cell.step(1.0);
-        
+
         assert_eq!(cell.age(), initial_age + 1.0);
         assert!(cell.energy_level() < initial_energy); // Should consume energy
     }

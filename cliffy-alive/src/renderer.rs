@@ -3,9 +3,8 @@
 //! This module handles the rendering of UI organisms to various output targets,
 //! including DOM, canvas, WebGL, and more.
 
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use crate::{ui_cell::UICell, UICoordinates};
+use serde::{Deserialize, Serialize};
 
 /// Error types for rendering operations
 #[derive(Debug, Clone, Serialize, Deserialize)]

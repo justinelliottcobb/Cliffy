@@ -4,15 +4,14 @@
 //! reproduce, and evolve. It uses Amari's cellular automata foundation to create
 //! complex emergent behaviors from simple local rules.
 
-use cliffy_core::GA3;
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule}; // Not yet published
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    ui_cell::{UICell, UICellType, CellState, InteractionType},
-    UIEnergy, UITime, AliveConfig, AliveError,
+    ui_cell::{InteractionType, UICell, UICellType},
+    AliveConfig, AliveError, UIEnergy, UITime,
 };
 
 /// Selection pressure that can be applied to influence evolution
@@ -46,25 +45,25 @@ pub struct OrganismSnapshot {
 pub struct UIOrganismField {
     /// Grid of cells - Some(cell) if occupied, None if empty
     grid: Vec<Vec<Option<UICell>>>,
-    
+
     /// Dimensions of the field
     dimensions: (usize, usize),
-    
+
     /// Configuration for the organism
     config: AliveConfig,
-    
+
     /// Current generation number
     generation: u64,
-    
+
     /// Total time the organism has been alive
     total_time: UITime,
-    
+
     /// Energy sources feeding the organism
     energy_sources: Vec<EnergySource>,
-    
+
     /// Active selection pressures
     selection_pressures: Vec<SelectionPressure>,
-    
+
     /// History of organism statistics
     history: Vec<OrganismStatistics>,
 }
@@ -95,7 +94,7 @@ impl UIOrganismField {
     pub fn new(dimensions: (usize, usize), config: AliveConfig) -> Self {
         let (width, height) = dimensions;
         let grid = vec![vec![None; width]; height];
-        
+
         Self {
             grid,
             dimensions,
@@ -114,24 +113,29 @@ impl UIOrganismField {
     }
 
     /// Plant a seed cell at the specified coordinates
-    pub fn plant_seed(&mut self, x: usize, y: usize, cell_type: UICellType) -> Result<Uuid, AliveError> {
+    pub fn plant_seed(
+        &mut self,
+        x: usize,
+        y: usize,
+        cell_type: UICellType,
+    ) -> Result<Uuid, AliveError> {
         if x >= self.dimensions.0 || y >= self.dimensions.1 {
             return Err(AliveError::OutOfBounds { x, y });
         }
-        
+
         if self.grid[y][x].is_some() {
             return Err(AliveError::CellAlreadyExists { x, y });
         }
-        
+
         use cliffy_core::ga_helpers::vector3;
         let position = vector3(x as f64, y as f64, 0.0);
         let cell = UICell::new_at_position(cell_type, position);
         let id = cell.id();
-        
+
         self.grid[y][x] = Some(cell);
         Ok(id)
     }
-    
+
     /// Remove a cell at the specified coordinates
     pub fn remove_cell(&mut self, x: usize, y: usize) -> Option<UICell> {
         if x < self.dimensions.0 && y < self.dimensions.1 {
@@ -140,7 +144,7 @@ impl UIOrganismField {
             None
         }
     }
-    
+
     /// Get a reference to the cell at the specified coordinates
     pub fn get_cell(&self, x: usize, y: usize) -> Option<&UICell> {
         if x < self.dimensions.0 && y < self.dimensions.1 {
@@ -149,7 +153,7 @@ impl UIOrganismField {
             None
         }
     }
-    
+
     /// Get a mutable reference to the cell at the specified coordinates
     pub fn get_cell_mut(&mut self, x: usize, y: usize) -> Option<&mut UICell> {
         if x < self.dimensions.0 && y < self.dimensions.1 {
@@ -158,12 +162,12 @@ impl UIOrganismField {
             None
         }
     }
-    
+
     /// Add an energy source to the organism
     pub fn add_energy_source(&mut self, source: EnergySource) {
         self.energy_sources.push(source);
     }
-    
+
     /// Feed energy to a specific region
     pub fn feed_region(&mut self, x: usize, y: usize, radius: usize, energy: UIEnergy) {
         let source = EnergySource {
@@ -172,32 +176,34 @@ impl UIOrganismField {
             energy_per_second: energy,
             is_active: true,
         };
-        
+
         // Immediately apply some energy
         self.apply_energy_source(&source, 1.0);
-        
+
         // Add as ongoing source
         self.add_energy_source(source);
     }
-    
+
     /// Apply selection pressure to influence evolution
     pub fn apply_selection_pressure(&mut self, pressure: SelectionPressure) {
         self.selection_pressures.push(pressure);
     }
-    
+
     /// Step the organism forward in time
     pub fn step(&mut self, dt: UITime) {
         self.total_time += dt;
 
         // Apply energy sources (clone to avoid borrow issues)
-        let active_sources: Vec<_> = self.energy_sources.iter()
+        let active_sources: Vec<_> = self
+            .energy_sources
+            .iter()
             .filter(|s| s.is_active)
             .cloned()
             .collect();
         for source in active_sources {
             self.apply_energy_source(&source, dt);
         }
-        
+
         // Step all cells
         let mut cells_to_remove = Vec::new();
         let mut cells_to_reproduce = Vec::new();
@@ -234,25 +240,25 @@ impl UIOrganismField {
                 }
             }
         }
-        
+
         // Remove dead cells
         for (x, y) in cells_to_remove {
             self.grid[y][x] = None;
         }
-        
+
         // Add new cells
         for (x, y, cell) in cells_to_add {
             if self.grid[y][x].is_none() {
                 self.grid[y][x] = Some(cell);
             }
         }
-        
+
         // Apply selection pressures
         self.apply_selection_pressures(dt);
-        
+
         // Update connections between cells
         self.update_connections();
-        
+
         // Record statistics
         if self.total_time.fract() < dt {
             // Record stats roughly once per time unit
@@ -260,18 +266,19 @@ impl UIOrganismField {
             self.history.push(stats);
         }
     }
-    
+
     /// Apply energy from a source to nearby cells
     fn apply_energy_source(&mut self, source: &EnergySource, dt: UITime) {
         let (sx, sy) = source.position;
         let energy_to_distribute = source.energy_per_second * dt;
-        
+
         // Find all cells within radius
         let mut cells_in_range = Vec::new();
-        
+
         for y in 0..self.dimensions.1 {
             for x in 0..self.dimensions.0 {
-                let distance = ((x as f64 - sx as f64).powi(2) + (y as f64 - sy as f64).powi(2)).sqrt();
+                let distance =
+                    ((x as f64 - sx as f64).powi(2) + (y as f64 - sy as f64).powi(2)).sqrt();
                 if distance <= source.radius as f64 && self.grid[y][x].is_some() {
                     cells_in_range.push((x, y, distance));
                 }
@@ -288,7 +295,7 @@ impl UIOrganismField {
             }
         }
     }
-    
+
     /// Find an empty neighboring position for reproduction
     fn find_empty_neighbor(&self, x: usize, y: usize) -> Option<(usize, usize)> {
         let neighbors = [
@@ -301,16 +308,16 @@ impl UIOrganismField {
             (x.saturating_sub(1), y + 1),
             (x + 1, y + 1),
         ];
-        
+
         for (nx, ny) in neighbors {
             if nx < self.dimensions.0 && ny < self.dimensions.1 && self.grid[ny][nx].is_none() {
                 return Some((nx, ny));
             }
         }
-        
+
         None
     }
-    
+
     /// Apply selection pressures to influence evolution
     fn apply_selection_pressures(&mut self, dt: UITime) {
         // Clone selection pressures to avoid borrow checker issues
@@ -341,7 +348,7 @@ impl UIOrganismField {
             }
         }
     }
-    
+
     /// Reward cells with high values for a specific gene
     fn reward_gene(&mut self, gene_name: &str, dt: UITime) {
         for row in &mut self.grid {
@@ -354,7 +361,7 @@ impl UIOrganismField {
             }
         }
     }
-    
+
     /// Reward cells with gene values close to target
     fn reward_gene_toward_target(&mut self, gene_name: &str, target: f64, dt: UITime) {
         for row in &mut self.grid {
@@ -368,11 +375,11 @@ impl UIOrganismField {
             }
         }
     }
-    
+
     /// Update connections between neighboring cells
     fn update_connections(&mut self) {
         let mut connections_to_update = Vec::new();
-        
+
         // Find all cell pairs that should be connected
         for y in 0..self.dimensions.1 {
             for x in 0..self.dimensions.0 {
@@ -380,7 +387,7 @@ impl UIOrganismField {
                     let cell_id = cell.id();
                     let cell_type = cell.cell_type();
                     let cooperation = cell.genome().get_gene("cooperation");
-                    
+
                     // Check neighbors
                     let neighbors = [
                         (x.saturating_sub(1), y),
@@ -388,26 +395,34 @@ impl UIOrganismField {
                         (x, y.saturating_sub(1)),
                         (x, y + 1),
                     ];
-                    
+
                     for (nx, ny) in neighbors {
                         if nx < self.dimensions.0 && ny < self.dimensions.1 {
                             if let Some(neighbor) = &self.grid[ny][nx] {
                                 let neighbor_id = neighbor.id();
                                 let neighbor_type = neighbor.cell_type();
-                                let neighbor_cooperation = neighbor.genome().get_gene("cooperation");
-                                
+                                let neighbor_cooperation =
+                                    neighbor.genome().get_gene("cooperation");
+
                                 // Calculate connection strength based on compatibility
-                                let type_compatibility = if cell_type.preferred_neighbors().contains(&neighbor_type) {
-                                    1.0
-                                } else {
-                                    0.5
-                                };
-                                
+                                let type_compatibility =
+                                    if cell_type.preferred_neighbors().contains(&neighbor_type) {
+                                        1.0
+                                    } else {
+                                        0.5
+                                    };
+
                                 let cooperation_factor = (cooperation + neighbor_cooperation) / 2.0;
                                 let connection_strength = type_compatibility * cooperation_factor;
-                                
+
                                 if connection_strength > 0.1 {
-                                    connections_to_update.push((x, y, cell_id, neighbor_id, connection_strength));
+                                    connections_to_update.push((
+                                        x,
+                                        y,
+                                        cell_id,
+                                        neighbor_id,
+                                        connection_strength,
+                                    ));
                                 }
                             }
                         }
@@ -415,7 +430,7 @@ impl UIOrganismField {
                 }
             }
         }
-        
+
         // Apply connections
         for (x, y, cell_id, neighbor_id, strength) in connections_to_update {
             if let Some(cell) = &mut self.grid[y][x] {
@@ -423,7 +438,7 @@ impl UIOrganismField {
             }
         }
     }
-    
+
     /// Calculate current organism statistics
     fn calculate_statistics(&self) -> OrganismStatistics {
         let mut total_cells = 0;
@@ -432,41 +447,55 @@ impl UIOrganismField {
         let mut total_energy = 0.0;
         let mut total_age = 0.0;
         let mut gene_values: HashMap<String, Vec<f64>> = HashMap::new();
-        
+
         for row in &self.grid {
             for cell_opt in row {
                 if let Some(cell) = cell_opt {
                     total_cells += 1;
-                    
+
                     if cell.is_alive() {
                         living_cells += 1;
                         total_energy += cell.energy_level();
                         total_age += cell.age();
-                        
+
                         *cell_type_counts.entry(cell.cell_type()).or_insert(0) += 1;
-                        
+
                         // Collect gene values for diversity calculation
-                        for gene_name in ["growth_rate", "energy_efficiency", "cooperation", "adaptability", "visual_appeal", "responsiveness"] {
-                            gene_values.entry(gene_name.to_string())
-                                       .or_insert_with(Vec::new)
-                                       .push(cell.genome().get_gene(gene_name));
+                        for gene_name in [
+                            "growth_rate",
+                            "energy_efficiency",
+                            "cooperation",
+                            "adaptability",
+                            "visual_appeal",
+                            "responsiveness",
+                        ] {
+                            gene_values
+                                .entry(gene_name.to_string())
+                                .or_insert_with(Vec::new)
+                                .push(cell.genome().get_gene(gene_name));
                         }
                     }
                 }
             }
         }
-        
-        let average_age = if living_cells > 0 { total_age / living_cells as f64 } else { 0.0 };
-        
-        // Calculate genetic diversity as average variance across genes
-        let genetic_diversity = if living_cells > 1 {
-            gene_values.values()
-                      .map(|values| calculate_variance(values))
-                      .sum::<f64>() / gene_values.len() as f64
+
+        let average_age = if living_cells > 0 {
+            total_age / living_cells as f64
         } else {
             0.0
         };
-        
+
+        // Calculate genetic diversity as average variance across genes
+        let genetic_diversity = if living_cells > 1 {
+            gene_values
+                .values()
+                .map(|values| calculate_variance(values))
+                .sum::<f64>()
+                / gene_values.len() as f64
+        } else {
+            0.0
+        };
+
         OrganismStatistics {
             time: self.total_time,
             total_cells,
@@ -477,69 +506,80 @@ impl UIOrganismField {
             genetic_diversity,
         }
     }
-    
+
     /// Handle user interaction at specific coordinates
-    pub fn handle_interaction(&mut self, x: usize, y: usize, interaction_type: InteractionType, intensity: f64) {
+    pub fn handle_interaction(
+        &mut self,
+        x: usize,
+        y: usize,
+        interaction_type: InteractionType,
+        intensity: f64,
+    ) {
         if let Some(cell) = self.get_cell_mut(x, y) {
             cell.on_interaction(interaction_type, intensity);
         }
     }
-    
+
     /// Get the total number of cells
     pub fn cell_count(&self) -> usize {
-        self.grid.iter()
-                 .flat_map(|row| row.iter())
-                 .filter(|cell| cell.is_some())
-                 .count()
+        self.grid
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter(|cell| cell.is_some())
+            .count()
     }
-    
+
     /// Get the number of living cells
     pub fn living_cell_count(&self) -> usize {
-        self.grid.iter()
-                 .flat_map(|row| row.iter())
-                 .filter_map(|cell| cell.as_ref())
-                 .filter(|cell| cell.is_alive())
-                 .count()
+        self.grid
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter_map(|cell| cell.as_ref())
+            .filter(|cell| cell.is_alive())
+            .count()
     }
-    
+
     /// Get the total energy in the organism
     pub fn total_energy(&self) -> UIEnergy {
-        self.grid.iter()
-                 .flat_map(|row| row.iter())
-                 .filter_map(|cell| cell.as_ref())
-                 .map(|cell| cell.energy_level())
-                 .sum()
+        self.grid
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter_map(|cell| cell.as_ref())
+            .map(|cell| cell.energy_level())
+            .sum()
     }
-    
+
     /// Get the average age of living cells
     pub fn average_age(&self) -> UITime {
-        let living_cells: Vec<_> = self.grid.iter()
-                                          .flat_map(|row| row.iter())
-                                          .filter_map(|cell| cell.as_ref())
-                                          .filter(|cell| cell.is_alive())
-                                          .collect();
-        
+        let living_cells: Vec<_> = self
+            .grid
+            .iter()
+            .flat_map(|row| row.iter())
+            .filter_map(|cell| cell.as_ref())
+            .filter(|cell| cell.is_alive())
+            .collect();
+
         if living_cells.is_empty() {
             0.0
         } else {
             living_cells.iter().map(|cell| cell.age()).sum::<UITime>() / living_cells.len() as f64
         }
     }
-    
+
     /// Get the current generation
     pub fn generation(&self) -> u64 {
         self.generation
     }
-    
+
     /// Get the dimensions of the field
     pub fn dimensions(&self) -> (usize, usize) {
         self.dimensions
     }
-    
+
     /// Get a snapshot of the current organism state
     pub fn snapshot(&self) -> OrganismSnapshot {
         let mut cells = HashMap::new();
-        
+
         for y in 0..self.dimensions.1 {
             for x in 0..self.dimensions.0 {
                 if let Some(cell) = &self.grid[y][x] {
@@ -547,7 +587,7 @@ impl UIOrganismField {
                 }
             }
         }
-        
+
         OrganismSnapshot {
             cells,
             dimensions: self.dimensions,
@@ -556,48 +596,48 @@ impl UIOrganismField {
             config: self.config.clone(),
         }
     }
-    
+
     /// Load a snapshot into the organism
     pub fn load_snapshot(&mut self, snapshot: OrganismSnapshot) -> Result<(), AliveError> {
         if snapshot.dimensions != self.dimensions {
-            return Err(AliveError::InvalidSnapshot(
-                format!("Dimension mismatch: expected {:?}, got {:?}", 
-                       self.dimensions, snapshot.dimensions)
-            ));
+            return Err(AliveError::InvalidSnapshot(format!(
+                "Dimension mismatch: expected {:?}, got {:?}",
+                self.dimensions, snapshot.dimensions
+            )));
         }
-        
+
         // Clear current grid
         for row in &mut self.grid {
             for cell in row {
                 *cell = None;
             }
         }
-        
+
         // Load cells from snapshot
         for ((x, y), cell) in snapshot.cells {
             if x < self.dimensions.0 && y < self.dimensions.1 {
                 self.grid[y][x] = Some(cell);
             }
         }
-        
+
         self.generation = snapshot.generation;
         self.total_time = snapshot.total_time;
         self.config = snapshot.config;
-        
+
         Ok(())
     }
-    
+
     /// Get the organism history
     pub fn history(&self) -> &[OrganismStatistics] {
         &self.history
     }
-    
+
     /// Iterate over all cells in the field
     pub fn iter_cells(&self) -> impl Iterator<Item = ((usize, usize), &UICell)> {
         self.grid.iter().enumerate().flat_map(|(y, row)| {
-            row.iter().enumerate().filter_map(move |(x, cell)| {
-                cell.as_ref().map(|c| ((x, y), c))
-            })
+            row.iter()
+                .enumerate()
+                .filter_map(move |(x, cell)| cell.as_ref().map(|c| ((x, y), c)))
         })
     }
 }
@@ -607,11 +647,9 @@ fn calculate_variance(values: &[f64]) -> f64 {
     if values.len() < 2 {
         return 0.0;
     }
-    
+
     let mean = values.iter().sum::<f64>() / values.len() as f64;
-    let variance = values.iter()
-                        .map(|v| (v - mean).powi(2))
-                        .sum::<f64>() / values.len() as f64;
+    let variance = values.iter().map(|v| (v - mean).powi(2)).sum::<f64>() / values.len() as f64;
     variance
 }
 
@@ -623,85 +661,85 @@ mod tests {
     fn test_organism_creation() {
         let config = AliveConfig::default();
         let organism = UIOrganismField::new((10, 10), config);
-        
+
         assert_eq!(organism.dimensions(), (10, 10));
         assert_eq!(organism.cell_count(), 0);
         assert_eq!(organism.living_cell_count(), 0);
     }
-    
+
     #[test]
     fn test_seed_planting() {
         let config = AliveConfig::default();
         let mut organism = UIOrganismField::new((10, 10), config);
-        
+
         let result = organism.plant_seed(5, 5, UICellType::ButtonCore);
         assert!(result.is_ok());
-        
+
         assert_eq!(organism.cell_count(), 1);
         assert_eq!(organism.living_cell_count(), 1);
-        
+
         let cell = organism.get_cell(5, 5);
         assert!(cell.is_some());
         assert_eq!(cell.unwrap().cell_type(), UICellType::ButtonCore);
     }
-    
+
     #[test]
     fn test_energy_feeding() {
         let config = AliveConfig::default();
         let mut organism = UIOrganismField::new((10, 10), config);
-        
+
         let _ = organism.plant_seed(5, 5, UICellType::ButtonCore);
         let initial_energy = organism.get_cell(5, 5).unwrap().energy_level();
-        
+
         organism.feed_region(5, 5, 2, 50.0);
-        
+
         let new_energy = organism.get_cell(5, 5).unwrap().energy_level();
         assert!(new_energy > initial_energy);
     }
-    
+
     #[test]
     fn test_organism_step() {
         let config = AliveConfig::default();
         let mut organism = UIOrganismField::new((10, 10), config);
-        
+
         let _ = organism.plant_seed(5, 5, UICellType::ButtonCore);
-        
+
         organism.step(1.0);
-        
+
         // Cell should still be alive but may have consumed energy
         assert_eq!(organism.living_cell_count(), 1);
     }
-    
+
     #[test]
     fn test_selection_pressure() {
         let config = AliveConfig::default();
         let mut organism = UIOrganismField::new((10, 10), config);
-        
+
         let _ = organism.plant_seed(5, 5, UICellType::ButtonCore);
-        
+
         organism.apply_selection_pressure(SelectionPressure::EnergyEfficiency);
         organism.step(1.0);
-        
+
         // Should have applied selection pressure
         assert_eq!(organism.living_cell_count(), 1);
     }
-    
+
     #[test]
     fn test_snapshot() {
         let config = AliveConfig::default();
         let mut organism = UIOrganismField::new((5, 5), config.clone());
-        
+
         let _ = organism.plant_seed(2, 2, UICellType::ButtonCore);
         organism.step(1.0);
-        
+
         let snapshot = organism.snapshot();
         assert_eq!(snapshot.cells.len(), 1);
         assert_eq!(snapshot.dimensions, (5, 5));
-        
+
         let mut new_organism = UIOrganismField::new((5, 5), config);
         let result = new_organism.load_snapshot(snapshot);
         assert!(result.is_ok());
-        
+
         assert_eq!(new_organism.cell_count(), 1);
         assert_eq!(new_organism.living_cell_count(), 1);
     }

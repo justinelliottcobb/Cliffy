@@ -4,13 +4,12 @@
 //! metabolism, lifecycle stages, aging, and death. It ensures that UI elements
 //! behave like living organisms with realistic energy dynamics.
 
-use cliffy_core::GA3;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
 use crate::{
-    ui_cell::{UICell, UICellType, CellState},
-    UIEnergy, UITime, AliveConfig,
+    ui_cell::{UICell, UICellType},
+    UIEnergy, UITime,
 };
 
 /// Metabolic processes that can affect cell energy
@@ -73,7 +72,7 @@ impl LifecycleStage {
             LifecycleStage::Senescent => 0.5, // Poor efficiency
         }
     }
-    
+
     /// Get the growth rate multiplier for this stage
     pub fn growth_multiplier(&self) -> f64 {
         match self {
@@ -83,7 +82,7 @@ impl LifecycleStage {
             LifecycleStage::Senescent => 0.2, // Very slow growth
         }
     }
-    
+
     /// Determine lifecycle stage based on age
     pub fn from_age(age: UITime) -> Self {
         match age {
@@ -100,10 +99,10 @@ impl LifecycleStage {
 pub struct MetabolismManager {
     /// Energy consumption rates for different processes
     process_rates: HashMap<MetabolicProcess, f64>,
-    
+
     /// Age thresholds for lifecycle transitions
     age_thresholds: [UITime; 4], // Juvenile, Adult, Elder, Senescent
-    
+
     /// Base metabolism configuration
     config: MetabolismConfig,
 }
@@ -113,22 +112,22 @@ pub struct MetabolismManager {
 pub struct MetabolismConfig {
     /// Base energy consumption per time unit
     pub base_consumption: UIEnergy,
-    
+
     /// Energy threshold below which cells start dying
     pub starvation_threshold: UIEnergy,
-    
+
     /// Energy threshold above which cells can reproduce
     pub reproduction_threshold: UIEnergy,
-    
+
     /// Rate at which cells age
     pub aging_rate: f64,
-    
+
     /// Maximum age before forced death
     pub max_lifespan: UITime,
-    
+
     /// Energy efficiency of different cell types
     pub type_efficiency: HashMap<UICellType, f64>,
-    
+
     /// Energy storage capacity per cell type
     pub energy_capacity: HashMap<UICellType, UIEnergy>,
 }
@@ -146,7 +145,7 @@ impl Default for MetabolismConfig {
         type_efficiency.insert(UICellType::Decoration, 0.6);
         type_efficiency.insert(UICellType::Sensor, 0.75);
         type_efficiency.insert(UICellType::Memory, 0.8);
-        
+
         let mut energy_capacity = HashMap::new();
         energy_capacity.insert(UICellType::ButtonCore, 200.0);
         energy_capacity.insert(UICellType::ButtonEdge, 100.0);
@@ -158,7 +157,7 @@ impl Default for MetabolismConfig {
         energy_capacity.insert(UICellType::Decoration, 80.0);
         energy_capacity.insert(UICellType::Sensor, 120.0);
         energy_capacity.insert(UICellType::Memory, 180.0);
-        
+
         Self {
             base_consumption: 1.0,
             starvation_threshold: 5.0,
@@ -175,7 +174,7 @@ impl MetabolismManager {
     /// Create a new metabolism manager
     pub fn new(config: MetabolismConfig) -> Self {
         let mut process_rates = HashMap::new();
-        
+
         // Initialize default process rates
         process_rates.insert(MetabolicProcess::Respiration, 1.0);
         process_rates.insert(MetabolicProcess::Rendering, 0.5);
@@ -185,19 +184,19 @@ impl MetabolismManager {
         process_rates.insert(MetabolicProcess::Learning, 0.2);
         process_rates.insert(MetabolicProcess::Movement, 0.0); // Variable
         process_rates.insert(MetabolicProcess::Memory, 0.1);
-        
+
         Self {
             process_rates,
             age_thresholds: [10.0, 50.0, 100.0, 200.0],
             config,
         }
     }
-    
+
     /// Create a default metabolism manager
     pub fn default() -> Self {
         Self::new(MetabolismConfig::default())
     }
-    
+
     /// Calculate total energy consumption for a cell
     pub fn calculate_energy_consumption(
         &self,
@@ -208,41 +207,44 @@ impl MetabolismManager {
         let base_cost = self.config.base_consumption * dt;
         let cell_type = cell.cell_type();
         let lifecycle_stage = LifecycleStage::from_age(cell.age());
-        
+
         // Get cell type efficiency
-        let type_efficiency = self.config.type_efficiency
+        let type_efficiency = self
+            .config
+            .type_efficiency
             .get(&cell_type)
             .copied()
             .unwrap_or(1.0);
-        
+
         // Get genetic efficiency
         let genetic_efficiency = cell.genome().get_gene("energy_efficiency");
-        
+
         // Calculate total efficiency
-        let total_efficiency = type_efficiency * genetic_efficiency * lifecycle_stage.efficiency_multiplier();
-        
+        let total_efficiency =
+            type_efficiency * genetic_efficiency * lifecycle_stage.efficiency_multiplier();
+
         // Calculate process costs
         let mut total_cost = base_cost / total_efficiency;
-        
+
         for process in active_processes {
             let process_rate = self.process_rates.get(process).copied().unwrap_or(0.0);
             let process_cost = process_rate * process.energy_multiplier() * dt;
             total_cost += process_cost / total_efficiency;
         }
-        
+
         total_cost
     }
-    
+
     /// Apply aging effects to a cell
     pub fn apply_aging(&self, cell: &mut UICell, dt: UITime) {
         let age_increase = dt * self.config.aging_rate;
-        
+
         // Aging affects all cells, but efficiency can slow it down
         let genetic_efficiency = cell.genome().get_gene("energy_efficiency");
         let actual_aging = age_increase / (1.0 + genetic_efficiency * 0.5);
-        
+
         // Note: Age is already tracked by the cell itself, this is for additional aging effects
-        
+
         // Apply age-related energy decay
         let lifecycle_stage = LifecycleStage::from_age(cell.age());
         match lifecycle_stage {
@@ -258,7 +260,7 @@ impl MetabolismManager {
             }
             _ => {}
         }
-        
+
         // Check for natural death from old age
         if cell.age() > self.config.max_lifespan {
             // Force cell to start dying
@@ -266,80 +268,89 @@ impl MetabolismManager {
             // In practice, this would be handled by the cell's step function
         }
     }
-    
+
     /// Check if a cell should enter starvation mode
     pub fn is_starving(&self, cell: &UICell) -> bool {
         cell.energy_level() < self.config.starvation_threshold
     }
-    
+
     /// Check if a cell has enough energy to reproduce
     pub fn can_reproduce(&self, cell: &UICell) -> bool {
         cell.energy_level() > self.config.reproduction_threshold &&
         cell.age() > 5.0 && // Must be at least 5 time units old
-        matches!(LifecycleStage::from_age(cell.age()), 
+        matches!(LifecycleStage::from_age(cell.age()),
                 LifecycleStage::Juvenile | LifecycleStage::Adult)
     }
-    
+
     /// Calculate energy cost for reproduction
     pub fn reproduction_cost(&self, cell: &UICell) -> UIEnergy {
         let base_cost = self.config.reproduction_threshold * 0.8;
         let cell_type_cost = cell.cell_type().base_energy_cost() * 10.0;
         let genetic_factor = 2.0 - cell.genome().get_gene("energy_efficiency");
-        
+
         base_cost + cell_type_cost * genetic_factor
     }
-    
+
     /// Get the maximum energy capacity for a cell type
     pub fn energy_capacity(&self, cell_type: UICellType) -> UIEnergy {
-        self.config.energy_capacity
+        self.config
+            .energy_capacity
             .get(&cell_type)
             .copied()
             .unwrap_or(100.0)
     }
-    
+
     /// Apply metabolic process to a cell
-    pub fn apply_process(&self, cell: &mut UICell, process: MetabolicProcess, intensity: f64, dt: UITime) -> bool {
+    pub fn apply_process(
+        &self,
+        cell: &mut UICell,
+        process: MetabolicProcess,
+        intensity: f64,
+        dt: UITime,
+    ) -> bool {
         let base_cost = self.process_rates.get(&process).copied().unwrap_or(0.0);
         let total_cost = base_cost * process.energy_multiplier() * intensity * dt;
-        
+
         cell.consume_energy(total_cost)
     }
-    
+
     /// Get the lifecycle stage of a cell
     pub fn lifecycle_stage(&self, cell: &UICell) -> LifecycleStage {
         LifecycleStage::from_age(cell.age())
     }
-    
+
     /// Calculate metabolic efficiency for a cell
     pub fn metabolic_efficiency(&self, cell: &UICell) -> f64 {
         let cell_type = cell.cell_type();
         let lifecycle_stage = self.lifecycle_stage(cell);
-        
-        let type_efficiency = self.config.type_efficiency
+
+        let type_efficiency = self
+            .config
+            .type_efficiency
             .get(&cell_type)
             .copied()
             .unwrap_or(1.0);
-        
+
         let genetic_efficiency = cell.genome().get_gene("energy_efficiency");
         let age_efficiency = lifecycle_stage.efficiency_multiplier();
-        
+
         type_efficiency * genetic_efficiency * age_efficiency
     }
-    
+
     /// Calculate energy regeneration rate
     pub fn energy_regeneration_rate(&self, cell: &UICell) -> UIEnergy {
         let base_regen = 0.1; // Base regeneration per time unit
         let efficiency = self.metabolic_efficiency(cell);
         let health_factor = (cell.energy_level() / 100.0).clamp(0.1, 1.0);
-        
+
         base_regen * efficiency * health_factor
     }
-    
+
     /// Update metabolism configuration
     pub fn update_config(&mut self, new_config: MetabolismConfig) {
         self.config = new_config;
     }
-    
+
     /// Get current configuration
     pub fn config(&self) -> &MetabolismConfig {
         &self.config
@@ -382,7 +393,7 @@ impl CellVitals {
         let age = cell.age();
         let lifecycle_stage = metabolism.lifecycle_stage(cell);
         let metabolic_efficiency = metabolism.metabolic_efficiency(cell);
-        
+
         // Determine health status
         let energy_ratio = energy_level / energy_capacity;
         let health_status = match energy_ratio {
@@ -392,7 +403,7 @@ impl CellVitals {
             r if r > 0.05 => HealthStatus::Critical,
             _ => HealthStatus::Dying,
         };
-        
+
         // Calculate time to reproduction
         let time_to_reproduction = if metabolism.can_reproduce(cell) {
             Some(0.0)
@@ -407,17 +418,17 @@ impl CellVitals {
         } else {
             None
         };
-        
+
         // Calculate time to death (very rough estimate)
         let time_to_death = if energy_level > metabolism.config.starvation_threshold {
             let consumption_rate = metabolism.calculate_energy_consumption(
-                cell, 
-                &[MetabolicProcess::Respiration], 
-                1.0
+                cell,
+                &[MetabolicProcess::Respiration],
+                1.0,
             );
             let regen_rate = metabolism.energy_regeneration_rate(cell);
             let net_loss = consumption_rate - regen_rate;
-            
+
             if net_loss > 0.0 {
                 Some((energy_level - metabolism.config.starvation_threshold) / net_loss)
             } else {
@@ -426,7 +437,7 @@ impl CellVitals {
         } else {
             Some(0.0) // Already starving
         };
-        
+
         Self {
             energy_level,
             energy_capacity,
@@ -453,25 +464,22 @@ mod tests {
         assert_eq!(LifecycleStage::from_age(75.0), LifecycleStage::Elder);
         assert_eq!(LifecycleStage::from_age(150.0), LifecycleStage::Senescent);
     }
-    
+
     #[test]
     fn test_metabolic_process_costs() {
         assert_eq!(MetabolicProcess::Respiration.energy_multiplier(), 1.0);
         assert_eq!(MetabolicProcess::Reproduction.energy_multiplier(), 5.0);
         assert_eq!(MetabolicProcess::Interaction.energy_multiplier(), 2.0);
     }
-    
+
     #[test]
     fn test_metabolism_manager() {
         let manager = MetabolismManager::default();
         let position = GA3::scalar(1.0);
         let mut cell = UICell::new_at_position(UICellType::ButtonCore, position);
 
-        let consumption = manager.calculate_energy_consumption(
-            &cell,
-            &[MetabolicProcess::Respiration],
-            1.0,
-        );
+        let consumption =
+            manager.calculate_energy_consumption(&cell, &[MetabolicProcess::Respiration], 1.0);
 
         assert!(consumption > 0.0);
 
@@ -480,7 +488,7 @@ mod tests {
         cell.step(6.0); // Age to 6.0 > 5.0 required
         assert!(manager.can_reproduce(&cell));
     }
-    
+
     #[test]
     fn test_cell_vitals() {
         let manager = MetabolismManager::default();
@@ -497,19 +505,19 @@ mod tests {
         assert!(vitals.metabolic_efficiency > 0.0);
         assert_eq!(vitals.health_status, HealthStatus::Healthy);
     }
-    
+
     #[test]
     fn test_energy_capacity() {
         let manager = MetabolismManager::default();
-        
+
         let button_capacity = manager.energy_capacity(UICellType::ButtonCore);
         let spacer_capacity = manager.energy_capacity(UICellType::Spacer);
-        
+
         assert!(button_capacity > spacer_capacity);
         assert_eq!(button_capacity, 200.0);
         assert_eq!(spacer_capacity, 50.0);
     }
-    
+
     #[test]
     fn test_reproduction_requirements() {
         let manager = MetabolismManager::default();

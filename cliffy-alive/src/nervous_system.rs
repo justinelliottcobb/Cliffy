@@ -3,14 +3,14 @@
 //! This module implements a neural network-like system that allows UI organisms
 //! to sense, process, and respond to user interactions in sophisticated ways.
 
-use cliffy_core::{GA3, ga_helpers::vector3};
+use cliffy_core::{ga_helpers::vector3, GA3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    ui_cell::{UICell, UICellType, InteractionType},
-    UITime, UIEnergy,
+    ui_cell::{UICell, UICellType},
+    UIEnergy, UITime,
 };
 
 /// Types of sensory input the nervous system can detect
@@ -54,7 +54,7 @@ impl SensorType {
             SensorType::Environmental => 10.0,
         }
     }
-    
+
     /// Get the sensitivity of this sensor type
     pub fn sensitivity(&self) -> f64 {
         match self {
@@ -96,13 +96,13 @@ impl Stimulus {
             metadata: HashMap::new(),
         }
     }
-    
+
     /// Add metadata to the stimulus
     pub fn with_metadata(mut self, key: String, value: f64) -> Self {
         self.metadata.insert(key, value);
         self
     }
-    
+
     /// Check if the stimulus affects a cell at a given position
     pub fn affects_position(&self, position: &GA3) -> bool {
         let distance = (&self.position - position).magnitude();
@@ -113,7 +113,7 @@ impl Stimulus {
     pub fn intensity_at(&self, position: &GA3) -> f64 {
         let distance = (&self.position - position).magnitude();
         let range = self.sensor_type.detection_range();
-        
+
         if distance > range {
             0.0
         } else {
@@ -168,33 +168,20 @@ pub enum Action {
         torque: GA3,
     },
     /// Energy manipulation
-    EnergyChange {
-        delta: UIEnergy,
-    },
+    EnergyChange { delta: UIEnergy },
     /// Communication with neighbors
-    Communication {
-        message: String,
-        range: f64,
-    },
+    Communication { message: String, range: f64 },
     /// State change
-    StateChange {
-        new_state: String,
-    },
+    StateChange { new_state: String },
     /// Connection modification
     ConnectionChange {
         target_id: Option<Uuid>,
         strength_delta: f64,
     },
     /// Memory storage
-    MemoryStore {
-        key: String,
-        value: f64,
-    },
+    MemoryStore { key: String, value: f64 },
     /// Learning update
-    LearningUpdate {
-        gene: String,
-        adjustment: f64,
-    },
+    LearningUpdate { gene: String, adjustment: f64 },
 }
 
 /// A single neuron in the nervous system
@@ -202,28 +189,28 @@ pub enum Action {
 pub struct Neuron {
     /// Unique identifier
     pub id: Uuid,
-    
+
     /// Type of neuron
     pub neuron_type: NeuronType,
-    
+
     /// Current activation level
     pub activation: f64,
-    
+
     /// Threshold for firing
     pub threshold: f64,
-    
+
     /// Current fatigue level (reduces response)
     pub fatigue: f64,
-    
+
     /// Learning rate for this neuron
     pub learning_rate: f64,
-    
+
     /// Input connections with weights
     pub inputs: HashMap<Uuid, f64>,
-    
+
     /// Output connections with weights
     pub outputs: HashMap<Uuid, f64>,
-    
+
     /// Memory traces
     pub memory: HashMap<String, f64>,
 }
@@ -258,7 +245,7 @@ impl Neuron {
             memory: HashMap::new(),
         }
     }
-    
+
     /// Update neuron activation based on inputs
     pub fn update(&mut self, dt: UITime) {
         // Calculate total input
@@ -268,14 +255,14 @@ impl Neuron {
             // For now, use a simplified calculation
             total_input += weight * 0.5; // Placeholder
         }
-        
+
         // Apply activation function (sigmoid)
         let net_input = total_input - self.threshold;
         self.activation = 1.0 / (1.0 + (-net_input).exp());
-        
+
         // Apply fatigue
-        self.activation *= (1.0 - self.fatigue);
-        
+        self.activation *= 1.0 - self.fatigue;
+
         // Update fatigue (increases with high activation)
         if self.activation > 0.8 {
             self.fatigue += dt * 0.1;
@@ -284,22 +271,22 @@ impl Neuron {
         }
         self.fatigue = self.fatigue.clamp(0.0, 0.9);
     }
-    
+
     /// Check if the neuron is firing
     pub fn is_firing(&self) -> bool {
         self.activation > self.threshold
     }
-    
+
     /// Add an input connection
     pub fn add_input(&mut self, neuron_id: Uuid, weight: f64) {
         self.inputs.insert(neuron_id, weight);
     }
-    
+
     /// Add an output connection
     pub fn add_output(&mut self, neuron_id: Uuid, weight: f64) {
         self.outputs.insert(neuron_id, weight);
     }
-    
+
     /// Update connection weight based on learning
     pub fn update_weight(&mut self, connection_id: &Uuid, delta: f64) {
         if let Some(weight) = self.inputs.get_mut(connection_id) {
@@ -311,12 +298,12 @@ impl Neuron {
             *weight = weight.clamp(-2.0, 2.0);
         }
     }
-    
+
     /// Store a memory trace
     pub fn store_memory(&mut self, key: String, value: f64) {
         self.memory.insert(key, value);
     }
-    
+
     /// Retrieve a memory trace
     pub fn recall_memory(&self, key: &str) -> Option<f64> {
         self.memory.get(key).copied()
@@ -328,22 +315,22 @@ impl Neuron {
 pub struct CellNeuralNetwork {
     /// All neurons in the network
     neurons: HashMap<Uuid, Neuron>,
-    
+
     /// Sensory input neurons by type
     sensor_neurons: HashMap<SensorType, Uuid>,
-    
+
     /// Motor output neurons by action type
     motor_neurons: HashMap<String, Uuid>,
-    
+
     /// Processing layers
     hidden_layers: Vec<Vec<Uuid>>,
-    
+
     /// Current stimulus inputs
     current_stimuli: Vec<Stimulus>,
-    
+
     /// Response patterns learned over time
     learned_responses: HashMap<String, Response>,
-    
+
     /// Network configuration
     config: NetworkConfig,
 }
@@ -353,19 +340,19 @@ pub struct CellNeuralNetwork {
 pub struct NetworkConfig {
     /// Learning rate for the entire network
     pub learning_rate: f64,
-    
+
     /// Decay rate for memories
     pub memory_decay: f64,
-    
+
     /// Threshold for response activation
     pub response_threshold: f64,
-    
+
     /// Maximum network complexity
     pub max_neurons: usize,
-    
+
     /// Adaptation speed
     pub adaptation_rate: f64,
-    
+
     /// Noise level in neural processing
     pub noise_level: f64,
 }
@@ -396,31 +383,38 @@ impl CellNeuralNetwork {
             learned_responses: HashMap::new(),
             config,
         };
-        
+
         network.initialize_for_cell_type(cell_type);
         network
     }
-    
+
     /// Initialize network topology based on cell type
     fn initialize_for_cell_type(&mut self, cell_type: UICellType) {
         // Create sensory neurons based on cell type capabilities
         let sensor_types = match cell_type {
             UICellType::ButtonCore => vec![
-                SensorType::Touch, SensorType::Proximity, SensorType::Attention
+                SensorType::Touch,
+                SensorType::Proximity,
+                SensorType::Attention,
             ],
             UICellType::InputField => vec![
-                SensorType::Touch, SensorType::Keyboard, SensorType::Attention
+                SensorType::Touch,
+                SensorType::Keyboard,
+                SensorType::Attention,
             ],
             UICellType::Sensor => vec![
-                SensorType::Position, SensorType::Movement, SensorType::Proximity,
-                SensorType::Social, SensorType::Environmental
+                SensorType::Position,
+                SensorType::Movement,
+                SensorType::Proximity,
+                SensorType::Social,
+                SensorType::Environmental,
             ],
-            UICellType::Memory => vec![
-                SensorType::Temporal, SensorType::Energy, SensorType::Social
-            ],
+            UICellType::Memory => {
+                vec![SensorType::Temporal, SensorType::Energy, SensorType::Social]
+            }
             _ => vec![SensorType::Proximity, SensorType::Social],
         };
-        
+
         // Create sensor neurons
         for sensor_type in sensor_types {
             let neuron = Neuron::new(NeuronType::Sensor);
@@ -428,20 +422,24 @@ impl CellNeuralNetwork {
             self.neurons.insert(neuron_id, neuron);
             self.sensor_neurons.insert(sensor_type, neuron_id);
         }
-        
+
         // Create motor neurons
         let motor_actions = vec![
-            "visual_change", "movement", "energy_change", 
-            "communication", "state_change", "learning"
+            "visual_change",
+            "movement",
+            "energy_change",
+            "communication",
+            "state_change",
+            "learning",
         ];
-        
+
         for action in motor_actions {
             let neuron = Neuron::new(NeuronType::Motor);
             let neuron_id = neuron.id;
             self.neurons.insert(neuron_id, neuron);
             self.motor_neurons.insert(action.to_string(), neuron_id);
         }
-        
+
         // Create hidden layer
         let hidden_layer_size = 4;
         let mut hidden_layer = Vec::new();
@@ -452,7 +450,7 @@ impl CellNeuralNetwork {
             self.neurons.insert(neuron_id, neuron);
         }
         self.hidden_layers.push(hidden_layer);
-        
+
         // Connect sensors to hidden layer
         for sensor_id in self.sensor_neurons.values() {
             for hidden_id in &self.hidden_layers[0] {
@@ -464,7 +462,7 @@ impl CellNeuralNetwork {
                 }
             }
         }
-        
+
         // Connect hidden layer to motors
         for motor_id in self.motor_neurons.values() {
             for hidden_id in &self.hidden_layers[0] {
@@ -477,17 +475,17 @@ impl CellNeuralNetwork {
             }
         }
     }
-    
+
     /// Process a stimulus and generate responses
     pub fn process_stimulus(&mut self, stimulus: Stimulus, cell_position: &GA3) -> Vec<Response> {
         // Check if stimulus affects this cell
         if !stimulus.affects_position(cell_position) {
             return Vec::new();
         }
-        
+
         // Add to current stimuli
         self.current_stimuli.push(stimulus.clone());
-        
+
         // Activate sensor neurons
         if let Some(&sensor_id) = self.sensor_neurons.get(&stimulus.sensor_type) {
             let intensity = stimulus.intensity_at(cell_position);
@@ -495,23 +493,23 @@ impl CellNeuralNetwork {
                 sensor_neuron.activation = intensity;
             }
         }
-        
+
         // Update network
         self.update_network(0.1); // Fixed timestep for processing
-        
+
         // Generate responses from motor neurons
         self.generate_responses()
     }
-    
+
     /// Update the entire neural network
     fn update_network(&mut self, dt: UITime) {
         // Update all neurons
         let neuron_ids: Vec<Uuid> = self.neurons.keys().cloned().collect();
-        
+
         for neuron_id in neuron_ids {
             // Calculate inputs from connected neurons
             let mut total_input = 0.0;
-            
+
             if let Some(neuron) = self.neurons.get(&neuron_id) {
                 for (input_id, weight) in &neuron.inputs {
                     if let Some(input_neuron) = self.neurons.get(input_id) {
@@ -519,44 +517,45 @@ impl CellNeuralNetwork {
                     }
                 }
             }
-            
+
             // Update neuron with calculated input
             if let Some(neuron) = self.neurons.get_mut(&neuron_id) {
                 // Apply sigmoid activation function
                 let net_input = total_input - neuron.threshold;
                 neuron.activation = 1.0 / (1.0 + (-net_input).exp());
-                
+
                 // Add noise
                 neuron.activation += (rand::random::<f64>() - 0.5) * self.config.noise_level;
                 neuron.activation = neuron.activation.clamp(0.0, 1.0);
-                
+
                 neuron.update(dt);
             }
         }
-        
+
         // Apply learning
         self.apply_learning(dt);
-        
+
         // Decay memories
         self.decay_memories(dt);
     }
-    
+
     /// Generate responses based on motor neuron activation
     fn generate_responses(&self) -> Vec<Response> {
         let mut responses = Vec::new();
-        
+
         for (action_name, motor_id) in &self.motor_neurons {
             if let Some(motor_neuron) = self.neurons.get(motor_id) {
                 if motor_neuron.activation > self.config.response_threshold {
-                    let response = self.create_response_for_action(action_name, motor_neuron.activation);
+                    let response =
+                        self.create_response_for_action(action_name, motor_neuron.activation);
                     responses.push(response);
                 }
             }
         }
-        
+
         responses
     }
-    
+
     /// Create a specific response based on action type and intensity
     fn create_response_for_action(&self, action_name: &str, intensity: f64) -> Response {
         let actions = match action_name {
@@ -570,7 +569,7 @@ impl CellNeuralNetwork {
                 force: vector3(
                     (rand::random::<f64>() - 0.5) * intensity,
                     (rand::random::<f64>() - 0.5) * intensity,
-                    0.0
+                    0.0,
                 ),
                 torque: GA3::zero(),
             }],
@@ -590,7 +589,7 @@ impl CellNeuralNetwork {
             }],
             _ => vec![],
         };
-        
+
         Response {
             response_type: ResponseType::Adaptive,
             intensity,
@@ -599,26 +598,26 @@ impl CellNeuralNetwork {
             actions,
         }
     }
-    
+
     /// Apply learning rules to update connection weights
     fn apply_learning(&mut self, dt: UITime) {
         // Simplified Hebbian learning: strengthen connections between co-active neurons
         let neuron_ids: Vec<Uuid> = self.neurons.keys().cloned().collect();
-        
+
         for i in 0..neuron_ids.len() {
             for j in (i + 1)..neuron_ids.len() {
                 let id_a = neuron_ids[i];
                 let id_b = neuron_ids[j];
-                
+
                 let (activation_a, activation_b) = {
                     let neuron_a = self.neurons.get(&id_a).unwrap();
                     let neuron_b = self.neurons.get(&id_b).unwrap();
                     (neuron_a.activation, neuron_b.activation)
                 };
-                
+
                 // Hebbian rule: Δw = η * a_i * a_j
                 let weight_delta = self.config.learning_rate * activation_a * activation_b * dt;
-                
+
                 // Update weights if connection exists
                 if let Some(neuron_a) = self.neurons.get_mut(&id_a) {
                     if neuron_a.outputs.contains_key(&id_b) {
@@ -633,47 +632,45 @@ impl CellNeuralNetwork {
             }
         }
     }
-    
+
     /// Decay memories over time
     fn decay_memories(&mut self, dt: UITime) {
         let decay_factor = 1.0 - (self.config.memory_decay * dt);
-        
+
         for neuron in self.neurons.values_mut() {
             for value in neuron.memory.values_mut() {
                 *value *= decay_factor;
             }
-            
+
             // Remove very weak memories
             neuron.memory.retain(|_, &mut value| value > 0.01);
         }
     }
-    
+
     /// Learn a new response pattern
     pub fn learn_response(&mut self, stimulus_pattern: String, response: Response) {
         self.learned_responses.insert(stimulus_pattern, response);
     }
-    
+
     /// Get network statistics
     pub fn get_statistics(&self) -> NetworkStatistics {
         let total_neurons = self.neurons.len();
-        let active_neurons = self.neurons.values()
-            .filter(|n| n.activation > 0.1)
-            .count();
-        
-        let total_connections = self.neurons.values()
+        let active_neurons = self.neurons.values().filter(|n| n.activation > 0.1).count();
+
+        let total_connections = self
+            .neurons
+            .values()
             .map(|n| n.inputs.len() + n.outputs.len())
             .sum::<usize>();
-        
+
         let average_activation = if total_neurons > 0 {
             self.neurons.values().map(|n| n.activation).sum::<f64>() / total_neurons as f64
         } else {
             0.0
         };
-        
-        let memory_count = self.neurons.values()
-            .map(|n| n.memory.len())
-            .sum::<usize>();
-        
+
+        let memory_count = self.neurons.values().map(|n| n.memory.len()).sum::<usize>();
+
         NetworkStatistics {
             total_neurons,
             active_neurons,
@@ -683,7 +680,7 @@ impl CellNeuralNetwork {
             learned_responses: self.learned_responses.len(),
         }
     }
-    
+
     /// Reset network state
     pub fn reset(&mut self) {
         for neuron in self.neurons.values_mut() {
@@ -692,7 +689,7 @@ impl CellNeuralNetwork {
         }
         self.current_stimuli.clear();
     }
-    
+
     /// Update configuration
     pub fn set_config(&mut self, config: NetworkConfig) {
         // Extract values before moving config
@@ -721,13 +718,13 @@ pub struct NetworkStatistics {
 pub struct NervousSystem {
     /// Neural networks for each cell
     cell_networks: HashMap<Uuid, CellNeuralNetwork>,
-    
+
     /// Global stimulus queue
     stimulus_queue: Vec<Stimulus>,
-    
+
     /// System-wide configuration
     config: NetworkConfig,
-    
+
     /// Global memory shared across cells
     global_memory: HashMap<String, f64>,
 }
@@ -742,78 +739,91 @@ impl NervousSystem {
             global_memory: HashMap::new(),
         }
     }
-    
+
     /// Add a cell to the nervous system
     pub fn add_cell(&mut self, cell: &UICell) {
         let network = CellNeuralNetwork::new(cell.cell_type());
         self.cell_networks.insert(cell.id(), network);
     }
-    
+
     /// Remove a cell from the nervous system
     pub fn remove_cell(&mut self, cell_id: &Uuid) {
         self.cell_networks.remove(cell_id);
     }
-    
+
     /// Process a global stimulus
     pub fn process_stimulus(&mut self, stimulus: Stimulus) {
         self.stimulus_queue.push(stimulus);
     }
-    
+
     /// Update all neural networks
-    pub fn update(&mut self, dt: UITime, cell_positions: &HashMap<Uuid, GA3>) -> HashMap<Uuid, Vec<Response>> {
+    pub fn update(
+        &mut self,
+        dt: UITime,
+        cell_positions: &HashMap<Uuid, GA3>,
+    ) -> HashMap<Uuid, Vec<Response>> {
         let mut all_responses = HashMap::new();
-        
+
         // Process queued stimuli
         for stimulus in &self.stimulus_queue {
             for (cell_id, network) in &mut self.cell_networks {
                 if let Some(position) = cell_positions.get(cell_id) {
                     let responses = network.process_stimulus(stimulus.clone(), position);
                     if !responses.is_empty() {
-                        all_responses.entry(*cell_id).or_insert_with(Vec::new).extend(responses);
+                        all_responses
+                            .entry(*cell_id)
+                            .or_insert_with(Vec::new)
+                            .extend(responses);
                     }
                 }
             }
         }
-        
+
         // Clear processed stimuli
         self.stimulus_queue.clear();
-        
+
         // Update all networks
         for network in self.cell_networks.values_mut() {
             network.update_network(dt);
         }
-        
+
         all_responses
     }
-    
+
     /// Get network for a specific cell
     pub fn get_network(&self, cell_id: &Uuid) -> Option<&CellNeuralNetwork> {
         self.cell_networks.get(cell_id)
     }
-    
+
     /// Get mutable network for a specific cell
     pub fn get_network_mut(&mut self, cell_id: &Uuid) -> Option<&mut CellNeuralNetwork> {
         self.cell_networks.get_mut(cell_id)
     }
-    
+
     /// Get system-wide statistics
     pub fn get_system_statistics(&self) -> SystemStatistics {
-        let network_stats: Vec<_> = self.cell_networks.values()
+        let network_stats: Vec<_> = self
+            .cell_networks
+            .values()
             .map(|n| n.get_statistics())
             .collect();
-        
+
         let total_neurons = network_stats.iter().map(|s| s.total_neurons).sum();
         let total_active = network_stats.iter().map(|s| s.active_neurons).sum();
         let total_connections = network_stats.iter().map(|s| s.total_connections).sum();
         let total_memories = network_stats.iter().map(|s| s.memory_count).sum();
         let total_learned = network_stats.iter().map(|s| s.learned_responses).sum();
-        
+
         let average_activation = if !network_stats.is_empty() {
-            network_stats.iter().map(|s| s.average_activation).sum::<f64>() / network_stats.len() as f64
+            network_stats
+                .iter()
+                .map(|s| s.average_activation)
+                .sum::<f64>()
+                / network_stats.len() as f64
         } else {
             0.0
         };
-        
+
         SystemStatistics {
             total_cells: self.cell_networks.len(),
             total_neurons,
@@ -849,55 +859,55 @@ mod tests {
     fn test_stimulus_creation() {
         let position = vector3(1.0, 2.0, 0.0);
         let stimulus = Stimulus::new(SensorType::Touch, position, 0.8);
-        
+
         assert_eq!(stimulus.sensor_type, SensorType::Touch);
         assert_eq!(stimulus.intensity, 0.8);
     }
-    
+
     #[test]
     fn test_stimulus_affects_position() {
         let stimulus_pos = vector3(0.0, 0.0, 0.0);
         let stimulus = Stimulus::new(SensorType::Touch, stimulus_pos, 1.0);
-        
+
         let close_pos = vector3(0.5, 0.0, 0.0);
         let far_pos = vector3(5.0, 0.0, 0.0);
-        
+
         assert!(stimulus.affects_position(&close_pos));
         assert!(!stimulus.affects_position(&far_pos));
     }
-    
+
     #[test]
     fn test_neuron_creation() {
         let neuron = Neuron::new(NeuronType::Sensor);
-        
+
         assert_eq!(neuron.neuron_type, NeuronType::Sensor);
         assert_eq!(neuron.activation, 0.0);
         assert!(neuron.inputs.is_empty());
     }
-    
+
     #[test]
     fn test_neural_network_creation() {
         let network = CellNeuralNetwork::new(UICellType::ButtonCore);
-        
+
         assert!(!network.sensor_neurons.is_empty());
         assert!(!network.motor_neurons.is_empty());
         assert!(!network.neurons.is_empty());
     }
-    
+
     #[test]
     fn test_nervous_system() {
         let mut system = NervousSystem::new();
         let position = vector3(0.0, 0.0, 0.0);
         let cell = UICell::new_at_position(UICellType::ButtonCore, position);
-        
+
         system.add_cell(&cell);
         assert!(system.get_network(&cell.id()).is_some());
-        
+
         let stats = system.get_system_statistics();
         assert_eq!(stats.total_cells, 1);
         assert!(stats.total_neurons > 0);
     }
-    
+
     #[test]
     fn test_sensor_types() {
         assert_eq!(SensorType::Touch.detection_range(), 1.0);

@@ -1,24 +1,25 @@
 use cliffy_alive::evolution::{EvolutionEngine, EvolutionStrategy, MutationType};
-use cliffy_alive::ui_cell::{UICell, UICellType, CellGenome};
+use cliffy_alive::ui_cell::{CellGenome, UICell, UICellType};
 use std::collections::HashMap;
 
 #[test]
 fn test_create_evolution_engine() {
     // Test natural selection engine
     let engine1 = EvolutionEngine::natural_selection();
-    assert!(engine1.performance_metrics().generation >= 0);
+    // Just verify we can get metrics (generation is unsigned, so >= 0 is always true)
+    let _ = engine1.performance_metrics().generation;
 
     // Test directed evolution with target traits
     let mut target_traits = HashMap::new();
     target_traits.insert("energy_efficiency".to_string(), 0.9);
     let engine2 = EvolutionEngine::directed_evolution(target_traits);
-    assert!(engine2.performance_metrics().generation >= 0);
+    let _ = engine2.performance_metrics().generation;
 
     // Test user-guided evolution
     let mut interaction_weights = HashMap::new();
     interaction_weights.insert("click".to_string(), 1.0);
     let engine3 = EvolutionEngine::user_guided(interaction_weights);
-    assert!(engine3.performance_metrics().generation >= 0);
+    let _ = engine3.performance_metrics().generation;
 }
 
 #[test]
@@ -45,7 +46,7 @@ fn test_mutation_configuration() {
     engine.set_learning_rate(0.3);
 
     // Just verify the engine is properly configured
-    assert!(engine.performance_metrics().generation >= 0);
+    let _ = engine.performance_metrics().generation;
 }
 
 #[test]

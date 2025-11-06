@@ -251,7 +251,7 @@ pub mod ga_helpers {
     pub fn normalize_or_zero<const P: usize, const Q: usize, const R: usize>(
         mv: &Multivector<P, Q, R>,
     ) -> Multivector<P, Q, R> {
-        mv.normalize().unwrap_or_else(|| Multivector::zero())
+        mv.normalize().unwrap_or_else(Multivector::zero)
     }
 
     /// Normalize a multivector, returning self if magnitude is too small

@@ -1,6 +1,6 @@
-use cliffy_alive::ui_organism::{UIOrganismField, SelectionPressure, EnergySource};
-use cliffy_alive::ui_cell::{UICellType, InteractionType};
-use cliffy_alive::{AliveConfig};
+use cliffy_alive::ui_cell::{InteractionType, UICellType};
+use cliffy_alive::ui_organism::{EnergySource, SelectionPressure, UIOrganismField};
+use cliffy_alive::AliveConfig;
 
 #[test]
 fn test_create_organism() {

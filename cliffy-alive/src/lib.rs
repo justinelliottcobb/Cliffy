@@ -1,32 +1,31 @@
 //! Cliffy-Alive: Living, Self-Assembling UIs
-//! 
-//! This module creates UI organisms that literally live and evolve using Amari's 
+//!
+//! This module creates UI organisms that literally live and evolve using Amari's
 //! cellular automata foundation. UIs are not static DOM structures but living
 //! geometric fields that grow, adapt, and respond to user interaction through
 //! biological-inspired mechanisms.
 
+pub mod evolution;
+pub mod metabolism;
+pub mod nervous_system;
+pub mod physics;
+pub mod renderer;
 pub mod ui_cell;
 pub mod ui_organism;
-pub mod metabolism;
-pub mod evolution;
-pub mod physics;
-pub mod nervous_system;
-pub mod renderer;
 
-use cliffy_core::{GA3, GA4_1, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{ReactiveMultivector, GA3};
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
 use uuid::Uuid;
 
 // Re-export main types
+pub use evolution::*;
+pub use metabolism::*;
+pub use nervous_system::*;
+pub use physics::*;
+pub use renderer::*;
 pub use ui_cell::*;
 pub use ui_organism::*;
-pub use metabolism::*;
-pub use evolution::*;
-pub use physics::*;
-pub use nervous_system::*;
-pub use renderer::*;
 
 /// The fundamental energy unit in living UIs
 pub type UIEnergy = f64;
@@ -41,19 +40,19 @@ pub type UICoordinates = (usize, usize);
 pub trait LivingComponent: Send + Sync {
     /// Get the current geometric state of this component
     fn geometric_state(&self) -> &ReactiveMultivector<GA3>;
-    
+
     /// Get the current energy level
     fn energy_level(&self) -> UIEnergy;
-    
+
     /// Update the component with a time step
     fn step(&mut self, dt: UITime);
-    
+
     /// Check if this component is alive
     fn is_alive(&self) -> bool;
-    
+
     /// Get unique identifier
     fn id(&self) -> Uuid;
-    
+
     /// Get the component's age
     fn age(&self) -> UITime;
 }
@@ -63,28 +62,28 @@ pub trait LivingComponent: Send + Sync {
 pub struct AliveConfig {
     /// Base energy consumption rate
     pub base_metabolism: UIEnergy,
-    
+
     /// Energy threshold below which cells die
     pub death_threshold: UIEnergy,
-    
+
     /// Energy threshold above which cells can reproduce
     pub reproduction_threshold: UIEnergy,
-    
+
     /// Rate of energy transfer between neighboring cells
     pub energy_diffusion_rate: f64,
-    
+
     /// Strength of geometric attraction forces
     pub attraction_strength: f64,
-    
+
     /// Maximum velocity for geometric movement
     pub max_velocity: f64,
-    
+
     /// Learning rate for adaptation
     pub learning_rate: f64,
-    
+
     /// Mutation rate for evolution
     pub mutation_rate: f64,
-    
+
     /// Size of the organism field
     pub field_dimensions: (usize, usize),
 }
@@ -119,7 +118,7 @@ impl AliveUI {
         let config = AliveConfig::default();
         let organism = UIOrganismField::new(config.field_dimensions, config.clone());
         let renderer = Box::new(DOMRenderer::new());
-        
+
         Self {
             organism,
             config,
@@ -127,12 +126,12 @@ impl AliveUI {
             renderer,
         }
     }
-    
+
     /// Create a living UI with custom configuration
     pub fn with_config(config: AliveConfig) -> Self {
         let organism = UIOrganismField::new(config.field_dimensions, config.clone());
         let renderer = Box::new(DOMRenderer::new());
-        
+
         Self {
             organism,
             config,
@@ -140,34 +139,39 @@ impl AliveUI {
             renderer,
         }
     }
-    
+
     /// Set a custom renderer
     pub fn with_renderer(mut self, renderer: Box<dyn UIRenderer>) -> Self {
         self.renderer = renderer;
         self
     }
-    
+
     /// Plant a seed UI cell at specific coordinates
-    pub fn plant_seed(&mut self, x: usize, y: usize, cell_type: UICellType) -> Result<Uuid, AliveError> {
+    pub fn plant_seed(
+        &mut self,
+        x: usize,
+        y: usize,
+        cell_type: UICellType,
+    ) -> Result<Uuid, AliveError> {
         self.organism.plant_seed(x, y, cell_type)
     }
-    
+
     /// Feed energy to a specific region to encourage growth
     pub fn feed_region(&mut self, x: usize, y: usize, radius: usize, energy: UIEnergy) {
         self.organism.feed_region(x, y, radius, energy);
     }
-    
+
     /// Apply selection pressure to favor certain traits
     pub fn apply_selection_pressure(&mut self, pressure: SelectionPressure) {
         self.organism.apply_selection_pressure(pressure);
     }
-    
+
     /// Step the living UI forward in time
     pub fn step(&mut self, dt: UITime) {
         self.time += dt;
         self.organism.step(dt);
     }
-    
+
     /// Render the current state to the DOM
     pub fn render(&self) -> Result<(), RenderError> {
         // Clear the rendering surface first
@@ -184,7 +188,7 @@ impl AliveUI {
 
         Ok(())
     }
-    
+
     /// Get statistics about the living UI
     pub fn statistics(&self) -> AliveStatistics {
         AliveStatistics {
@@ -196,12 +200,12 @@ impl AliveUI {
             time: self.time,
         }
     }
-    
+
     /// Export the current organism state
     pub fn export_organism(&self) -> OrganismSnapshot {
         self.organism.snapshot()
     }
-    
+
     /// Import an organism state
     pub fn import_organism(&mut self, snapshot: OrganismSnapshot) -> Result<(), AliveError> {
         self.organism.load_snapshot(snapshot)
@@ -257,34 +261,34 @@ pub fn create_living_ui() -> AliveUI {
 /// Convenience function to create a living button that grows and adapts
 pub fn create_living_button(text: &str) -> AliveUI {
     let mut ui = AliveUI::new();
-    
+
     // Plant seeds in a button-like pattern
     let _ = ui.plant_seed(20, 20, UICellType::ButtonCore);
     let _ = ui.plant_seed(21, 20, UICellType::ButtonEdge);
     let _ = ui.plant_seed(19, 20, UICellType::ButtonEdge);
     let _ = ui.plant_seed(20, 21, UICellType::ButtonEdge);
     let _ = ui.plant_seed(20, 19, UICellType::ButtonEdge);
-    
+
     // Feed the button region to encourage growth
     ui.feed_region(20, 20, 5, 50.0);
-    
+
     ui
 }
 
 /// Convenience function to create a living form that adapts to user input
 pub fn create_living_form() -> AliveUI {
     let mut ui = AliveUI::new();
-    
+
     // Plant seeds for form components
     let _ = ui.plant_seed(10, 10, UICellType::InputField);
     let _ = ui.plant_seed(10, 20, UICellType::InputField);
     let _ = ui.plant_seed(10, 30, UICellType::ButtonCore);
-    
+
     // Feed regions to encourage growth and connection
     ui.feed_region(10, 10, 3, 30.0);
     ui.feed_region(10, 20, 3, 30.0);
     ui.feed_region(10, 30, 3, 40.0);
-    
+
     ui
 }
 
@@ -296,45 +300,45 @@ mod tests {
     fn test_alive_ui_creation() {
         let ui = AliveUI::new();
         let stats = ui.statistics();
-        
+
         assert_eq!(stats.total_cells, 0);
         assert_eq!(stats.living_cells, 0);
         assert_eq!(stats.time, 0.0);
     }
-    
+
     #[test]
     fn test_seed_planting() {
         let mut ui = AliveUI::new();
         let result = ui.plant_seed(10, 10, UICellType::ButtonCore);
-        
+
         assert!(result.is_ok());
-        
+
         let stats = ui.statistics();
         assert_eq!(stats.total_cells, 1);
         assert_eq!(stats.living_cells, 1);
     }
-    
+
     #[test]
     fn test_ui_step() {
         let mut ui = AliveUI::new();
         let _ = ui.plant_seed(10, 10, UICellType::ButtonCore);
-        
+
         ui.step(1.0);
-        
+
         let stats = ui.statistics();
         assert_eq!(stats.time, 1.0);
     }
-    
+
     #[test]
     fn test_convenience_functions() {
         let button = create_living_button("Click me");
         let button_stats = button.statistics();
-        
+
         assert!(button_stats.total_cells > 0);
-        
+
         let form = create_living_form();
         let form_stats = form.statistics();
-        
+
         assert!(form_stats.total_cells > 0);
     }
 }
