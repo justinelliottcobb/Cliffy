@@ -99,6 +99,34 @@ npm run lint                # ESLint for TypeScript
 npm run type-check          # TypeScript compiler checks
 ```
 
+### Git Hooks
+
+The project includes automated git hooks to ensure code quality:
+
+**Pre-Commit Hook** (`.git/hooks/pre-commit`):
+- Runs `cargo fmt --check` to verify code formatting
+- Runs `cargo clippy --all-targets` to check for common mistakes
+- Runs `cargo test --lib` to execute unit tests
+- **Policy**: Allows warnings but fails on errors for practical development
+
+**Pre-Push Hook** (`.git/hooks/pre-push`):
+- Runs `cargo test` for complete test suite (unit + integration)
+- Runs `cargo test --doc` to verify documentation examples
+- Runs `cargo build` to ensure clean compilation
+- **Purpose**: Comprehensive validation before pushing to remote
+
+**Configuration**:
+```bash
+# Hooks are located in .git/hooks/ and auto-execute on git operations
+# To bypass hooks (not recommended):
+git commit --no-verify
+git push --no-verify
+```
+
+**Known Issues**:
+- WASM integration tests (integration_test.rs) disabled pending wasm_bindgen_test configuration
+- See tests/integration_test.rs.disabled for details
+
 ### Example Development
 ```bash
 # TodoApp (primary algebraic TSX example)
