@@ -154,6 +154,111 @@ impl<const P: usize, const Q: usize, const R: usize> MultivectorExt<P, Q, R> for
     }
 }
 
+/// Serializable wrapper for Multivector
+///
+/// Since Amari's Multivector doesn't implement Serialize/Deserialize,
+/// this wrapper provides serialization by converting to/from coefficient arrays.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+pub struct SerializableMultivector<const P: usize, const Q: usize, const R: usize> {
+    coefficients: Vec<f64>,
+}
+
+impl<const P: usize, const Q: usize, const R: usize> SerializableMultivector<P, Q, R> {
+    const BASIS_COUNT: usize = 1 << (P + Q + R);
+
+    /// Create from a Multivector
+    pub fn from_multivector(mv: &Multivector<P, Q, R>) -> Self {
+        let coefficients = (0..Self::BASIS_COUNT)
+            .map(|i| mv.get(i))
+            .collect();
+        Self { coefficients }
+    }
+
+    /// Convert to a Multivector
+    pub fn to_multivector(&self) -> Multivector<P, Q, R> {
+        Multivector::from_coefficients(self.coefficients.clone())
+    }
+}
+
+impl<const P: usize, const Q: usize, const R: usize> From<Multivector<P, Q, R>> for SerializableMultivector<P, Q, R> {
+    fn from(mv: Multivector<P, Q, R>) -> Self {
+        Self::from_multivector(&mv)
+    }
+}
+
+impl<const P: usize, const Q: usize, const R: usize> From<SerializableMultivector<P, Q, R>> for Multivector<P, Q, R> {
+    fn from(smv: SerializableMultivector<P, Q, R>) -> Self {
+        smv.to_multivector()
+    }
+}
+
+/// Phantom type marker module for compile-time type safety
+pub mod phantom {
+    use std::marker::PhantomData;
+
+    /// Phantom type marker for cell types
+    pub trait CellTypeMarker: Send + Sync {}
+
+    /// Marker for button cells
+    pub struct ButtonCell;
+    impl CellTypeMarker for ButtonCell {}
+
+    /// Marker for input field cells
+    pub struct InputCell;
+    impl CellTypeMarker for InputCell {}
+
+    /// Marker for text cells
+    pub struct TextCell;
+    impl CellTypeMarker for TextCell {}
+
+    /// Marker for container cells
+    pub struct ContainerCell;
+    impl CellTypeMarker for ContainerCell {}
+
+    /// Marker for generic cells
+    pub struct GenericCell;
+    impl CellTypeMarker for GenericCell {}
+
+    /// Phantom type marker for lifecycle stages
+    pub trait LifecycleStageMarker: Send + Sync {}
+
+    /// Marker for embryonic stage
+    pub struct Embryonic;
+    impl LifecycleStageMarker for Embryonic {}
+
+    /// Marker for juvenile stage
+    pub struct Juvenile;
+    impl LifecycleStageMarker for Juvenile {}
+
+    /// Marker for adult stage
+    pub struct Adult;
+    impl LifecycleStageMarker for Adult {}
+
+    /// Marker for elder stage
+    pub struct Elder;
+    impl LifecycleStageMarker for Elder {}
+
+    /// Marker for senescent stage
+    pub struct Senescent;
+    impl LifecycleStageMarker for Senescent {}
+
+    /// Type-safe cell with phantom markers
+    #[derive(Debug, Clone)]
+    pub struct TypedCell<T: CellTypeMarker, L: LifecycleStageMarker> {
+        _cell_type: PhantomData<T>,
+        _lifecycle: PhantomData<L>,
+    }
+
+    impl<T: CellTypeMarker, L: LifecycleStageMarker> Default for TypedCell<T, L> {
+        fn default() -> Self {
+            Self {
+                _cell_type: PhantomData,
+                _lifecycle: PhantomData,
+            }
+        }
+    }
+}
+
 /// Helper functions for creating geometric algebra objects
 pub mod ga_helpers {
     use super::*;

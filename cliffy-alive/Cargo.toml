@@ -27,7 +27,7 @@ web-sys = { version = "0.3", features = [
 js-sys = "0.3"
 serde = { version = "1.0", features = ["derive"] }
 tokio = { version = "1.0", features = ["full"] }
-uuid = { version = "1.0", features = ["v4"] }
+uuid = { version = "1.0", features = ["v4", "serde"] }
 log = "0.4"
 rand = "0.8"
 
