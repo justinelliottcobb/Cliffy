@@ -3,7 +3,7 @@
 //! This module implements physical simulation using Amari's geometric algebra
 //! to create natural movement, forces, and interactions for living UI elements.
 
-use cliffy_core::{GA3, MultivectorExt, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;

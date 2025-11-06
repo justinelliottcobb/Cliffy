@@ -114,46 +114,6 @@ impl<T: Clone> ReactiveMultivector<T> {
     }
 }
 
-/// Extension trait for Multivector operations not in Amari core
-pub trait MultivectorExt<const P: usize, const Q: usize, const R: usize> {
-    /// Get the magnitude squared
-    fn magnitude_squared(&self) -> f64;
-
-    /// Get the magnitude
-    fn magnitude(&self) -> f64 {
-        self.magnitude_squared().sqrt()
-    }
-
-    /// Normalize the multivector
-    fn normalized(&self) -> Self;
-
-    /// Dot product (grade-0 part of geometric product)
-    fn dot(&self, other: &Self) -> f64;
-}
-
-impl<const P: usize, const Q: usize, const R: usize> MultivectorExt<P, Q, R> for Multivector<P, Q, R> {
-    fn magnitude_squared(&self) -> f64 {
-        // Compute norm using geometric product with reverse
-        let product = self.geometric_product(self);
-        product.scalar_part()
-    }
-
-    fn normalized(&self) -> Self {
-        let mag = self.magnitude();
-        if mag > f64::EPSILON {
-            self.clone() * (1.0 / mag)
-        } else {
-            self.clone()
-        }
-    }
-
-    fn dot(&self, other: &Self) -> f64 {
-        // Dot product is the scalar part of the geometric product
-        let product = self.geometric_product(other);
-        product.scalar_part()
-    }
-}
-
 /// Serializable wrapper for Multivector
 ///
 /// Since Amari's Multivector doesn't implement Serialize/Deserialize,

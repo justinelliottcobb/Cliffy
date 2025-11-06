@@ -13,7 +13,7 @@ pub mod physics;
 pub mod nervous_system;
 pub mod renderer;
 
-use cliffy_core::{GA3, MultivectorExt, GA4_1, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{GA3, GA4_1, ReactiveMultivector, scalar_traits::Float};
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
