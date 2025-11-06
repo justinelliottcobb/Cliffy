@@ -13,6 +13,11 @@ use crate::{
     UITime, AliveConfig,
 };
 
+/// Default reactive GA3 for deserialization
+fn default_reactive_ga3() -> ReactiveMultivector<GA3> {
+    ReactiveMultivector::new(GA3::zero())
+}
+
 /// Physical forces that can act on UI cells
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum ForceType {
@@ -68,27 +73,32 @@ impl ForceType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CellPhysics {
     /// Current position in 3D space
+    #[serde(skip, default = "default_reactive_ga3")]
     pub position: ReactiveMultivector<GA3>,
-    
+
     /// Current velocity
+    #[serde(skip, default = "GA3::zero")]
     pub velocity: GA3,
-    
+
     /// Current acceleration
+    #[serde(skip, default = "GA3::zero")]
     pub acceleration: GA3,
-    
+
     /// Mass of the cell (affects inertia)
     pub mass: f64,
-    
+
     /// Charge for electromagnetic interactions
     pub charge: f64,
-    
+
     /// Moment of inertia for rotational dynamics
     pub moment_of_inertia: f64,
-    
+
     /// Angular velocity
+    #[serde(skip, default = "GA3::zero")]
     pub angular_velocity: GA3,
-    
+
     /// Angular acceleration
+    #[serde(skip, default = "GA3::zero")]
     pub angular_acceleration: GA3,
     
     /// Friction coefficient

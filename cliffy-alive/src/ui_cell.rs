@@ -148,10 +148,11 @@ pub struct UICell {
     
     /// Current state of the cell
     state: CellState,
-    
+
     /// Geometric state using Amari multivectors (8D: x,y,w,h,z,opacity,rotation,scale)
+    #[serde(skip, default = "default_geometric_state")]
     geometric_state: ReactiveMultivector<GA3>,
-    
+
     /// Current energy level
     energy: UIEnergy,
     
@@ -432,6 +433,11 @@ impl Default for BehaviorProperties {
             social_tendency: 0.5,
         }
     }
+}
+
+/// Default geometric state for deserialization
+fn default_geometric_state() -> ReactiveMultivector<GA3> {
+    ReactiveMultivector::new(GA3::scalar(0.0))
 }
 
 impl UICell {

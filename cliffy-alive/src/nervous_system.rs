@@ -76,6 +76,7 @@ impl SensorType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Stimulus {
     pub sensor_type: SensorType,
+    #[serde(skip, default = "GA3::zero")]
     pub position: GA3,
     pub intensity: f64,
     pub duration: UITime,
