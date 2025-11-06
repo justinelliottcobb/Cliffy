@@ -3,9 +3,7 @@
 //! This module implements physical simulation using Amari's geometric algebra
 //! to create natural movement, forces, and interactions for living UI elements.
 
-use amari_core::{GA3, scalar_traits::Float};
-use amari_fusion::{GeometricProduct, GradeSelection};
-use cliffy_core::ReactiveMultivector;
+use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -70,13 +68,13 @@ impl ForceType {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CellPhysics {
     /// Current position in 3D space
-    pub position: ReactiveMultivector<GA3<f64>>,
+    pub position: ReactiveMultivector<GA3>,
     
     /// Current velocity
-    pub velocity: GA3<f64>,
+    pub velocity: GA3,
     
     /// Current acceleration
-    pub acceleration: GA3<f64>,
+    pub acceleration: GA3,
     
     /// Mass of the cell (affects inertia)
     pub mass: f64,
@@ -88,10 +86,10 @@ pub struct CellPhysics {
     pub moment_of_inertia: f64,
     
     /// Angular velocity
-    pub angular_velocity: GA3<f64>,
+    pub angular_velocity: GA3,
     
     /// Angular acceleration
-    pub angular_acceleration: GA3<f64>,
+    pub angular_acceleration: GA3,
     
     /// Friction coefficient
     pub friction: f64,
@@ -105,7 +103,7 @@ pub struct CellPhysics {
 
 impl CellPhysics {
     /// Create new physics properties for a cell
-    pub fn new(position: GA3<f64>, cell_type: UICellType) -> Self {
+    pub fn new(position: GA3, cell_type: UICellType) -> Self {
         let reactive_position = ReactiveMultivector::new(position);
         
         // Set mass based on cell type
@@ -177,14 +175,14 @@ impl CellPhysics {
     }
     
     /// Apply a force to the cell
-    pub fn apply_force(&mut self, force: GA3<f64>) {
+    pub fn apply_force(&mut self, force: GA3) {
         if !self.is_kinematic {
             self.acceleration = self.acceleration + force / self.mass;
         }
     }
     
     /// Apply a torque to the cell
-    pub fn apply_torque(&mut self, torque: GA3<f64>) {
+    pub fn apply_torque(&mut self, torque: GA3) {
         if !self.is_kinematic {
             self.angular_acceleration = self.angular_acceleration + torque / self.moment_of_inertia;
         }
@@ -198,17 +196,17 @@ impl CellPhysics {
     }
     
     /// Get the current position as a 3D vector
-    pub fn position_vector(&self) -> GA3<f64> {
+    pub fn position_vector(&self) -> GA3 {
         self.position.value().inner.clone()
     }
     
     /// Set position directly (for teleportation, initial placement, etc.)
-    pub fn set_position(&mut self, position: GA3<f64>) {
+    pub fn set_position(&mut self, position: GA3) {
         self.position.update(position);
     }
     
     /// Set velocity directly
-    pub fn set_velocity(&mut self, velocity: GA3<f64>) {
+    pub fn set_velocity(&mut self, velocity: GA3) {
         self.velocity = velocity;
     }
     
@@ -229,14 +227,14 @@ impl CellPhysics {
 pub struct Force {
     pub force_type: ForceType,
     pub strength: f64,
-    pub direction: GA3<f64>,
+    pub direction: GA3,
     pub range: f64,
     pub is_active: bool,
 }
 
 impl Force {
     /// Create a new force
-    pub fn new(force_type: ForceType, strength: f64, direction: GA3<f64>) -> Self {
+    pub fn new(force_type: ForceType, strength: f64, direction: GA3) -> Self {
         Self {
             force_type,
             strength,
@@ -247,7 +245,7 @@ impl Force {
     }
     
     /// Calculate the force applied to a cell at a given position
-    pub fn calculate_force_at(&self, position: &GA3<f64>, cell_physics: &CellPhysics) -> GA3<f64> {
+    pub fn calculate_force_at(&self, position: &GA3, cell_physics: &CellPhysics) -> GA3 {
         if !self.is_active {
             return GA3::zero();
         }
@@ -264,33 +262,33 @@ impl Force {
         }
     }
     
-    fn calculate_gravity(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_gravity(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Simple gravitational force toward direction
         self.direction * (self.strength * physics.mass)
     }
     
-    fn calculate_electromagnetic(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_electromagnetic(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Force based on charge and electromagnetic field
         self.direction * (self.strength * physics.charge)
     }
     
-    fn calculate_spring(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_spring(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Spring force: F = -k * displacement
         let displacement = position.clone() - self.direction; // direction as rest position
         displacement * (-self.strength)
     }
     
-    fn calculate_damping(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_damping(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Damping force: F = -b * velocity
         physics.velocity * (-self.strength)
     }
     
-    fn calculate_user_interaction(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_user_interaction(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Direct force application
         self.direction * self.strength
     }
     
-    fn calculate_thermal(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_thermal(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Random thermal motion
         use rand::Rng;
         let mut rng = rand::thread_rng();
@@ -302,12 +300,12 @@ impl Force {
         ]) * self.strength
     }
     
-    fn calculate_pressure(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_pressure(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Pressure force away from crowded areas
         self.direction * self.strength
     }
     
-    fn calculate_alignment(&self, position: &GA3<f64>, physics: &CellPhysics) -> GA3<f64> {
+    fn calculate_alignment(&self, position: &GA3, physics: &CellPhysics) -> GA3 {
         // Force to align velocity with neighbors
         let velocity_diff = self.direction - physics.velocity;
         velocity_diff * self.strength
@@ -395,12 +393,12 @@ impl SpatialGrid {
         self.grid.clear();
     }
     
-    fn insert(&mut self, id: Uuid, position: &GA3<f64>) {
+    fn insert(&mut self, id: Uuid, position: &GA3) {
         let grid_pos = self.world_to_grid(position);
         self.grid.entry(grid_pos).or_insert_with(Vec::new).push(id);
     }
     
-    fn get_neighbors(&self, position: &GA3<f64>, radius: f64) -> Vec<Uuid> {
+    fn get_neighbors(&self, position: &GA3, radius: f64) -> Vec<Uuid> {
         let mut neighbors = Vec::new();
         let center_grid = self.world_to_grid(position);
         let grid_radius = (radius / self.cell_size).ceil() as i32;
@@ -417,7 +415,7 @@ impl SpatialGrid {
         neighbors
     }
     
-    fn world_to_grid(&self, position: &GA3<f64>) -> (i32, i32) {
+    fn world_to_grid(&self, position: &GA3) -> (i32, i32) {
         let vector_part = position.vector_part();
         let x = (vector_part[0] / self.cell_size).floor() as i32;
         let y = (vector_part[1] / self.cell_size).floor() as i32;
@@ -517,7 +515,7 @@ impl PhysicsEngine {
     
     /// Calculate and apply forces to all cells
     fn calculate_forces(&mut self, dt: UITime) {
-        let cell_positions: HashMap<Uuid, GA3<f64>> = self.cell_physics
+        let cell_positions: HashMap<Uuid, GA3> = self.cell_physics
             .iter()
             .map(|(id, physics)| (*id, physics.position_vector()))
             .collect();
@@ -559,7 +557,7 @@ impl PhysicsEngine {
         // This would iterate through cell connections and apply spring forces
         // For now, we'll implement a simplified version
         
-        let cell_positions: HashMap<Uuid, GA3<f64>> = self.cell_physics
+        let cell_positions: HashMap<Uuid, GA3> = self.cell_physics
             .iter()
             .map(|(id, physics)| (*id, physics.position_vector()))
             .collect();
@@ -707,7 +705,7 @@ impl PhysicsEngine {
     }
     
     /// Apply an impulse to a cell
-    pub fn apply_impulse(&mut self, cell_id: &Uuid, impulse: GA3<f64>) {
+    pub fn apply_impulse(&mut self, cell_id: &Uuid, impulse: GA3) {
         if let Some(physics) = self.cell_physics.get_mut(cell_id) {
             let velocity_change = impulse / physics.mass;
             physics.set_velocity(physics.velocity + velocity_change);

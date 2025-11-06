@@ -5,9 +5,9 @@ edition = "2021"
 description = "Living, self-assembling UIs built on Amari's cellular automata foundation"
 
 [dependencies]
-amari-core = { path = "../../amari/amari-core" }
-# amari-automata = { path = "../../amari/amari-automata" }
-amari-fusion = { path = "../../amari/amari-fusion" }
+amari-core = "0.9.8"
+amari-fusion = "0.9.8"
+# amari-automata = { version = "0.9.8" } # Not yet published
 cliffy-core = { path = "../cliffy-core" }
 wasm-bindgen = "0.2"
 web-sys = { version = "0.3", features = [

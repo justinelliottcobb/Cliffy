@@ -4,7 +4,7 @@
 //! metabolism, lifecycle stages, aging, and death. It ensures that UI elements
 //! behave like living organisms with realistic energy dynamics.
 
-use amari_core::GA3;
+use cliffy_core::GA3;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
@@ -444,7 +444,7 @@ impl CellVitals {
 mod tests {
     use super::*;
     use crate::ui_cell::UICellType;
-    use amari_core::GA3;
+    use cliffy_core::GA3;
 
     #[test]
     fn test_lifecycle_stages() {

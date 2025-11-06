@@ -2,13 +2,17 @@
 name = "cliffy-core"
 version = "0.1.0"
 edition = "2021"
-description = "Core Clifford algebra implementation for the Cliffy framework"
+description = "Reactive geometric algebra framework using Amari for core math"
 
 [dependencies]
-nalgebra = { workspace = true }
+# Amari provides all geometric algebra functionality
+amari-core = "0.9.8"
+
+# Core dependencies
 num-traits = { workspace = true }
 serde = { workspace = true }
 
 [features]
 default = []
+# Note: SIMD is handled by amari-core's features
 simd = []

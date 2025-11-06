@@ -36,6 +36,55 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
+name = "amari-core"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b435661037547b63ed151e78910bafcbd1993f4fdf273e0b9939fa5a8d10d720"
+dependencies = [
+ "approx",
+ "bytemuck",
+ "dashu-float",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
+name = "amari-dual"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1791680ef1ec3274c2652f04d47b2f2bfbfbfa7b244408b62eec84496dd7e079"
+dependencies = [
+ "amari-core",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
+name = "amari-fusion"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "64ec13a6f6ab9ac337e74a933d98d3261148ab949b1fa311ffae2369e27305d4"
+dependencies = [
+ "amari-core",
+ "amari-dual",
+ "amari-tropical",
+ "fastrand",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
+name = "amari-tropical"
+version = "0.9.8"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7bb4ab35e0b0a9a248cd5c75d86480b3a8a6839056fe2882cd05d849d8282d37"
+dependencies = [
+ "amari-core",
+ "num-traits",
+ "thiserror",
+]
+
+[[package]]
 name = "android_system_properties"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -198,6 +247,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fd16c4719339c4530435d38e511904438d07cce7950afa3718a84ac36c10e89e"
 
 [[package]]
+name = "cliffy-alive"
+version = "0.1.0"
+dependencies = [
+ "amari-core",
+ "amari-fusion",
+ "cliffy-core",
+ "js-sys",
+ "log",
+ "rand",
+ "serde",
+ "tokio",
+ "uuid",
+ "wasm-bindgen",
+ "web-sys",
+]
+
+[[package]]
 name = "cliffy-components"
 version = "0.1.0"
 dependencies = [
@@ -219,7 +285,7 @@ dependencies = [
 name = "cliffy-core"
 version = "0.1.0"
 dependencies = [
- "nalgebra",
+ "amari-core",
  "num-traits",
  "serde",
 ]
@@ -423,6 +489,37 @@ dependencies = [
 ]
 
 [[package]]
+name = "dashu-base"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c0b80bf6b85aa68c58ffea2ddb040109943049ce3fbdf4385d0380aef08ef289"
+
+[[package]]
+name = "dashu-float"
+version = "0.4.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "85078445a8dbd2e1bd21f04a816f352db8d333643f0c9b78ca7c3d1df71063e7"
+dependencies = [
+ "dashu-base",
+ "dashu-int",
+ "rustversion",
+ "static_assertions",
+]
+
+[[package]]
+name = "dashu-int"
+version = "0.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ee99d08031ca34a4d044efbbb21dff9b8c54bb9d8c82a189187c0651ffdb9fbf"
+dependencies = [
+ "cfg-if",
+ "dashu-base",
+ "num-modular",
+ "rustversion",
+ "static_assertions",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -463,6 +560,12 @@ name = "equivalent"
 version = "1.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "877a4ace8713b0bcf2a4e7eec82529c029f1d0619886d18145fea96c3ffe5c0f"
+
+[[package]]
+name = "fastrand"
+version = "2.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "37909eebbb50d72f9059c3b6d82c0463f2ff062c9e95845c43a6c9c0355411be"
 
 [[package]]
 name = "find-msvc-tools"
@@ -1219,6 +1322,12 @@ checksum = "7969661fd2958a5cb096e56c8e1ad0444ac2bbcd0061bd28660485a44879858f"
 dependencies = [
  "num-traits",
 ]
+
+[[package]]
+name = "num-modular"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "17bb261bf36fa7d83f4c294f834e91256769097b3cb505d44831e0a179ac647f"
 
 [[package]]
 name = "num-rational"
