@@ -128,6 +128,7 @@ impl CellPhysics {
             UICellType::Decoration => 0.2,
             UICellType::Sensor => 0.8,
             UICellType::Memory => 1.2,
+            _ => 1.0, // Default mass for other cell types
         };
         
         // Set charge based on cell type (for electromagnetic interactions)

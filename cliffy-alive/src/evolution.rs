@@ -532,10 +532,10 @@ impl EvolutionEngine {
         };
         
         self.performance_metrics.trait_averages.clear();
-        for (trait_name, sum) in trait_sums {
-            if let Some(&count) = trait_counts.get(&trait_name) {
+        for (trait_name, sum) in &trait_sums {
+            if let Some(&count) = trait_counts.get(trait_name) {
                 if count > 0 {
-                    self.performance_metrics.trait_averages.insert(trait_name, sum / count as f64);
+                    self.performance_metrics.trait_averages.insert(trait_name.clone(), sum / count as f64);
                 }
             }
         }
