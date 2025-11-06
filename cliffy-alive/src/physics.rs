@@ -454,7 +454,7 @@ impl PhysicsEngine {
     
     /// Add a cell to the physics simulation
     pub fn add_cell(&mut self, cell: &UICell) {
-        let position = cell.geometric_state().value().inner.clone();
+        let position = cell.nucleus().sample();
         let physics = CellPhysics::new(position, cell.cell_type());
         self.cell_physics.insert(cell.id(), physics);
     }

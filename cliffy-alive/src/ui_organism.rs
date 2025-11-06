@@ -188,38 +188,48 @@ impl UIOrganismField {
     /// Step the organism forward in time
     pub fn step(&mut self, dt: UITime) {
         self.total_time += dt;
-        
-        // Apply energy sources
-        for source in &self.energy_sources {
-            if source.is_active {
-                self.apply_energy_source(source, dt);
-            }
+
+        // Apply energy sources (clone to avoid borrow issues)
+        let active_sources: Vec<_> = self.energy_sources.iter()
+            .filter(|s| s.is_active)
+            .cloned()
+            .collect();
+        for source in active_sources {
+            self.apply_energy_source(&source, dt);
         }
         
         // Step all cells
         let mut cells_to_remove = Vec::new();
-        let mut cells_to_add = Vec::new();
-        
+        let mut cells_to_reproduce = Vec::new();
+
         for y in 0..self.dimensions.1 {
             for x in 0..self.dimensions.0 {
                 if let Some(cell) = &mut self.grid[y][x] {
                     cell.step(dt);
-                    
+
                     // Check if cell should be removed
                     if !cell.is_alive() {
                         cells_to_remove.push((x, y));
                     }
-                    
-                    // Check for reproduction
+
+                    // Check for reproduction (will process in second pass)
                     if cell.can_reproduce(self.config.reproduction_threshold) {
-                        if let Some(offspring_pos) = self.find_empty_neighbor(x, y) {
-                            use cliffy_core::ga_helpers::vector3;
-                            cell.start_reproduction();
-                            let position = vector3(offspring_pos.0 as f64, offspring_pos.1 as f64, 0.0);
-                            if let Some(offspring) = cell.reproduce(position) {
-                                cells_to_add.push((offspring_pos.0, offspring_pos.1, offspring));
-                            }
-                        }
+                        cells_to_reproduce.push((x, y));
+                    }
+                }
+            }
+        }
+
+        // Second pass: handle reproduction
+        let mut cells_to_add = Vec::new();
+        for (x, y) in cells_to_reproduce {
+            if let Some(offspring_pos) = self.find_empty_neighbor(x, y) {
+                if let Some(cell) = &mut self.grid[y][x] {
+                    use cliffy_core::ga_helpers::vector3;
+                    cell.start_reproduction();
+                    let position = vector3(offspring_pos.0 as f64, offspring_pos.1 as f64, 0.0);
+                    if let Some(offspring) = cell.reproduce(position) {
+                        cells_to_add.push((offspring_pos.0, offspring_pos.1, offspring));
                     }
                 }
             }
