@@ -14,7 +14,7 @@
 use serde::{Deserialize, Serialize};
 
 // Re-export Amari types for convenience
-pub use amari_core::Multivector;
+pub use amari_core::{Multivector, Vector};
 
 // Common geometric algebra type aliases
 /// 3D Euclidean geometric algebra Cl(3,0)
@@ -97,6 +97,86 @@ impl<T: Clone> ReactiveMultivector<T> {
     /// Get a cloned value
     pub fn value(&self) -> T {
         self.value.clone()
+    }
+
+    /// Sample the current value (alias for value())
+    pub fn sample(&self) -> T {
+        self.value.clone()
+    }
+
+    /// Set value using a function
+    pub fn set_value<F>(&mut self, f: F)
+    where
+        F: FnOnce(T) -> T,
+    {
+        self.value = f(self.value.clone());
+        // Future: notify observers
+    }
+}
+
+/// Extension trait for Multivector operations not in Amari core
+pub trait MultivectorExt<const P: usize, const Q: usize, const R: usize> {
+    /// Get the magnitude squared
+    fn magnitude_squared(&self) -> f64;
+
+    /// Get the magnitude
+    fn magnitude(&self) -> f64 {
+        self.magnitude_squared().sqrt()
+    }
+
+    /// Normalize the multivector
+    fn normalized(&self) -> Self;
+
+    /// Dot product (grade-0 part of geometric product)
+    fn dot(&self, other: &Self) -> f64;
+}
+
+impl<const P: usize, const Q: usize, const R: usize> MultivectorExt<P, Q, R> for Multivector<P, Q, R> {
+    fn magnitude_squared(&self) -> f64 {
+        // Compute norm using geometric product with reverse
+        let product = self.geometric_product(self);
+        product.scalar_part()
+    }
+
+    fn normalized(&self) -> Self {
+        let mag = self.magnitude();
+        if mag > f64::EPSILON {
+            self.clone() * (1.0 / mag)
+        } else {
+            self.clone()
+        }
+    }
+
+    fn dot(&self, other: &Self) -> f64 {
+        // Dot product is the scalar part of the geometric product
+        let product = self.geometric_product(other);
+        product.scalar_part()
+    }
+}
+
+/// Helper functions for creating geometric algebra objects
+pub mod ga_helpers {
+    use super::*;
+
+    /// Create a 3D vector from components
+    pub fn vector3(x: f64, y: f64, z: f64) -> GA3 {
+        // Create vector by setting the e1, e2, e3 components
+        use amari_core::Vector;
+        let vec = Vector::<3, 0, 0>::from_components(x, y, z);
+        Multivector::from_vector(&vec)
+    }
+
+    /// Create a scalar multivector
+    pub fn scalar<const P: usize, const Q: usize, const R: usize>(value: f64) -> Multivector<P, Q, R> {
+        Multivector::scalar(value)
+    }
+
+    /// Divide a multivector by a scalar (helper function to work around orphan rules)
+    pub fn div_scalar<const P: usize, const Q: usize, const R: usize>(
+        mv: &Multivector<P, Q, R>,
+        scalar: f64,
+    ) -> Multivector<P, Q, R> {
+        mv * (1.0 / scalar)
     }
 }
 

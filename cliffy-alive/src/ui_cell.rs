@@ -4,7 +4,7 @@
 //! a geometric state using Amari's multivectors and participates in the cellular
 //! automaton that drives UI evolution and behavior.
 
-use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{GA3, MultivectorExt, ReactiveMultivector, scalar_traits::Float};
 // use amari_automata::{AutomatonCell, CellularRule};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
