@@ -3,7 +3,7 @@
 //! This module implements physical simulation using Amari's geometric algebra
 //! to create natural movement, forces, and interactions for living UI elements.
 
-use cliffy_core::{GA3, ReactiveMultivector, scalar_traits::Float};
+use cliffy_core::{GA3, Multivector, ReactiveMultivector, scalar_traits::Float};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -190,8 +190,8 @@ impl CellPhysics {
     
     /// Get the kinetic energy of the cell
     pub fn kinetic_energy(&self) -> f64 {
-        let linear_ke = 0.5 * self.mass * self.velocity.magnitude_squared();
-        let angular_ke = 0.5 * self.moment_of_inertia * self.angular_velocity.magnitude_squared();
+        let linear_ke = 0.5 * self.mass * self.velocity.norm_squared();
+        let angular_ke = 0.5 * self.moment_of_inertia * self.angular_velocity.norm_squared();
         linear_ke + angular_ke
     }
     
@@ -238,7 +238,7 @@ impl Force {
         Self {
             force_type,
             strength,
-            direction: direction.normalized(),
+            direction: direction.normalize().unwrap_or_else(|| Multivector::zero()),
             range: force_type.range(),
             is_active: true,
         }
@@ -574,7 +574,7 @@ impl PhysicsEngine {
                         let distance = distance_vector.magnitude();
                         
                         if distance > 0.0 && distance < 3.0 {
-                            let spring_force = distance_vector.normalized() * 
+                            let spring_force = distance_vector.normalize().unwrap_or_else(|| Multivector::zero()) * 
                                 self.config.connection_spring_strength * 
                                 (3.0 - distance) / 3.0;
                             
@@ -640,7 +640,7 @@ impl PhysicsEngine {
         };
         
         // Collision normal
-        let normal = (pos_b - pos_a).normalized();
+        let normal = (pos_b - pos_a).normalize().unwrap_or_else(|| Multivector::zero());
         
         // Separate objects
         let overlap = collision_distance - distance;
@@ -658,7 +658,7 @@ impl PhysicsEngine {
         
         // Calculate collision response velocities
         let relative_velocity = vel_b - vel_a;
-        let velocity_along_normal = relative_velocity.dot(normal);
+        let velocity_along_normal = relative_velocity.scalar_product(normal);
         
         if velocity_along_normal > 0.0 {
             return; // Objects separating
@@ -683,13 +683,13 @@ impl PhysicsEngine {
             // Limit velocity
             let velocity_magnitude = physics.velocity.magnitude();
             if velocity_magnitude > self.config.max_velocity {
-                physics.velocity = physics.velocity.normalized() * self.config.max_velocity;
+                physics.velocity = physics.velocity.normalize().unwrap_or_else(|| Multivector::zero()) * self.config.max_velocity;
             }
             
             // Limit acceleration
             let acceleration_magnitude = physics.acceleration.magnitude();
             if acceleration_magnitude > self.config.max_acceleration {
-                physics.acceleration = physics.acceleration.normalized() * self.config.max_acceleration;
+                physics.acceleration = physics.acceleration.normalize().unwrap_or_else(|| Multivector::zero()) * self.config.max_acceleration;
             }
         }
     }

@@ -243,6 +243,26 @@ pub mod ga_helpers {
     ) -> Multivector<P, Q, R> {
         mv * (1.0 / scalar)
     }
+
+    /// Normalize a multivector, returning zero if magnitude is too small
+    ///
+    /// Wrapper around Amari's normalize() which returns Option.
+    /// Returns zero multivector if normalization fails.
+    pub fn normalize_or_zero<const P: usize, const Q: usize, const R: usize>(
+        mv: &Multivector<P, Q, R>,
+    ) -> Multivector<P, Q, R> {
+        mv.normalize().unwrap_or_else(|| Multivector::zero())
+    }
+
+    /// Normalize a multivector, returning self if magnitude is too small
+    ///
+    /// Wrapper around Amari's normalize() which returns Option.
+    /// Returns a clone of self if normalization fails.
+    pub fn normalize_or_self<const P: usize, const Q: usize, const R: usize>(
+        mv: &Multivector<P, Q, R>,
+    ) -> Multivector<P, Q, R> {
+        mv.normalize().unwrap_or_else(|| mv.clone())
+    }
 }
 
 #[cfg(test)]
