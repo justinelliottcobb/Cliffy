@@ -161,7 +161,7 @@ impl CellPhysics {
         }
         
         // Velocity Verlet integration
-        let old_position = self.position.value().inner.clone();
+        let old_position = self.position.sample();
         let old_velocity = self.velocity.clone();
         
         // Update position: x = x + v*dt + 0.5*a*dt²
@@ -207,7 +207,7 @@ impl CellPhysics {
     
     /// Get the current position as a 3D vector
     pub fn position_vector(&self) -> GA3 {
-        self.position.value().inner.clone()
+        self.position.sample()
     }
     
     /// Set position directly (for teleportation, initial placement, etc.)
@@ -428,9 +428,9 @@ impl SpatialGrid {
     }
     
     fn world_to_grid(&self, position: &GA3) -> (i32, i32) {
-        let vector_part = position.vector_part();
-        let x = (vector_part[0] / self.cell_size).floor() as i32;
-        let y = (vector_part[1] / self.cell_size).floor() as i32;
+        // Access vector components directly from the multivector
+        let x = (position.vector_component(0) / self.cell_size).floor() as i32;
+        let y = (position.vector_component(1) / self.cell_size).floor() as i32;
         (x, y)
     }
 }
