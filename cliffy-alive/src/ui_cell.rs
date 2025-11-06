@@ -821,6 +821,43 @@ impl UICell {
     pub fn energy(&self) -> UIEnergy {
         self.energy
     }
+
+    /// Get the cell's unique ID
+    pub fn id(&self) -> Uuid {
+        self.id
+    }
+
+    /// Get the cell's age in time units
+    pub fn age(&self) -> UITime {
+        self.age
+    }
+
+    /// Check if the cell is alive
+    pub fn is_alive(&self) -> bool {
+        matches!(self.state, CellState::Alive | CellState::Reproducing | CellState::Focused)
+    }
+
+    /// Publicly accessible energy_level (delegates to trait method)
+    pub fn energy_level(&self) -> UIEnergy {
+        self.energy
+    }
+
+    /// Publicly accessible step method
+    pub fn step(&mut self, dt: UITime) {
+        self.age += dt;
+
+        // Consume energy over time
+        let energy_cost = self.cell_type.base_energy_cost() * dt;
+        self.energy -= energy_cost;
+
+        // Update vitals
+        self.vitals.health = (self.energy / (self.cell_type.base_energy_cost() * 10.0)).min(1.0).max(0.0);
+
+        // Check if cell should die
+        if self.energy <= 0.0 {
+            self.state = CellState::Dead;
+        }
+    }
 }
 
 /// Types of user interactions
