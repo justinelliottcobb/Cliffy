@@ -260,64 +260,84 @@ All examples are implemented and contain source code:
 - ✅ `dashboard` - Dashboard example
 - ❌ `living-ui` - Planned but not yet created
 
-### Recent Development
-- **Living UI System**: Source implementation complete with comprehensive modules:
+### Recent Development (November 2025)
+- **Amari 0.9.8 Migration Complete** ✅:
+  - Migrated `cliffy-core`, `cliffy-alive`, and `cliffy-frp` to new Amari API
+  - All tests passing: cliffy-alive (66/66), cliffy-frp (4/4)
+  - Added type aliases (GA3, GA4_1, STA) for ergonomic API
+- **Living UI System**: Fully functional with comprehensive test coverage
   - 7 core modules: ui_cell, ui_organism, evolution, metabolism, nervous_system, physics, renderer
-  - 4 test files: ui_cell_test, organism_test, evolution_test, integration_test
-  - Total: ~164KB of Rust source + ~35KB of tests
-- **8D Geometric Space**: Fully implemented in ui_cell.rs
-- **Genetic Algorithms**: Complete DNA system with traits, affinities, selection, crossover, and mutation
-- **Branch Status**: Code on `cliffy-alive-living-ui` branch
+  - 66 tests passing (39 unit + 27 integration)
+  - 8D geometric space for complete visual control
+  - DNA-based genetic algorithms with traits, affinities, mutation, and crossover
+- **Git Hooks Setup**: Automated quality checks
+  - Pre-commit: cargo fmt, clippy, unit tests
+  - Pre-push: full test suite, doctests, build verification
+  - Catches compilation errors across entire workspace
+- **Dependency Management**:
+  - Merged 3 safe Rust patch updates (tokio, bytemuck, serde)
+  - Closed 25 breaking-change PRs with explanation
+  - Disabled dependabot for focused development
+- **Branch Status**: Code on `cliffy-alive-api-rewrite` branch, ready for merge
 
 ### Known Issues & Blockers
 
-#### 1. Missing External Dependencies (Critical)
-`cliffy-alive` depends on external `amari` project that is not present:
-- `amari-core` (../../amari/amari-core) - Cellular automata foundation
-- `amari-fusion` (../../amari/amari-fusion) - Geometric product operations
+#### 1. Amari 0.9.8 Migration Status
 
-**Impact**:
-- ❌ Cannot compile `cliffy-alive`
-- ❌ Blocks all workspace-level cargo commands (`cargo test --workspace`, `cargo build --workspace`)
-- ❌ Prevents Living UI functionality
+**Completed Migrations** ✅:
+- ✅ **`cliffy-core`**: Added type aliases (GA3, GA4_1, STA) for Amari 0.9.8 compatibility
+- ✅ **`cliffy-alive`**: Fully migrated to Amari 0.9.8 API (66/66 tests passing)
+  - Complete test suite refactored for new API
+  - All compilation errors resolved
+  - Living UI system functional with cellular automata and evolution
+- ✅ **`cliffy-frp`**: Migrated from generic `Multivector<T,N>` to concrete `GA3` (4/4 tests passing)
+  - Simplified to 3D Euclidean algebra (Cl(3,0))
+  - Reactive geometric behaviors working
 
-**Workarounds**:
-- Build individual crates: `cargo build -p cliffy-core`, `cargo build -p cliffy-wasm`
-- Temporarily remove `cliffy-alive` from workspace members in `Cargo.toml`
+**Pending Migrations** ⚠️:
+- ⚠️ **`cliffy-protocols`**: Needs migration to Amari 0.9.8+ API
+  - Still uses old `Multivector<T, N>` generic parameters
+  - Will be migrated to **Amari 0.10.0** (not 0.9.8) when available
+  - Contains consensus and CRDT protocols using geometric algebra
+  - Not blocking current development (unused in core functionality)
 
-#### 2. Dependency Strategy Resolved ✅
-**Decision Made**: Complete migration to Amari for all geometric operations.
-
-**Implementation Status**:
-- ✅ `cliffy-core` now depends on `amari-core = "0.9.8"`
-- ✅ `cliffy-alive` now depends on `amari-core = "0.9.8"` and `amari-fusion = "0.9.8"`
-- ✅ Redundant geometric algebra code removed from cliffy-core (299 lines → 104 lines)
-- ✅ `cliffy-core` now provides ONLY `ReactiveMultivector<T>` wrapper
-- ⚠️  API mismatch: cliffy-alive code expects `GA3`/`GA4_1` type aliases that don't exist in Amari 0.9.8
-
-**Amari API Reality**:
+**Amari API Changes**:
 ```rust
-// Amari 0.9.8 provides:
-pub struct Multivector<const P: usize, const Q: usize, const R: usize>
+// Amari 0.9.8 changed from:
+Multivector<T, N>  // Old: generic scalar type T, dimension N
 
-// cliffy-alive expects (doesn't exist):
-use amari_core::{GA3, GA4_1, scalar_traits::Float};
+// To:
+Multivector<P, Q, R>  // New: signature (P,Q,R) with fixed f64 scalars
+// Example: Multivector<3, 0, 0> = 3D Euclidean (Cl(3,0))
 ```
 
-**Next Step**: Add type alias compatibility layer or rewrite cliffy-alive to use actual Amari API
+**Type Aliases Provided** (cliffy-core):
+```rust
+pub type GA3 = Multivector<3, 0, 0>;    // 3D Euclidean
+pub type GA4_1 = Multivector<4, 1, 0>;  // Conformal GA
+pub type STA = Multivector<1, 3, 0>;    // Spacetime algebra
+```
 
 ### Next Development Priorities
-1. **API Compatibility Layer**: Add type aliases to cliffy-core to bridge Amari API mismatch
-   - Create `GA3<T>` → `Multivector<3,0,0>` alias
-   - Create `GA4_1<T>` → `Multivector<4,1,0>` alias
-   - Re-export `scalar_traits` module
-2. **Fix cliffy-alive Compilation Issues**:
-   - Create missing `renderer` module
-   - Fix syntax error in `ui_cell.rs` (literal `\n` in imports)
-   - Resolve `amari-automata` dependency (commented out, not published)
-3. **Living UI Examples**: Create `examples/living-ui` demo once cliffy-alive compiles
-4. **Integration Testing**: Verify end-to-end compilation and functionality
-5. **Documentation**: Complete API documentation for the living UI system
+1. **Living UI Examples**: Create interactive demos showcasing evolutionary UI adaptation
+   - Build `examples/living-ui` demo application
+   - Demonstrate cellular automata, genetic algorithms, and spatial organization
+   - Show real-time evolution based on user interaction patterns
+2. **cliffy-protocols Migration** (when Amari 0.10.0 is available):
+   - Migrate consensus protocols to new Amari API
+   - Migrate CRDT implementations to new Amari API
+   - Update tests and examples for protocols
+3. **Performance Optimization**: Profile and optimize cellular automata for production
+   - Spatial indexing optimizations for collision detection
+   - Parallel processing for evolution algorithms
+   - WASM integration for browser performance
+4. **Integration Layer**: Bridge between Algebraic TSX and Living UI
+   - Enable hybrid applications using both paradigms
+   - Reactive bindings between TSX components and living cells
+5. **Documentation & Examples**: Comprehensive documentation
+   - Living UI API reference
+   - Migration guide for Amari 0.9.8 → 0.10.0
+   - Best practices for evolutionary UI design
 
 ## Workspace Structure
 
