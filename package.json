@@ -21,7 +21,7 @@
     "bench": "cargo bench --workspace"
   },
   "devDependencies": {
-    "concurrently": "^8.2.2",
+    "concurrently": "^9.2.1",
     "cargo-watch": "^8.4.0"
   },
   "keywords": [

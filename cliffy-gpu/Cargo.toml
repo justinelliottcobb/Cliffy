@@ -7,8 +7,8 @@ description = "WebGPU compute shaders for geometric algebra operations"
 [dependencies]
 cliffy-core = { path = "../cliffy-core" }
 wgpu = "0.19"
-bytemuck = { version = "1.14", features = ["derive"] }
-pollster = "0.3"
+bytemuck = { version = "1.24", features = ["derive"] }
+pollster = "0.4"
 tokio = { workspace = true }
 amari-core = { workspace = true }
 amari-fusion = { workspace = true }
