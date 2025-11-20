@@ -12,6 +12,13 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
+# Amari geometric algebra dependencies
+# amari-core = { git = "https://github.com/yourusername/amari" }
+# amari-fusion = { git = "https://github.com/yourusername/amari" }
+# For local development:
+amari-core = { path = "../../amari/amari-core" }
+amari-fusion = { path = "../../amari/amari-fusion" }
+
 nalgebra = "0.32"
 num-traits = "0.2"
 serde = { version = "1.0", features = ["derive"] }

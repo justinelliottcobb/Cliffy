@@ -2,13 +2,13 @@
 name = "cliffy-core"
 version = "0.1.0"
 edition = "2021"
-description = "Core Clifford algebra implementation for the Cliffy framework"
+description = "Cliffy framework core functionality using Amari geometric algebra"
 
 [dependencies]
-nalgebra = { workspace = true }
-num-traits = { workspace = true }
+amari-core = { workspace = true }
+amari-fusion = { workspace = true }
 serde = { workspace = true }
 
 [features]
 default = []
-simd = []
+simd = ["amari-core/simd"]
