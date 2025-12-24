@@ -267,26 +267,40 @@ All examples are implemented and contain source code:
 - ✅ `dashboard` - Dashboard example
 - ❌ `living-ui` - Planned but not yet created
 
-### Recent Development (December 2024)
-- **Core Crates Fully Working** ✅:
-  - `cliffy-core`: 2 tests passing - type aliases (GA3, GA4_1, STA) for Amari 0.9.8
-  - `cliffy-alive`: 66 tests passing - Living UI fully functional
-  - `cliffy-frp`: 4 tests passing - Reactive geometric behaviors working
+### Recent Development (December 2025)
+
+#### Branch Consolidation (Latest)
+- **Merged all working branches into `develop`**:
+  - `cliffy-alive-api-rewrite` → `develop` (23 commits)
+  - `amari-dependency-cleanup` → merged (3 commits)
+  - `cliffy-alive-living-ui` → merged (2 commits)
+  - Resolved conflicts with `main` branch (dependency updates + PR #21)
+- **Deleted redundant local branches**: `amari-dependency-cleanup`, `cliffy-alive-living-ui`, `amari-integration`
+- **Git Hooks Updated**: Now scoped to working crates only
+  - Pre-commit: fmt, clippy, tests for `cliffy-core`, `cliffy-alive`, `cliffy-frp`
+  - Pre-push: full test suite, doctests, build for working crates
+  - Avoids failures from unmigrated crates
+
+#### Core Crates Status
+- **72 tests passing** across working crates:
+  - `cliffy-core`: 2 tests - type aliases (GA3, GA4_1, STA) for Amari 0.9.8
+  - `cliffy-alive`: 66 tests - Living UI fully functional
+  - `cliffy-frp`: 4 tests - Reactive geometric behaviors working
 - **Living UI System**: Fully functional with comprehensive test coverage
   - 7 core modules: ui_cell, ui_organism, evolution, metabolism, nervous_system, physics, renderer
-  - 66 tests passing (39 unit + 27 integration)
   - 8D geometric space for complete visual control
   - DNA-based genetic algorithms with traits, affinities, mutation, and crossover
-- **Blocking Issues Identified**:
-  - `cliffy-protocols`: 47+ errors, needs Amari API migration
-  - `cliffy-dom`: 16+ errors, needs migration + missing module files
-  - `cliffy-gpu`: 31+ errors, needs Amari API migration
-  - These block: `cliffy-wasm`, `cliffy-components`, and workspace-level builds
-- **Git Hooks Setup**: Automated quality checks
-  - Pre-commit: cargo fmt, clippy, unit tests
-  - Pre-push: full test suite, doctests, build verification
-- **CI/CD Simplified**: Reduced from 11 to 2 checks for focused development
-- **Branch Status**: Code on `cliffy-alive-api-rewrite` branch
+
+#### Blocking Issues
+- `cliffy-protocols`: 47+ errors, needs Amari API migration
+- `cliffy-dom`: 16+ errors, needs migration + missing module files
+- `cliffy-gpu`: 31+ errors, needs Amari API migration
+- These block: `cliffy-wasm`, `cliffy-components`, and workspace-level builds
+
+#### Branch Status
+- **`develop`**: Main development branch (pushed to remote)
+- **`main`/`master`**: Stable branch
+- **Next**: Create `amari-migration` branch to update remaining crates
 
 ### Known Issues & Blockers
 
