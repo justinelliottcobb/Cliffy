@@ -42,15 +42,11 @@ Creates a **geometric dataflow graph** where:
 - **Genetic Algorithm**: DNA-based behavior with traits, affinities, mutation, and crossover
 - **Autonomous Organization**: Cells self-organize spatially based on genetic affinities
 
-**⚠️ Status**: Implementation complete but currently non-functional due to missing external dependencies:
-- **External Dependencies**:
-  - `amari-core` (path: ../../amari/amari-core) - Cellular automata foundation
-  - `amari-fusion` (path: ../../amari/amari-fusion) - Geometric product operations
-- **Impact**: Cannot compile; blocks workspace-level cargo commands
+**✅ Status**: Fully functional with comprehensive test coverage (66 tests passing)
 - **Source Files**: Complete implementation with 7 modules (~164KB of Rust code)
   - `ui_cell.rs` (30,910 bytes), `ui_organism.rs` (24,003 bytes), `evolution.rs` (23,896 bytes)
   - `metabolism.rs` (18,699 bytes), `nervous_system.rs` (29,179 bytes), `physics.rs` (27,603 bytes)
-- **Test Suite**: Complete test coverage (4 test files, ~35KB)
+- **Test Suite**: 66 tests passing (39 unit + 27 integration across 4 test files)
 
 #### 4. State Management Approach
 All state uses **GeometricBehavior<T>** with Clifford algebra operations:
@@ -86,13 +82,20 @@ npm run watch:rust          # Cargo watch for Rust changes
 npm test
 
 # Individual test suites
-cargo test --workspace      # ⚠️ Currently blocked by cliffy-alive dependencies
+cargo test --workspace      # ⚠️ Blocked by unmigrated crates (protocols, dom, gpu)
 npm run test:typescript     # TypeScript/Vitest tests
 
-# Individual crate tests (workaround)
-cargo test -p cliffy-core
-cargo test -p cliffy-wasm
-# cargo test -p cliffy-alive   # ⚠️ Blocked by missing amari dependencies
+# Working crate tests
+cargo test -p cliffy-core   # 2 tests
+cargo test -p cliffy-alive  # 66 tests
+cargo test -p cliffy-frp    # 4 tests
+
+# Blocked crates (need Amari 0.9.8 migration)
+# cargo test -p cliffy-protocols  # ⚠️ 47+ compile errors
+# cargo test -p cliffy-dom        # ⚠️ 16+ errors, also missing modules
+# cargo test -p cliffy-gpu        # ⚠️ 31+ compile errors
+# cargo test -p cliffy-wasm       # ⚠️ Blocked by cliffy-protocols
+# cargo test -p cliffy-components # ⚠️ Blocked by cliffy-dom
 
 # Linting and type checking
 npm run lint                # ESLint for TypeScript
@@ -237,16 +240,20 @@ Implement custom evolution strategies in `cliffy-alive/src/evolution.rs` by exte
 ## Current Project State
 
 ### Implemented Modules
-- **`cliffy-core`**: Clifford algebra implementation (⚠️ may be redundant with amari)
-- **`cliffy-wasm`**: WASM bindings for browser integration
+
+**Working Crates** ✅:
+- **`cliffy-core`**: Clifford algebra implementation with type aliases (GA3, GA4_1, STA) - 2 tests
+- **`cliffy-alive`**: Living UI with cellular automata and evolution - 66 tests
+- **`cliffy-frp`**: Functional reactive programming with geometric behaviors - 4 tests
 - **`cliffy-typescript`**: Algebraic TSX framework with geometric behaviors
   - All documented files present: `algebraic-jsx.ts`, `algebraic-combinators.ts`, `geometric-runtime.ts`, `behavior.ts`, etc.
-- **`cliffy-frp`**: Functional reactive programming primitives
-- **`cliffy-dom`**: DOM manipulation layer
-- **`cliffy-protocols`**: Communication protocols
-- **`cliffy-gpu`**: GPU acceleration support
-- **`cliffy-components`**: Reusable component library
-- **`cliffy-alive`**: Living UI implementation (⚠️ non-functional due to missing dependencies)
+
+**Blocked Crates** (need Amari 0.9.8 migration) ⚠️:
+- **`cliffy-protocols`**: Consensus and CRDT protocols - uses old `Multivector<T, N>` API
+- **`cliffy-dom`**: DOM manipulation layer - uses old API + missing module files (vnode, reconciler, renderer, events)
+- **`cliffy-gpu`**: GPU acceleration - uses old `Multivector<f32, 8>` API
+- **`cliffy-wasm`**: WASM bindings - blocked by cliffy-protocols dependency
+- **`cliffy-components`**: Component library - blocked by cliffy-dom dependency
 
 ### Working Examples
 All examples are implemented and contain source code:
@@ -260,25 +267,26 @@ All examples are implemented and contain source code:
 - ✅ `dashboard` - Dashboard example
 - ❌ `living-ui` - Planned but not yet created
 
-### Recent Development (November 2025)
-- **Amari 0.9.8 Migration Complete** ✅:
-  - Migrated `cliffy-core`, `cliffy-alive`, and `cliffy-frp` to new Amari API
-  - All tests passing: cliffy-alive (66/66), cliffy-frp (4/4)
-  - Added type aliases (GA3, GA4_1, STA) for ergonomic API
+### Recent Development (December 2024)
+- **Core Crates Fully Working** ✅:
+  - `cliffy-core`: 2 tests passing - type aliases (GA3, GA4_1, STA) for Amari 0.9.8
+  - `cliffy-alive`: 66 tests passing - Living UI fully functional
+  - `cliffy-frp`: 4 tests passing - Reactive geometric behaviors working
 - **Living UI System**: Fully functional with comprehensive test coverage
   - 7 core modules: ui_cell, ui_organism, evolution, metabolism, nervous_system, physics, renderer
   - 66 tests passing (39 unit + 27 integration)
   - 8D geometric space for complete visual control
   - DNA-based genetic algorithms with traits, affinities, mutation, and crossover
+- **Blocking Issues Identified**:
+  - `cliffy-protocols`: 47+ errors, needs Amari API migration
+  - `cliffy-dom`: 16+ errors, needs migration + missing module files
+  - `cliffy-gpu`: 31+ errors, needs Amari API migration
+  - These block: `cliffy-wasm`, `cliffy-components`, and workspace-level builds
 - **Git Hooks Setup**: Automated quality checks
   - Pre-commit: cargo fmt, clippy, unit tests
   - Pre-push: full test suite, doctests, build verification
-  - Catches compilation errors across entire workspace
-- **Dependency Management**:
-  - Merged 3 safe Rust patch updates (tokio, bytemuck, serde)
-  - Closed 25 breaking-change PRs with explanation
-  - Disabled dependabot for focused development
-- **Branch Status**: Code on `cliffy-alive-api-rewrite` branch, ready for merge
+- **CI/CD Simplified**: Reduced from 11 to 2 checks for focused development
+- **Branch Status**: Code on `cliffy-alive-api-rewrite` branch
 
 ### Known Issues & Blockers
 
@@ -296,10 +304,16 @@ All examples are implemented and contain source code:
 
 **Pending Migrations** ⚠️:
 - ⚠️ **`cliffy-protocols`**: Needs migration to Amari 0.9.8+ API
-  - Still uses old `Multivector<T, N>` generic parameters
-  - Will be migrated to **Amari 0.10.0** (not 0.9.8) when available
+  - Still uses old `Multivector<T, N>` generic parameters (47+ compile errors)
   - Contains consensus and CRDT protocols using geometric algebra
-  - Not blocking current development (unused in core functionality)
+  - Blocks: `cliffy-wasm` (has cliffy-protocols dependency)
+- ⚠️ **`cliffy-dom`**: Needs migration + completion
+  - Uses old `cliffy_core::cl3_0::Multivector3D` API (16+ compile errors)
+  - Missing module files: `vnode.rs`, `reconciler.rs`, `renderer.rs`, `events.rs`
+  - Blocks: `cliffy-components` (has cliffy-dom dependency)
+- ⚠️ **`cliffy-gpu`**: Needs migration to Amari 0.9.8+ API
+  - Uses old `Multivector<f32, 8>` API (31+ compile errors)
+  - Standalone crate, no downstream dependencies
 
 **Amari API Changes**:
 ```rust
@@ -319,14 +333,14 @@ pub type STA = Multivector<1, 3, 0>;    // Spacetime algebra
 ```
 
 ### Next Development Priorities
-1. **Living UI Examples**: Create interactive demos showcasing evolutionary UI adaptation
+1. **Complete Amari 0.9.8 Migration** (unblock workspace builds):
+   - Migrate `cliffy-protocols` to new Amari API → unblocks `cliffy-wasm`
+   - Migrate `cliffy-gpu` to new Amari API (standalone)
+   - Complete `cliffy-dom` migration + add missing module files → unblocks `cliffy-components`
+2. **Living UI Examples**: Create interactive demos showcasing evolutionary UI adaptation
    - Build `examples/living-ui` demo application
    - Demonstrate cellular automata, genetic algorithms, and spatial organization
    - Show real-time evolution based on user interaction patterns
-2. **cliffy-protocols Migration** (when Amari 0.10.0 is available):
-   - Migrate consensus protocols to new Amari API
-   - Migrate CRDT implementations to new Amari API
-   - Update tests and examples for protocols
 3. **Performance Optimization**: Profile and optimize cellular automata for production
    - Spatial indexing optimizations for collision detection
    - Parallel processing for evolution algorithms
@@ -336,21 +350,21 @@ pub type STA = Multivector<1, 3, 0>;    // Spacetime algebra
    - Reactive bindings between TSX components and living cells
 5. **Documentation & Examples**: Comprehensive documentation
    - Living UI API reference
-   - Migration guide for Amari 0.9.8 → 0.10.0
+   - API migration guide
    - Best practices for evolutionary UI design
 
 ## Workspace Structure
 
 ### Rust Workspace (`Cargo.toml`)
 Current workspace members:
-- `cliffy-core` - Geometric algebra core (may be redundant)
-- `cliffy-frp` - Functional reactive programming
-- `cliffy-wasm` - WASM bindings
-- `cliffy-protocols` - Communication protocols
-- `cliffy-gpu` - GPU acceleration
-- `cliffy-dom` - DOM manipulation
-- `cliffy-components` - Component library
-- `cliffy-alive` - Living UI (⚠️ broken dependencies)
+- ✅ `cliffy-core` - Geometric algebra core with type aliases (2 tests)
+- ✅ `cliffy-frp` - Functional reactive programming (4 tests)
+- ✅ `cliffy-alive` - Living UI with cellular automata (66 tests)
+- ⚠️ `cliffy-wasm` - WASM bindings (blocked by cliffy-protocols)
+- ⚠️ `cliffy-protocols` - Communication protocols (needs migration)
+- ⚠️ `cliffy-gpu` - GPU acceleration (needs migration)
+- ⚠️ `cliffy-dom` - DOM manipulation (needs migration + incomplete)
+- ⚠️ `cliffy-components` - Component library (blocked by cliffy-dom)
 - `examples/collaborative-editor` - CRDT example with Rust backend
 
 ### NPM Workspace (`package.json`)
