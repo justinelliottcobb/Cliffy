@@ -1,10 +1,10 @@
 [workspace]
 members = [
     "cliffy-core",
-    "cliffy-frp", 
+    "cliffy-frp",
     "cliffy-wasm",
     "cliffy-protocols",
-    "cliffy-gpu",
+    # "cliffy-gpu", # Deprecated - use amari-gpu directly
     "cliffy-dom",
     "cliffy-components",
     "cliffy-alive",
