@@ -128,9 +128,7 @@ impl<const P: usize, const Q: usize, const R: usize> SerializableMultivector<P, 
 
     /// Create from a Multivector
     pub fn from_multivector(mv: &Multivector<P, Q, R>) -> Self {
-        let coefficients = (0..Self::BASIS_COUNT)
-            .map(|i| mv.get(i))
-            .collect();
+        let coefficients = (0..Self::BASIS_COUNT).map(|i| mv.get(i)).collect();
         Self { coefficients }
     }
 
@@ -140,13 +138,17 @@ impl<const P: usize, const Q: usize, const R: usize> SerializableMultivector<P, 
     }
 }
 
-impl<const P: usize, const Q: usize, const R: usize> From<Multivector<P, Q, R>> for SerializableMultivector<P, Q, R> {
+impl<const P: usize, const Q: usize, const R: usize> From<Multivector<P, Q, R>>
+    for SerializableMultivector<P, Q, R>
+{
     fn from(mv: Multivector<P, Q, R>) -> Self {
         Self::from_multivector(&mv)
     }
 }
 
-impl<const P: usize, const Q: usize, const R: usize> From<SerializableMultivector<P, Q, R>> for Multivector<P, Q, R> {
+impl<const P: usize, const Q: usize, const R: usize> From<SerializableMultivector<P, Q, R>>
+    for Multivector<P, Q, R>
+{
     fn from(smv: SerializableMultivector<P, Q, R>) -> Self {
         smv.to_multivector()
     }
@@ -232,7 +234,9 @@ pub mod ga_helpers {
     }
 
     /// Create a scalar multivector
-    pub fn scalar<const P: usize, const Q: usize, const R: usize>(value: f64) -> Multivector<P, Q, R> {
+    pub fn scalar<const P: usize, const Q: usize, const R: usize>(
+        value: f64,
+    ) -> Multivector<P, Q, R> {
         Multivector::scalar(value)
     }
 

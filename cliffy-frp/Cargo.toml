@@ -6,7 +6,7 @@ description = "Functional reactive programming primitives using geometric algebr
 
 [dependencies]
 cliffy-core = { path = "../cliffy-core" }
-amari-core = "0.9.8"
+amari-core = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 nalgebra = { workspace = true }

@@ -6,7 +6,7 @@ description = "Reactive geometric algebra framework using Amari for core math"
 
 [dependencies]
 # Amari provides all geometric algebra functionality
-amari-core = "0.9.8"
+amari-core = { workspace = true }
 
 # Core dependencies
 num-traits = { workspace = true }

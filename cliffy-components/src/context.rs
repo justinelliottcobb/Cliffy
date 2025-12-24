@@ -49,7 +49,10 @@ impl GeometricContextProvider {
 
     pub fn subscribe(&self, key: String, component_id: Uuid) {
         let mut subscribers = self.subscribers.write().unwrap();
-        subscribers.entry(key).or_insert_with(Vec::new).push(component_id);
+        subscribers
+            .entry(key)
+            .or_insert_with(Vec::new)
+            .push(component_id);
     }
 
     pub fn unsubscribe(&self, key: &str, component_id: &Uuid) {
@@ -114,10 +117,11 @@ impl Default for GeometricTheme {
         let mut transform_defaults = HashMap::new();
         transform_defaults.insert("scale".to_string(), Multivector3D::scalar(1.0));
         transform_defaults.insert("rotation".to_string(), Multivector3D::zero());
-        
+
         Self {
             primary_color: Multivector3D::scalar(0.2) + cliffy_core::cl3_0::e1::<f64>().scale(0.6),
-            secondary_color: Multivector3D::scalar(0.8) + cliffy_core::cl3_0::e2::<f64>().scale(0.4),
+            secondary_color: Multivector3D::scalar(0.8)
+                + cliffy_core::cl3_0::e2::<f64>().scale(0.4),
             spacing_unit: 8.0,
             animation_duration: 200.0,
             transform_defaults,
@@ -135,7 +139,7 @@ pub struct GeometricRouter {
 impl GeometricRouter {
     pub fn new() -> Self {
         let initial_transform = Multivector3D::scalar(1.0);
-        
+
         Self {
             current_route: Arc::new(RwLock::new("/".to_string())),
             route_transforms: Arc::new(RwLock::new(HashMap::new())),
@@ -228,9 +232,9 @@ impl GeometricAppState {
     pub fn record_render(&self, render_time: f64) {
         if let Ok(mut metrics) = self.performance_metrics.write() {
             metrics.total_renders += 1;
-            metrics.average_render_time = 
-                (metrics.average_render_time * (metrics.total_renders - 1) as f64 + render_time) 
-                / metrics.total_renders as f64;
+            metrics.average_render_time =
+                (metrics.average_render_time * (metrics.total_renders - 1) as f64 + render_time)
+                    / metrics.total_renders as f64;
         }
     }
 
@@ -265,9 +269,9 @@ mod tests {
     fn test_context_provider() {
         let provider = GeometricContextProvider::new();
         let behavior = GeometricBehavior::new(e1::<f64>());
-        
+
         provider.provide("test_key".to_string(), behavior.clone());
-        
+
         let retrieved = provider.get("test_key");
         assert!(retrieved.is_some());
     }
@@ -276,10 +280,10 @@ mod tests {
     fn test_context_consumer() {
         let provider = GeometricContextProvider::new();
         let mut consumer = provider.create_consumer(Uuid::new_v4());
-        
+
         let behavior = GeometricBehavior::new(e2::<f64>());
         provider.provide("test_key".to_string(), behavior.clone());
-        
+
         let consumed = consumer.consume("test_key");
         assert!(consumed.is_some());
     }
@@ -295,20 +299,20 @@ mod tests {
     #[test]
     fn test_geometric_router() {
         let router = GeometricRouter::new();
-        
+
         router.register_route("/home".to_string(), e1::<f64>());
         router.navigate_to("/home".to_string());
-        
+
         assert_eq!(router.get_current_route(), "/home");
     }
 
     #[test]
     fn test_app_state() {
         let mut app_state = GeometricAppState::new();
-        
+
         let transform = e1::<f64>() + e2::<f64>();
         app_state.apply_global_transform(transform);
-        
+
         let global_transform = app_state.get_global_transform().sample();
         assert!(global_transform.magnitude() > 1.0);
     }
@@ -316,11 +320,11 @@ mod tests {
     #[test]
     fn test_performance_metrics() {
         let app_state = GeometricAppState::new();
-        
+
         app_state.record_render(16.7); // 60 FPS
         app_state.record_render(20.0);
         app_state.record_geometric_operation();
-        
+
         let metrics = app_state.get_performance_metrics();
         assert_eq!(metrics.total_renders, 2);
         assert_eq!(metrics.geometric_operations_count, 1);

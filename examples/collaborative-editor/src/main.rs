@@ -1,11 +1,11 @@
-use cliffy_core::{Multivector, cl3_0::Multivector3D};
+use cliffy_core::{cl3_0::Multivector3D, Multivector};
 use cliffy_protocols::{GeometricCRDT, GeometricConsensus, OperationType};
+use futures_util::{SinkExt, StreamExt};
 use std::collections::HashMap;
 use std::sync::Arc;
-use tokio::sync::{RwLock, broadcast};
+use tokio::sync::{broadcast, RwLock};
 use uuid::Uuid;
 use warp::Filter;
-use futures_util::{SinkExt, StreamExt};
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 struct DocumentState {
@@ -26,24 +26,23 @@ struct EditOperation {
     timestamp: u64,
 }
 
-type Clients = Arc<RwLock<HashMap<String, tokio_tungstenite::WebSocketStream<warp::ws::WebSocket>>>>;
+type Clients =
+    Arc<RwLock<HashMap<String, tokio_tungstenite::WebSocketStream<warp::ws::WebSocket>>>>;
 type DocumentCRDT = Arc<RwLock<GeometricCRDT<f64, 8>>>;
 
 #[tokio::main]
 async fn main() {
     let clients: Clients = Arc::new(RwLock::new(HashMap::new()));
     let (tx, _) = broadcast::channel::<EditOperation>(1000);
-    
+
     // Initialize document CRDT with geometric state
     let initial_state = Multivector3D::scalar(0.0); // Empty document
     let node_id = Uuid::new_v4();
-    let document_crdt = Arc::new(RwLock::new(
-        GeometricCRDT::new(node_id, initial_state)
-    ));
+    let document_crdt = Arc::new(RwLock::new(GeometricCRDT::new(node_id, initial_state)));
 
     println!("🎉 Cliffy Collaborative Editor Server starting...");
     println!("📝 Document Node ID: {}", node_id);
-    
+
     let websocket_route = warp::path("ws")
         .and(warp::ws())
         .and(with_clients(clients.clone()))
@@ -56,20 +55,25 @@ async fn main() {
     let routes = websocket_route.or(static_files);
 
     println!("🚀 Server running on http://localhost:3030");
-    warp::serve(routes)
-        .run(([127, 0, 0, 1], 3030))
-        .await;
+    warp::serve(routes).run(([127, 0, 0, 1], 3030)).await;
 }
 
-fn with_clients(clients: Clients) -> impl Filter<Extract = (Clients,), Error = std::convert::Infallible> + Clone {
+fn with_clients(
+    clients: Clients,
+) -> impl Filter<Extract = (Clients,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || clients.clone())
 }
 
-fn with_broadcast(tx: broadcast::Sender<EditOperation>) -> impl Filter<Extract = (broadcast::Sender<EditOperation>,), Error = std::convert::Infallible> + Clone {
+fn with_broadcast(
+    tx: broadcast::Sender<EditOperation>,
+) -> impl Filter<Extract = (broadcast::Sender<EditOperation>,), Error = std::convert::Infallible> + Clone
+{
     warp::any().map(move || tx.clone())
 }
 
-fn with_crdt(crdt: DocumentCRDT) -> impl Filter<Extract = (DocumentCRDT,), Error = std::convert::Infallible> + Clone {
+fn with_crdt(
+    crdt: DocumentCRDT,
+) -> impl Filter<Extract = (DocumentCRDT,), Error = std::convert::Infallible> + Clone {
     warp::any().map(move || crdt.clone())
 }
 
@@ -92,7 +96,7 @@ async fn handle_client(
     println!("👤 New client connected: {}", client_id);
 
     let (mut ws_tx, mut ws_rx) = ws.split();
-    
+
     // Add client to the clients map
     {
         let mut client_map = clients.write().await;
@@ -108,7 +112,7 @@ async fn handle_client(
             version: 0,
             node_id: crdt.node_id.to_string(),
         };
-        
+
         if let Ok(message) = serde_json::to_string(&document_state) {
             let _ = ws_tx.send(warp::ws::Message::text(message)).await;
         }
@@ -128,15 +132,18 @@ async fn handle_client(
                 Ok(message) => {
                     if let Ok(text) = message.to_str() {
                         if let Ok(edit_op) = serde_json::from_str::<EditOperation>(text) {
-                            println!("📝 Received edit from {}: {}", client_id_for_task, edit_op.operation_type);
-                            
+                            println!(
+                                "📝 Received edit from {}: {}",
+                                client_id_for_task, edit_op.operation_type
+                            );
+
                             // Apply edit to CRDT
                             {
                                 let mut crdt = crdt_for_task.write().await;
                                 let geometric_transform = Multivector3D::new(
-                                    edit_op.geometric_transform.try_into().unwrap_or([0.0; 8])
+                                    edit_op.geometric_transform.try_into().unwrap_or([0.0; 8]),
                                 );
-                                
+
                                 let op_type = match edit_op.operation_type.as_str() {
                                     "insert" => OperationType::Addition,
                                     "delete" => OperationType::GeometricProduct,
@@ -187,7 +194,7 @@ async fn handle_client(
         let mut client_map = clients.write().await;
         client_map.remove(&client_id);
     }
-    
+
     println!("👋 Client disconnected: {}", client_id);
 }
 
@@ -204,23 +211,27 @@ fn resolve_conflict_geometric(
 }
 
 // Convert text operations to geometric transformations
-fn text_to_geometric_transform(operation: &str, position: usize, content: &str) -> Multivector3D<f64> {
+fn text_to_geometric_transform(
+    operation: &str,
+    position: usize,
+    content: &str,
+) -> Multivector3D<f64> {
     match operation {
         "insert" => {
             // Insertion as translation in conformal space
             let pos_factor = (position as f64) / 1000.0; // Normalize position
             let content_factor = content.len() as f64 / 100.0; // Content length factor
-            
-            cliffy_core::cl3_0::e1::<f64>().scale(pos_factor) + 
-            cliffy_core::cl3_0::e2::<f64>().scale(content_factor)
+
+            cliffy_core::cl3_0::e1::<f64>().scale(pos_factor)
+                + cliffy_core::cl3_0::e2::<f64>().scale(content_factor)
         }
         "delete" => {
             // Deletion as rotation (undoing insertion)
             let pos_factor = (position as f64) / 1000.0;
             let content_factor = content.len() as f64 / 100.0;
-            
-            cliffy_core::cl3_0::e1::<f64>().scale(-pos_factor) + 
-            cliffy_core::cl3_0::e2::<f64>().scale(-content_factor)
+
+            cliffy_core::cl3_0::e1::<f64>().scale(-pos_factor)
+                + cliffy_core::cl3_0::e2::<f64>().scale(-content_factor)
         }
         "format" => {
             // Formatting as bivector transformation
@@ -230,8 +241,10 @@ fn text_to_geometric_transform(operation: &str, position: usize, content: &str) 
                 "underline" => 0.25,
                 _ => 0.1,
             };
-            
-            cliffy_core::cl3_0::e1::<f64>().geometric_product(&cliffy_core::cl3_0::e2::<f64>()).scale(style_factor)
+
+            cliffy_core::cl3_0::e1::<f64>()
+                .geometric_product(&cliffy_core::cl3_0::e2::<f64>())
+                .scale(style_factor)
         }
         _ => Multivector3D::scalar(1.0),
     }

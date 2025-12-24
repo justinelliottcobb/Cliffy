@@ -1,21 +1,21 @@
-use cliffy_core::{Multivector, cl3_0::Multivector3D};
+use cliffy_core::{cl3_0::Multivector3D, Multivector};
+use cliffy_dom::{GeometricAttribute, GeometricEventHandler, GeometricProps, VNode, VNodeType};
 use cliffy_frp::GeometricBehavior;
-use cliffy_dom::{VNode, VNodeType, GeometricProps, GeometricAttribute, GeometricEventHandler};
-use serde::{Serialize, Deserialize};
+use fxhash::FxHashMap;
+use serde::{Deserialize, Serialize};
+use slotmap::{DefaultKey, SlotMap};
 use std::collections::HashMap;
 use std::rc::Rc;
 use std::sync::Arc;
-use slotmap::{DefaultKey, SlotMap};
-use fxhash::FxHashMap;
 use uuid::Uuid;
 
+pub mod context;
 pub mod hooks;
 pub mod lifecycle;
-pub mod context;
 
+pub use context::*;
 pub use hooks::*;
 pub use lifecycle::*;
-pub use context::*;
 
 pub type GeometricState = GeometricBehavior<f64, 8>;
 pub type ComponentId = Uuid;
@@ -25,7 +25,9 @@ pub type ComponentFn = dyn Fn(&ComponentContext) -> VNode;
 pub trait GeometricComponent {
     fn render(&self, ctx: &ComponentContext) -> VNode;
     fn component_name(&self) -> &str;
-    fn geometric_key(&self) -> Option<Multivector3D<f64>> { None }
+    fn geometric_key(&self) -> Option<Multivector3D<f64>> {
+        None
+    }
 }
 
 /// Component context providing hooks and state management
@@ -85,7 +87,9 @@ pub struct ComponentBuilder {
 impl ComponentBuilder {
     pub fn new(tag: &str) -> Self {
         Self {
-            node_type: VNodeType::Element { tag: tag.to_string() },
+            node_type: VNodeType::Element {
+                tag: tag.to_string(),
+            },
             props: GeometricProps::default(),
             children: Vec::new(),
             key: None,
@@ -95,7 +99,9 @@ impl ComponentBuilder {
 
     pub fn component(name: &str) -> Self {
         Self {
-            node_type: VNodeType::Component { name: name.to_string() },
+            node_type: VNodeType::Component {
+                name: name.to_string(),
+            },
             props: GeometricProps::default(),
             children: Vec::new(),
             key: None,
@@ -105,31 +111,29 @@ impl ComponentBuilder {
 
     pub fn prop(mut self, name: &str, value: &str) -> Self {
         self.props.attributes.insert(
-            name.to_string(), 
-            GeometricAttribute::Static(value.to_string())
+            name.to_string(),
+            GeometricAttribute::Static(value.to_string()),
         );
         self
     }
 
     pub fn geometric_prop(mut self, name: &str, transform: Multivector3D<f64>) -> Self {
-        self.props.attributes.insert(
-            name.to_string(),
-            GeometricAttribute::Transform(transform)
-        );
+        self.props
+            .attributes
+            .insert(name.to_string(), GeometricAttribute::Transform(transform));
         self
     }
 
     pub fn behavior_prop(mut self, name: &str, behavior: GeometricState) -> Self {
-        self.props.attributes.insert(
-            name.to_string(),
-            GeometricAttribute::Dynamic(behavior)
-        );
+        self.props
+            .attributes
+            .insert(name.to_string(), GeometricAttribute::Dynamic(behavior));
         self
     }
 
-    pub fn on_click<F>(mut self, handler: F) -> Self 
-    where 
-        F: Fn(Multivector3D<f64>) + 'static 
+    pub fn on_click<F>(mut self, handler: F) -> Self
+    where
+        F: Fn(Multivector3D<f64>) + 'static,
     {
         let callback_id = Uuid::new_v4().to_string();
         self.props.event_handlers.insert(
@@ -138,7 +142,7 @@ impl ComponentBuilder {
                 event_type: "click".to_string(),
                 transform: Multivector3D::scalar(1.0),
                 callback_id: callback_id.clone(),
-            }
+            },
         );
         // Store the actual callback somewhere accessible by callback_id
         self
@@ -199,14 +203,12 @@ impl ComponentBuilder {
 impl GeometricComponent for GeometricDiv {
     fn render(&self, ctx: &ComponentContext) -> VNode {
         let mut builder = ComponentBuilder::new("div");
-        
+
         if let Some(transform) = &self.transform {
             builder = builder.transform(transform.clone());
         }
 
-        builder
-            .children(ctx.children.clone())
-            .build()
+        builder.children(ctx.children.clone()).build()
     }
 
     fn component_name(&self) -> &str {
@@ -222,20 +224,18 @@ impl GeometricComponent for GeometricButton {
             builder = builder.transform(transform.clone());
         }
 
-        builder
-            .children(ctx.children.clone())
-            .build()
+        builder.children(ctx.children.clone()).build()
     }
 
     fn component_name(&self) -> &str {
-        "GeometricButton" 
+        "GeometricButton"
     }
 }
 
 impl GeometricComponent for GeometricText {
     fn render(&self, ctx: &ComponentContext) -> VNode {
         let mut text_node = VNode::text(&self.content);
-        
+
         if let Some(transform) = &self.transform {
             text_node.geometric_state = transform.clone();
         }
@@ -251,7 +251,7 @@ impl GeometricComponent for GeometricText {
 impl GeometricComponent for GeometricInput {
     fn render(&self, ctx: &ComponentContext) -> VNode {
         let current_value = self.value.sample();
-        
+
         ComponentBuilder::new("input")
             .prop("type", "text")
             .prop("value", &current_value.coeffs[0].to_string())
@@ -336,7 +336,7 @@ impl ComponentState {
 /// Functional component creation macros and helpers
 pub fn functional_component<F>(name: &str, render_fn: F) -> Box<dyn GeometricComponent>
 where
-    F: Fn(&ComponentContext) -> VNode + 'static
+    F: Fn(&ComponentContext) -> VNode + 'static,
 {
     struct FunctionalComponent {
         name: String,
@@ -388,7 +388,7 @@ pub mod geometry_helpers {
     pub fn lerp_transforms(
         from: &Multivector3D<f64>,
         to: &Multivector3D<f64>,
-        t: f64
+        t: f64,
     ) -> Multivector3D<f64> {
         // Linear interpolation in geometric algebra
         let diff = to.clone() - from.clone();
@@ -398,7 +398,7 @@ pub mod geometry_helpers {
     pub fn slerp_transforms(
         from: &Multivector3D<f64>,
         to: &Multivector3D<f64>,
-        t: f64
+        t: f64,
     ) -> Multivector3D<f64> {
         // Spherical linear interpolation using exponential/log
         let relative = to.geometric_product(&from.conjugate());
@@ -429,25 +429,30 @@ impl ComponentRegistry {
 
     fn register_builtin_components(&mut self) {
         self.register("div", Box::new(GeometricDiv { transform: None }));
-        self.register("button", Box::new(GeometricButton { 
-            transform: None, 
-            on_click: None 
-        }));
+        self.register(
+            "button",
+            Box::new(GeometricButton {
+                transform: None,
+                on_click: None,
+            }),
+        );
         // Add more built-in components
     }
 
     pub fn register(&mut self, name: &str, component: Box<dyn GeometricComponent>) {
-        self.registered_components.insert(name.to_string(), component);
+        self.registered_components
+            .insert(name.to_string(), component);
     }
 
-    pub fn render_component(&self, name: &str, props: GeometricProps, children: Vec<VNode>) -> Option<VNode> {
+    pub fn render_component(
+        &self,
+        name: &str,
+        props: GeometricProps,
+        children: Vec<VNode>,
+    ) -> Option<VNode> {
         if let Some(component) = self.registered_components.get(name) {
-            let context = ComponentContext::new(
-                Uuid::new_v4(),
-                props,
-                children,
-                self.app_context.clone(),
-            );
+            let context =
+                ComponentContext::new(Uuid::new_v4(), props, children, self.app_context.clone());
             Some(component.render(&context))
         } else {
             None
@@ -496,9 +501,7 @@ mod tests {
     #[test]
     fn test_functional_component() {
         let counter = functional_component("Counter", |ctx| {
-            ComponentBuilder::new("div")
-                .text("Count: 0")
-                .build()
+            ComponentBuilder::new("div").text("Count: 0").build()
         });
 
         let context = ComponentContext::new(
@@ -529,18 +532,14 @@ mod tests {
     #[test]
     fn test_component_registry() {
         let mut registry = ComponentRegistry::new();
-        
+
         let custom_component = functional_component("CustomComponent", |_| {
             ComponentBuilder::new("span").text("Custom").build()
         });
 
         registry.register("custom", custom_component);
 
-        let vnode = registry.render_component(
-            "custom",
-            GeometricProps::default(),
-            Vec::new()
-        );
+        let vnode = registry.render_component("custom", GeometricProps::default(), Vec::new());
 
         assert!(vnode.is_some());
     }

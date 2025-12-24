@@ -27,7 +27,7 @@ impl VectorClock {
 
     pub fn happens_before(&self, other: &VectorClock) -> bool {
         let mut has_smaller = false;
-        
+
         for (&node_id, &other_time) in &other.clocks {
             match self.clocks.get(&node_id) {
                 Some(&self_time) => {
@@ -41,7 +41,7 @@ impl VectorClock {
                 None => has_smaller = true,
             }
         }
-        
+
         has_smaller
     }
 

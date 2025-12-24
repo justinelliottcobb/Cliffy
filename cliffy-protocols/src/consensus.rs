@@ -1,11 +1,11 @@
+use crate::{geometric_mean, GeometricCRDT};
 use cliffy_core::Multivector;
-use crate::{GeometricCRDT, geometric_mean};
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use uuid::Uuid;
-use tokio::sync::{broadcast, RwLock};
 use std::sync::Arc;
+use tokio::sync::{broadcast, RwLock};
+use uuid::Uuid;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ConsensusMessage<T: Float, const N: usize> {
@@ -51,7 +51,10 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
         }
     }
 
-    pub async fn propose(&mut self, value: Multivector<T, N>) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn propose(
+        &mut self,
+        value: Multivector<T, N>,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let round = self.current_round;
         self.current_round += 1;
 
@@ -77,9 +80,10 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
 
         // Compute geometric mean of all proposals
         let consensus_value = geometric_mean(proposals);
-        
+
         // Check if consensus meets threshold (based on geometric distance)
-        let max_distance = proposals.iter()
+        let max_distance = proposals
+            .iter()
             .map(|proposal| {
                 let diff = consensus_value.clone() - proposal.clone();
                 diff.magnitude()
@@ -97,25 +101,22 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
 
     async fn weighted_geometric_consensus(
         &self,
-        proposals: &[Multivector<T, N>]
+        proposals: &[Multivector<T, N>],
     ) -> Result<Multivector<T, N>, Box<dyn std::error::Error>> {
         // Weight proposals by their geometric magnitude
-        let weights: Vec<T> = proposals.iter()
-            .map(|p| p.magnitude())
-            .collect();
+        let weights: Vec<T> = proposals.iter().map(|p| p.magnitude()).collect();
 
         let total_weight: T = weights.iter().fold(T::zero(), |acc, &w| acc + w);
-        
+
         if total_weight == T::zero() {
             return Ok(Multivector::zero());
         }
 
         // Compute weighted geometric mean using exponential/logarithm
-        let weighted_log_sum = proposals.iter()
+        let weighted_log_sum = proposals
+            .iter()
             .zip(weights.iter())
-            .map(|(proposal, &weight)| {
-                proposal.log().scale(weight / total_weight)
-            })
+            .map(|(proposal, &weight)| proposal.log().scale(weight / total_weight))
             .fold(Multivector::zero(), |acc, weighted_log| acc + weighted_log);
 
         Ok(weighted_log_sum.exp())
@@ -127,14 +128,14 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
         participants: &[Uuid],
     ) -> Result<Option<Multivector<T, N>>, Box<dyn std::error::Error>> {
         let round = self.current_round;
-        
+
         // Phase 1: Propose
         self.propose(proposal.clone()).await?;
-        
+
         // Collect proposals from all participants
         let mut received_proposals = vec![proposal];
         let mut proposal_count = 1;
-        
+
         while proposal_count < participants.len() {
             if let Ok(message) = self.message_receiver.recv().await {
                 if message.round == round {
@@ -157,13 +158,13 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
             round,
             message_type: MessageType::Vote(true, consensus_candidate.clone()),
         };
-        
+
         self.message_sender.send(vote_message)?;
-        
+
         // Collect votes
         let mut votes = HashMap::new();
         votes.insert(self.node_id, true);
-        
+
         while votes.len() < participants.len() {
             if let Ok(message) = self.message_receiver.recv().await {
                 if message.round == round {
@@ -186,24 +187,25 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
                 round,
                 message_type: MessageType::Commit(consensus_candidate.clone()),
             };
-            
+
             self.message_sender.send(commit_message)?;
-            
+
             // Update CRDT state
             let mut crdt_guard = self.crdt_state.write().await;
-            let op = crdt_guard.create_operation(
-                consensus_candidate.clone(),
-                crate::OperationType::Addition
-            );
+            let op = crdt_guard
+                .create_operation(consensus_candidate.clone(), crate::OperationType::Addition);
             crdt_guard.apply_operation(op);
-            
+
             Ok(Some(consensus_candidate))
         } else {
             Ok(None)
         }
     }
 
-    pub async fn sync_crdt_state(&self, other_node: Uuid) -> Result<(), Box<dyn std::error::Error>> {
+    pub async fn sync_crdt_state(
+        &self,
+        other_node: Uuid,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let crdt_guard = self.crdt_state.read().await;
         let sync_message = ConsensusMessage {
             sender_id: self.node_id,
@@ -230,29 +232,29 @@ impl<T: Float + Send + Sync + Clone + 'static, const N: usize> GeometricConsensu
 // Lattice-based automatic conflict resolution
 pub fn lattice_join<T: Float, const N: usize>(
     a: &Multivector<T, N>,
-    b: &Multivector<T, N>
+    b: &Multivector<T, N>,
 ) -> Multivector<T, N> {
     // Implement least upper bound in the lattice
     let mut result_coeffs = a.coeffs.clone();
-    
+
     for i in 0..N {
         result_coeffs[i] = result_coeffs[i].max(b.coeffs[i]);
     }
-    
+
     Multivector::new(result_coeffs)
 }
 
 pub fn lattice_meet<T: Float, const N: usize>(
     a: &Multivector<T, N>,
-    b: &Multivector<T, N>
+    b: &Multivector<T, N>,
 ) -> Multivector<T, N> {
     // Implement greatest lower bound in the lattice
     let mut result_coeffs = a.coeffs.clone();
-    
+
     for i in 0..N {
         result_coeffs[i] = result_coeffs[i].min(b.coeffs[i]);
     }
-    
+
     Multivector::new(result_coeffs)
 }
 
@@ -272,9 +274,12 @@ mod tests {
 
         let node_id = Uuid::new_v4();
         let consensus = GeometricConsensus::new(node_id, Multivector3D::zero());
-        
-        let result = consensus.geometric_consensus(&proposals, 0.5).await.unwrap();
-        
+
+        let result = consensus
+            .geometric_consensus(&proposals, 0.5)
+            .await
+            .unwrap();
+
         // Geometric mean of 1, 2, 4 should be 2
         assert!((result.coeffs[0] - 2.0).abs() < 1e-10);
     }

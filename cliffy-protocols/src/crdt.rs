@@ -1,5 +1,5 @@
-use cliffy_core::Multivector;
 use crate::vector_clock::VectorClock;
+use cliffy_core::Multivector;
 use num_traits::Float;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -49,18 +49,10 @@ impl<T: Float + Send + Sync, const N: usize> GeometricCRDT<T, N> {
         self.operations.insert(operation.id, operation.clone());
 
         self.state = match operation.operation_type {
-            OperationType::GeometricProduct => {
-                self.state.geometric_product(&operation.transform)
-            }
-            OperationType::Addition => {
-                self.state + operation.transform
-            }
-            OperationType::Sandwich => {
-                operation.transform.sandwich(&self.state)
-            }
-            OperationType::Exponential => {
-                operation.transform.exp().geometric_product(&self.state)
-            }
+            OperationType::GeometricProduct => self.state.geometric_product(&operation.transform),
+            OperationType::Addition => self.state + operation.transform,
+            OperationType::Sandwich => operation.transform.sandwich(&self.state),
+            OperationType::Exponential => operation.transform.exp().geometric_product(&self.state),
         };
     }
 
@@ -84,7 +76,7 @@ impl<T: Float + Send + Sync, const N: usize> GeometricCRDT<T, N> {
     pub fn merge(&mut self, other: &GeometricCRDT<T, N>) -> GeometricCRDT<T, N> {
         let mut merged_state = self.geometric_join(&other.state);
         let merged_clock = self.vector_clock.merge(&other.vector_clock);
-        
+
         let mut merged_ops = self.operations.clone();
         for (id, op) in &other.operations {
             if !merged_ops.contains_key(id) {
@@ -119,7 +111,7 @@ impl<T: Float + Send + Sync, const N: usize> GeometricCRDT<T, N> {
         // Geometric join using meet operation for lattice-based CRDT
         let self_norm = self.state.magnitude();
         let other_norm = other.magnitude();
-        
+
         if self_norm > other_norm {
             self.state.clone()
         } else if other_norm > self_norm {
@@ -132,7 +124,7 @@ impl<T: Float + Send + Sync, const N: usize> GeometricCRDT<T, N> {
 }
 
 pub fn geometric_mean<T: Float, const N: usize>(
-    multivectors: &[Multivector<T, N>]
+    multivectors: &[Multivector<T, N>],
 ) -> Multivector<T, N> {
     if multivectors.is_empty() {
         return Multivector::zero();
@@ -143,7 +135,7 @@ pub fn geometric_mean<T: Float, const N: usize>(
         .iter()
         .map(|mv| mv.log())
         .fold(Multivector::zero(), |acc, log_mv| acc + log_mv);
-    
+
     let mean_log = sum_logs.scale(T::one() / n);
     mean_log.exp()
 }
@@ -185,7 +177,7 @@ mod tests {
         let mv1 = Multivector3D::scalar(2.0);
         let mv2 = Multivector3D::scalar(8.0);
         let mean = geometric_mean(&[mv1, mv2]);
-        
+
         // Geometric mean of 2 and 8 should be 4
         assert!((mean.coeffs[0] - 4.0).abs() < 1e-10);
     }
@@ -194,18 +186,18 @@ mod tests {
     fn test_vector_clock_ordering() {
         let mut clock1 = VectorClock::new();
         let mut clock2 = VectorClock::new();
-        
+
         let node1 = Uuid::new_v4();
         let node2 = Uuid::new_v4();
 
         clock1.tick(node1);
         clock2.tick(node2);
-        
+
         assert!(clock1.concurrent(&clock2));
-        
+
         clock1.update(&clock2);
         clock1.tick(node1);
-        
+
         assert!(clock2.happens_before(&clock1));
     }
 }

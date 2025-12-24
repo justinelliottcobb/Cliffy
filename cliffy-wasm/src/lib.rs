@@ -1,17 +1,17 @@
-use wasm_bindgen::prelude::*;
 use js_sys::{Array, Object};
-use web_sys::console;
-use serde::{Serialize, Deserialize};
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use wasm_bindgen::prelude::*;
+use web_sys::console;
 
-use cliffy_core::{Multivector, cl3_0, cl4_1};
+use cliffy_core::{cl3_0, cl4_1, Multivector};
 use cliffy_frp::GeometricBehavior;
 use cliffy_protocols::{GeometricCRDT, GeometricConsensus};
 
 #[wasm_bindgen]
 extern "C" {
     fn alert(s: &str);
-    
+
     #[wasm_bindgen(js_namespace = console)]
     fn log(s: &str);
 }
@@ -30,12 +30,12 @@ impl CliffySystem {
     #[wasm_bindgen(constructor)]
     pub fn new() -> CliffySystem {
         console_error_panic_hook::set_once();
-        
+
         Self {
             node_id: Uuid::new_v4(),
         }
     }
-    
+
     #[wasm_bindgen(getter)]
     pub fn node_id(&self) -> String {
         self.node_id.to_string()
@@ -68,10 +68,10 @@ impl MultivectorJs {
         if coeffs.len() != 8 {
             panic!("Coefficients array must have exactly 8 elements");
         }
-        
+
         let mut coeff_array = [0.0; 8];
         coeff_array.copy_from_slice(coeffs);
-        
+
         Self {
             inner: cl3_0::Multivector3D::new(coeff_array.into()),
         }
@@ -79,23 +79,17 @@ impl MultivectorJs {
 
     #[wasm_bindgen(js_name = e1)]
     pub fn e1() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e1(),
-        }
+        Self { inner: cl3_0::e1() }
     }
 
     #[wasm_bindgen(js_name = e2)]
     pub fn e2() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e2(),
-        }
+        Self { inner: cl3_0::e2() }
     }
 
     #[wasm_bindgen(js_name = e3)]
     pub fn e3() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e3(),
-        }
+        Self { inner: cl3_0::e3() }
     }
 
     #[wasm_bindgen(js_name = geometricProduct)]
@@ -195,9 +189,9 @@ impl GeometricBehaviorJs {
     #[wasm_bindgen(constructor)]
     pub fn new(initial_value: &MultivectorJs) -> GeometricBehaviorJs {
         Self {
-            inner: std::sync::Arc::new(std::sync::Mutex::new(Some(
-                GeometricBehavior::new(initial_value.inner.clone())
-            ))),
+            inner: std::sync::Arc::new(std::sync::Mutex::new(Some(GeometricBehavior::new(
+                initial_value.inner.clone(),
+            )))),
         }
     }
 
@@ -227,7 +221,9 @@ impl GeometricBehaviorJs {
         if let Some(ref behavior) = *guard {
             let transformed = behavior.transform(move |mv| {
                 let js_mv = MultivectorJs { inner: mv.clone() };
-                let result = transformer.call1(&JsValue::NULL, &JsValue::from(js_mv)).unwrap();
+                let result = transformer
+                    .call1(&JsValue::NULL, &JsValue::from(js_mv))
+                    .unwrap();
                 let result_mv: MultivectorJs = result.into_serde().unwrap();
                 result_mv.inner
             });
@@ -311,7 +307,9 @@ impl GeometricCRDTJs {
             _ => cliffy_protocols::OperationType::Addition,
         };
 
-        let op = self.inner.create_operation(transform.inner.clone(), operation_type);
+        let op = self
+            .inner
+            .create_operation(transform.inner.clone(), operation_type);
         serde_json::to_string(&op).unwrap_or_default()
     }
 
@@ -340,7 +338,7 @@ extern "C" {
 pub fn init_webrtc_peer() -> Result<JsValue, JsValue> {
     let mut config = Object::new();
     js_sys::Reflect::set(&config, &"iceServers".into(), &Array::new())?;
-    
+
     console_log!("WebRTC peer connection initialized for Cliffy");
     Ok(config.into())
 }
@@ -350,22 +348,14 @@ pub fn init_webrtc_peer() -> Result<JsValue, JsValue> {
 pub fn benchmark_geometric_product(size: usize, iterations: usize) -> f64 {
     let mv1 = cl3_0::Multivector3D::scalar(1.0) + cl3_0::e1::<f64>();
     let mv2 = cl3_0::Multivector3D::scalar(2.0) + cl3_0::e2::<f64>();
-    
-    let start = web_sys::window()
-        .unwrap()
-        .performance()
-        .unwrap()
-        .now();
+
+    let start = web_sys::window().unwrap().performance().unwrap().now();
 
     for _ in 0..iterations {
         let _result = mv1.geometric_product(&mv2);
     }
 
-    let end = web_sys::window()
-        .unwrap()
-        .performance()
-        .unwrap()
-        .now();
+    let end = web_sys::window().unwrap().performance().unwrap().now();
 
     (end - start) / iterations as f64
 }

@@ -13,9 +13,11 @@ members = [
 resolver = "2"
 
 [workspace.dependencies]
-# Amari geometric algebra dependencies from crates.io
-amari-core = "0.9.8"
-amari-fusion = "0.9.8"
+# Amari geometric algebra dependencies (local development - v0.13.1)
+amari-core = { path = "../../math/amari/amari-core" }
+amari-fusion = { path = "../../math/amari/amari-fusion" }
+amari-dual = { path = "../../math/amari/amari-dual" }
+amari-tropical = { path = "../../math/amari/amari-tropical" }
 
 nalgebra = "0.32"
 num-traits = "0.2"

@@ -1,7 +1,7 @@
 use cliffy_core::GA3;
 use std::sync::{Arc, RwLock};
-use tokio::sync::watch;
 use std::time::Instant;
+use tokio::sync::watch;
 
 /// Geometric Behavior for 3D Euclidean space (Cl(3,0))
 ///
@@ -37,9 +37,7 @@ impl GeometricBehavior {
         F: Fn(&GA3) -> GA3 + Send + Sync + 'static,
     {
         let mut new_receiver = self.receiver.clone();
-        let (new_sender, new_rx) = watch::channel(
-            f(&self.receiver.borrow().clone())
-        );
+        let (new_sender, new_rx) = watch::channel(f(&self.receiver.borrow().clone()));
 
         let f = Arc::new(f);
         let sender_clone = new_sender.clone();

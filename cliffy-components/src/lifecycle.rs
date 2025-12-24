@@ -27,10 +27,12 @@ pub trait LifecycleHooks {
     fn on_update(&self, _previous_props: &HashMap<String, String>) {}
     fn on_unmount(&self) {}
     fn on_error(&self, _error: &str) {}
-    
+
     // Geometric-specific lifecycle hooks
     fn on_geometric_transform(&self, _transform: &Multivector3D<f64>) {}
-    fn should_update(&self, _new_geometric_state: &Multivector3D<f64>) -> bool { true }
+    fn should_update(&self, _new_geometric_state: &Multivector3D<f64>) -> bool {
+        true
+    }
 }
 
 impl ComponentLifecycle {
@@ -60,7 +62,7 @@ impl ComponentLifecycle {
 
         if valid_transition {
             self.stage = new_stage;
-            
+
             match &self.stage {
                 LifecycleStage::Mounted => {
                     self.mount_time = Some(js_sys::Date::now());
@@ -77,10 +79,14 @@ impl ComponentLifecycle {
     }
 
     pub fn is_mounted(&self) -> bool {
-        matches!(self.stage, LifecycleStage::Mounted | LifecycleStage::Updated | LifecycleStage::Updating)
+        matches!(
+            self.stage,
+            LifecycleStage::Mounted | LifecycleStage::Updated | LifecycleStage::Updating
+        )
     }
 
     pub fn get_uptime_ms(&self) -> Option<f64> {
-        self.mount_time.map(|mount_time| js_sys::Date::now() - mount_time)
+        self.mount_time
+            .map(|mount_time| js_sys::Date::now() - mount_time)
     }
 }

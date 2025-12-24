@@ -144,12 +144,13 @@ impl GeometricComputeContext {
             entry_point: "exp_kernel",
         });
 
-        let rotor_slerp_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("Rotor SLERP Pipeline"),
-            layout: Some(&compute_pipeline_layout),
-            module: &shader_module,
-            entry_point: "rotor_slerp_kernel",
-        });
+        let rotor_slerp_pipeline =
+            device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
+                label: Some("Rotor SLERP Pipeline"),
+                layout: Some(&compute_pipeline_layout),
+                module: &shader_module,
+                entry_point: "rotor_slerp_kernel",
+            });
 
         let reduction_pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
             label: Some("Reduction Pipeline"),
@@ -176,15 +177,12 @@ impl GeometricComputeContext {
         input_b: &[Multivector<f32, 8>],
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         assert_eq!(input_a.len(), input_b.len());
-        
+
         let gpu_input_a: Vec<GpuMultivector> = input_a.iter().map(|&mv| mv.into()).collect();
         let gpu_input_b: Vec<GpuMultivector> = input_b.iter().map(|&mv| mv.into()).collect();
-        
-        self.run_compute_kernel(
-            &self.geometric_product_pipeline,
-            &gpu_input_a,
-            &gpu_input_b,
-        ).await
+
+        self.run_compute_kernel(&self.geometric_product_pipeline, &gpu_input_a, &gpu_input_b)
+            .await
     }
 
     pub async fn addition_batch(
@@ -193,15 +191,12 @@ impl GeometricComputeContext {
         input_b: &[Multivector<f32, 8>],
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         assert_eq!(input_a.len(), input_b.len());
-        
+
         let gpu_input_a: Vec<GpuMultivector> = input_a.iter().map(|&mv| mv.into()).collect();
         let gpu_input_b: Vec<GpuMultivector> = input_b.iter().map(|&mv| mv.into()).collect();
-        
-        self.run_compute_kernel(
-            &self.addition_pipeline,
-            &gpu_input_a,
-            &gpu_input_b,
-        ).await
+
+        self.run_compute_kernel(&self.addition_pipeline, &gpu_input_a, &gpu_input_b)
+            .await
     }
 
     pub async fn sandwich_batch(
@@ -210,15 +205,12 @@ impl GeometricComputeContext {
         vectors: &[Multivector<f32, 8>],
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         assert_eq!(rotors.len(), vectors.len());
-        
+
         let gpu_rotors: Vec<GpuMultivector> = rotors.iter().map(|&mv| mv.into()).collect();
         let gpu_vectors: Vec<GpuMultivector> = vectors.iter().map(|&mv| mv.into()).collect();
-        
-        self.run_compute_kernel(
-            &self.sandwich_pipeline,
-            &gpu_rotors,
-            &gpu_vectors,
-        ).await
+
+        self.run_compute_kernel(&self.sandwich_pipeline, &gpu_rotors, &gpu_vectors)
+            .await
     }
 
     pub async fn exp_batch(
@@ -227,12 +219,9 @@ impl GeometricComputeContext {
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         let gpu_input: Vec<GpuMultivector> = input.iter().map(|&mv| mv.into()).collect();
         let dummy_input = vec![GpuMultivector { coeffs: [0.0; 8] }; input.len()];
-        
-        self.run_compute_kernel(
-            &self.exp_pipeline,
-            &gpu_input,
-            &dummy_input,
-        ).await
+
+        self.run_compute_kernel(&self.exp_pipeline, &gpu_input, &dummy_input)
+            .await
     }
 
     pub async fn rotor_slerp_batch(
@@ -243,19 +232,20 @@ impl GeometricComputeContext {
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         assert_eq!(rotors_a.len(), rotors_b.len());
         assert_eq!(rotors_a.len(), t_values.len());
-        
+
         let gpu_rotors_a: Vec<GpuMultivector> = rotors_a.iter().map(|&mv| mv.into()).collect();
-        let gpu_rotors_b: Vec<GpuMultivector> = rotors_b.iter().zip(t_values.iter()).map(|(&mv, &t)| {
-            let mut gpu_mv: GpuMultivector = mv.into();
-            gpu_mv.coeffs[0] = t; // Store t in first coefficient
-            gpu_mv
-        }).collect();
-        
-        self.run_compute_kernel(
-            &self.rotor_slerp_pipeline,
-            &gpu_rotors_a,
-            &gpu_rotors_b,
-        ).await
+        let gpu_rotors_b: Vec<GpuMultivector> = rotors_b
+            .iter()
+            .zip(t_values.iter())
+            .map(|(&mv, &t)| {
+                let mut gpu_mv: GpuMultivector = mv.into();
+                gpu_mv.coeffs[0] = t; // Store t in first coefficient
+                gpu_mv
+            })
+            .collect();
+
+        self.run_compute_kernel(&self.rotor_slerp_pipeline, &gpu_rotors_a, &gpu_rotors_b)
+            .await
     }
 
     async fn run_compute_kernel(
@@ -265,18 +255,22 @@ impl GeometricComputeContext {
         input_b: &[GpuMultivector],
     ) -> Result<Vec<Multivector<f32, 8>>, Box<dyn std::error::Error>> {
         let size = input_a.len();
-        
-        let input_buffer_a = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Input Buffer A"),
-            contents: bytemuck::cast_slice(input_a),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
 
-        let input_buffer_b = self.device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Input Buffer B"),
-            contents: bytemuck::cast_slice(input_b),
-            usage: wgpu::BufferUsages::STORAGE,
-        });
+        let input_buffer_a = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Input Buffer A"),
+                contents: bytemuck::cast_slice(input_a),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
+
+        let input_buffer_b = self
+            .device
+            .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                label: Some("Input Buffer B"),
+                contents: bytemuck::cast_slice(input_b),
+                usage: wgpu::BufferUsages::STORAGE,
+            });
 
         let output_buffer = self.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("Output Buffer"),
@@ -311,9 +305,11 @@ impl GeometricComputeContext {
             ],
         });
 
-        let mut encoder = self.device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("Compute Encoder"),
-        });
+        let mut encoder = self
+            .device
+            .create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("Compute Encoder"),
+            });
 
         {
             let mut compute_pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
@@ -347,7 +343,8 @@ impl GeometricComputeContext {
 
         let data = buffer_slice.get_mapped_range();
         let gpu_result: &[GpuMultivector] = bytemuck::cast_slice(&data);
-        let result: Vec<Multivector<f32, 8>> = gpu_result.iter().map(|&gpu_mv| gpu_mv.into()).collect();
+        let result: Vec<Multivector<f32, 8>> =
+            gpu_result.iter().map(|&gpu_mv| gpu_mv.into()).collect();
 
         drop(data);
         staging_buffer.unmap();
@@ -364,27 +361,26 @@ impl GeometricComputeContext {
         }
 
         let mut current_input = input.to_vec();
-        
+
         while current_input.len() > 1 {
             let size = current_input.len();
             let reduced_size = (size + 63) / 64; // Each workgroup reduces 64 elements
-            
-            let gpu_input: Vec<GpuMultivector> = current_input.iter().map(|&mv| mv.into()).collect();
+
+            let gpu_input: Vec<GpuMultivector> =
+                current_input.iter().map(|&mv| mv.into()).collect();
             let dummy_input = vec![GpuMultivector { coeffs: [0.0; 8] }; size];
-            
-            let result = self.run_compute_kernel(
-                &self.reduction_pipeline,
-                &gpu_input,
-                &dummy_input,
-            ).await?;
-            
+
+            let result = self
+                .run_compute_kernel(&self.reduction_pipeline, &gpu_input, &dummy_input)
+                .await?;
+
             current_input = result;
-            
+
             if reduced_size == 1 {
                 break;
             }
         }
-        
+
         Ok(current_input[0])
     }
 
@@ -422,14 +418,17 @@ impl PerformanceBenchmark {
             .collect();
 
         let start = std::time::Instant::now();
-        
+
         for _ in 0..iterations {
-            let _result = self.context.geometric_product_batch(&input_a, &input_b).await?;
+            let _result = self
+                .context
+                .geometric_product_batch(&input_a, &input_b)
+                .await?;
         }
-        
+
         let duration = start.elapsed();
         let ops_per_second = (size * iterations) as f64 / duration.as_secs_f64();
-        
+
         Ok(ops_per_second)
     }
 
@@ -437,16 +436,15 @@ impl PerformanceBenchmark {
         &self,
         size: usize,
     ) -> Result<f64, Box<dyn std::error::Error>> {
-        let input: Vec<Multivector<f32, 8>> = (0..size)
-            .map(|i| Multivector::scalar(i as f32))
-            .collect();
+        let input: Vec<Multivector<f32, 8>> =
+            (0..size).map(|i| Multivector::scalar(i as f32)).collect();
 
         let start = std::time::Instant::now();
         let _result = self.context.parallel_sum(&input).await?;
         let duration = start.elapsed();
-        
+
         let elements_per_second = size as f64 / duration.as_secs_f64();
-        
+
         Ok(elements_per_second)
     }
 }
@@ -459,12 +457,12 @@ mod tests {
     #[tokio::test]
     async fn test_gpu_geometric_product() {
         let context = GeometricComputeContext::new().await.unwrap();
-        
+
         let a = vec![e1::<f32>()];
         let b = vec![e2::<f32>()];
-        
+
         let result = context.geometric_product_batch(&a, &b).await.unwrap();
-        
+
         // e1 * e2 = e12 (coefficient at index 3)
         assert!((result[0].coeffs[3] - 1.0).abs() < 1e-6);
     }
@@ -472,15 +470,15 @@ mod tests {
     #[tokio::test]
     async fn test_gpu_parallel_sum() {
         let context = GeometricComputeContext::new().await.unwrap();
-        
+
         let input = vec![
             Multivector3D::scalar(1.0),
             Multivector3D::scalar(2.0),
             Multivector3D::scalar(3.0),
         ];
-        
+
         let result = context.parallel_sum(&input).await.unwrap();
-        
+
         // Sum should be 6.0
         assert!((result.coeffs[0] - 6.0).abs() < 1e-6);
     }

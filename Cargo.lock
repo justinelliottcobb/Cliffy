@@ -22,9 +22,7 @@ checksum = "683d7910e743518b0e34f1186f92494becacb047c7b6bf616c96772180fef923"
 
 [[package]]
 name = "amari-core"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d221789f4d9c6c5d72180b941a15f89d0360e48ea51e9f9b54d62cbf23b8d551"
+version = "0.13.1"
 dependencies = [
  "approx",
  "bytemuck",
@@ -35,9 +33,7 @@ dependencies = [
 
 [[package]]
 name = "amari-dual"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "14678a6775f967bc9a3de27e4168111871e74126345a4e934391a7c62b436fb6"
+version = "0.13.1"
 dependencies = [
  "amari-core",
  "num-traits",
@@ -46,9 +42,7 @@ dependencies = [
 
 [[package]]
 name = "amari-fusion"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "528d110d24372b5c4e019a9ca0d823432a122772741aa89a2bad36f49f0d695a"
+version = "0.13.1"
 dependencies = [
  "amari-core",
  "amari-dual",
@@ -60,9 +54,7 @@ dependencies = [
 
 [[package]]
 name = "amari-tropical"
-version = "0.9.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "388fb536ac254e060c4840ce834e31d7bb9d2d16c2be470f09c10e96ab7fcdf9"
+version = "0.13.1"
 dependencies = [
  "amari-core",
  "num-traits",
