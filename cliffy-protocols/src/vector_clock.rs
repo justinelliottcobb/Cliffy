@@ -28,17 +28,24 @@ impl VectorClock {
     pub fn happens_before(&self, other: &VectorClock) -> bool {
         let mut has_smaller = false;
 
+        // Check all entries in other
         for (&node_id, &other_time) in &other.clocks {
-            match self.clocks.get(&node_id) {
-                Some(&self_time) => {
-                    if self_time > other_time {
-                        return false;
-                    }
-                    if self_time < other_time {
-                        has_smaller = true;
-                    }
+            let self_time = *self.clocks.get(&node_id).unwrap_or(&0);
+            if self_time > other_time {
+                return false;
+            }
+            if self_time < other_time {
+                has_smaller = true;
+            }
+        }
+
+        // Check entries in self that aren't in other
+        for (&node_id, &self_time) in &self.clocks {
+            if !other.clocks.contains_key(&node_id) {
+                // self has a non-zero entry that other doesn't have (implicitly 0)
+                if self_time > 0 {
+                    return false;
                 }
-                None => has_smaller = true,
             }
         }
 

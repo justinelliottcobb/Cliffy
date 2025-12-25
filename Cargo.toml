@@ -14,7 +14,7 @@ resolver = "2"
 
 [workspace.dependencies]
 # Amari geometric algebra dependencies (local development - v0.13.1)
-amari-core = { path = "../../math/amari/amari-core" }
+amari-core = { path = "../../math/amari/amari-core", features = ["serialize"] }
 amari-fusion = { path = "../../math/amari/amari-fusion" }
 amari-dual = { path = "../../math/amari/amari-dual" }
 amari-tropical = { path = "../../math/amari/amari-tropical" }
