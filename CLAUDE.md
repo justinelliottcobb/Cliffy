@@ -2,13 +2,19 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Core Philosophy
+## Vision
 
-Cliffy is a **WASM-first reactive framework** built on **classical FRP semantics** from Conal Elliott's work, with **geometric algebra** as its mathematical foundation.
+Cliffy enables building collaborative applications at Google Docs scale (10,000+ concurrent users) where **distributed systems problems become geometric algebra problems** with closed-form solutions and guaranteed convergence.
 
-### The Cliffy Principle
+### The Core Insight
 
-> **"What the developer writes should be simple and familiar. What happens underneath should be mathematically elegant."**
+All state transformations are geometric operations in Clifford algebra:
+- **State changes** = rotors/versors (geometric transformations)
+- **Conflicts** = geometric distance from expected manifold
+- **Resolution** = geometric mean (closed-form, always converges)
+- **Composition** = geometric product (associative)
+
+### What Developers See vs What Happens
 
 ```typescript
 // What developers write (familiar API):
@@ -19,360 +25,228 @@ count.update(n => n + 1);
 // What actually happens (hidden from users):
 // - Value stored as GA3 multivector in Rust/WASM
 // - Updates are geometric transformations
-// - Reactivity flows through algebraic composition
+// - Conflicts resolve via geometric mean
+// - Distributed sync uses lattice join
 ```
 
-### Classical FRP (Not React Hooks)
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        Applications                              │
+│  (Collaborative Docs, Games, Design Tools, Whiteboards)         │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ┌─────────────────────┴─────────────────────┐
+        │                                           │
+        ▼                                           ▼
+┌───────────────────────────────┐     ┌───────────────────────────────┐
+│        Algebraic TSX          │     │      Fek'lhr (Mobile)         │
+│  (Web: dataflow → DOM)        │     │  (RN/Lynx: machines → native) │
+└───────────────────────────────┘     └───────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                    Synchronization Layer                         │
+│  (WebRTC, deltas, persistence, peer discovery)                  │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                    Distributed State                             │
+│  (Geometric CRDT, lattice join, vector clocks, merge)           │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                  Geometric State Layer                           │
+│  (Rotors, versors, projections, transformations)                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                        FRP Core                                  │
+│  cliffy-core: Behavior<T>, Event<T>, combinators                │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                    Geometric Algebra                             │
+│  amari-core: GA3, rotors, exponentials, products                │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+## Current State
+
+### Active Crates
+
+| Crate | Tests | Description |
+|-------|-------|-------------|
+| `cliffy-core` | 29 | FRP primitives (Behavior, Event) with GA3 internally |
+| `cliffy-wasm` | 0 | WASM bindings via wasm-bindgen |
+
+### Archived (to be revived per roadmap)
+
+- `cliffy-protocols` — CRDT + consensus (Phase 2)
+- `cliffy-alive` — Living UI / cellular automata
+- `cliffy-typescript` — Deprecated by WASM-first approach
+
+## Development Standards
+
+Cliffy follows Industrial Algebra project conventions:
+
+### Idiomatic Rust
+- Leverage the type system fully (enums, traits, generics)
+- Prefer `Result`/`Option` over exceptions/nulls
+- Use iterators and combinators over manual loops
+- Follow Rust API guidelines
+
+### Phantom Types for Type-Level Safety
+```rust
+use std::marker::PhantomData;
+
+pub struct Document<S: DocumentState> {
+    content: String,
+    _state: PhantomData<S>,
+}
+
+pub struct Draft;
+pub struct Published;
+
+impl Document<Draft> {
+    pub fn publish(self) -> Document<Published> { ... }
+}
+// Can't publish a Published document - doesn't compile
+```
+
+### Contracts via amari-flynn
+```rust
+use amari_flynn::prelude::*;
+
+#[requires(probability > 0.0 && probability < 1.0)]
+#[ensures(result.probability() == probability)]
+pub fn create_rare_event(probability: f64) -> RareEvent<()> {
+    RareEvent::new(probability, "event")
+}
+```
+
+### Rayon for Parallelism
+```rust
+use rayon::prelude::*;
+
+pub fn parallel_geometric_mean(states: &[GA3]) -> GA3 {
+    states.par_iter()
+        .map(|s| s.log())
+        .reduce(GA3::zero, |a, b| &a + &b)
+        .exp()
+}
+```
+
+## Build Commands
+
+```bash
+# Build
+cargo build -p cliffy-core
+cargo build -p cliffy-wasm
+wasm-pack build cliffy-wasm --target web --out-dir pkg
+
+# Test
+cargo test --workspace          # 29 tests
+cargo test --doc                # 10 doctests
+
+# Development
+npm run dev                     # cargo watch + rebuild WASM
+```
+
+## Classical FRP (Not React Hooks)
 
 Cliffy follows Conal Elliott's original FRP semantics:
 
 - **`Behavior<T>`** = `Time → T` — A continuous, time-varying value
 - **`Event<T>`** = `[(Time, T)]` — Discrete occurrences over time
 
-This is fundamentally different from React's "hooks" approach:
-
 | Concept | React Hooks | Cliffy FRP |
 |---------|-------------|------------|
-| State | `useState` returns value + setter | `Behavior` is a continuous signal |
-| Effects | `useEffect` with dependency arrays | Automatic propagation via `subscribe`/`map` |
-| Derived | `useMemo` with manual deps | `behavior.map()` - automatic |
-| Combined | Manual with multiple hooks | `combine(a, b, f)` - declarative |
+| State | `useState` | `Behavior<T>` (continuous signal) |
+| Effects | `useEffect` + deps | `subscribe`/`map` (automatic) |
+| Derived | `useMemo` + deps | `behavior.map()` (automatic) |
+| Combined | Multiple hooks | `combine(a, b, f)` (declarative) |
 
-**Never implement React-style hooks in Cliffy. The reactive graph handles everything.**
-
-## Architecture
-
-```
-┌─────────────────────────────────────────────────────────┐
-│  @cliffy/core (npm package)                             │
-│  TypeScript thin wrapper - type-safe, familiar API      │
-│  cliffy-typescript/src/index.ts                         │
-└────────────────────────┬────────────────────────────────┘
-                         │ imports
-┌────────────────────────▼────────────────────────────────┐
-│  cliffy-wasm (wasm-bindgen)                             │
-│  WASM bindings: Behavior, Event, combinators            │
-│  cliffy-wasm/src/lib.rs                                 │
-└────────────────────────┬────────────────────────────────┘
-                         │ uses
-┌────────────────────────▼────────────────────────────────┐
-│  cliffy-core (Rust library)                             │
-│  FRP primitives backed by geometric algebra             │
-│  Behavior<T>, Event<T>, combinators                     │
-│  cliffy-core/src/                                       │
-└────────────────────────┬────────────────────────────────┘
-                         │ depends on
-┌────────────────────────▼────────────────────────────────┐
-│  amari-core (external)                                  │
-│  Geometric Algebra: Multivector<P, Q, R>                │
-│  GA3 = Multivector<3, 0, 0> = Cl(3,0)                   │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Layer Responsibilities
-
-| Layer | Responsibility | Knows About GA? |
-|-------|----------------|-----------------|
-| `@cliffy/core` | Type-safe TS API, nice DX | No |
-| `cliffy-wasm` | JS↔WASM bridge, JsValue handling | No |
-| `cliffy-core` | FRP semantics, reactive graph | Yes (internal) |
-| `amari-core` | Pure geometric algebra math | Yes (it IS GA) |
-
-**Critical**: Geometric algebra is an *implementation detail*. Users never see `GA3`, `Multivector`, or any GA types. They see `Behavior<number>`, `Event<MouseEvent>`, etc.
-
-## Project Structure
-
-```
-cliffy/
-├── Cargo.toml                 # Rust workspace
-├── package.json               # NPM workspace
-├── CLAUDE.md                  # This file
-├── .git/hooks/                # Git hooks (pre-commit, pre-push)
-│
-├── cliffy-core/               # Rust FRP library (29 tests)
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs             # Public API
-│       ├── behavior.rs        # Behavior<T> implementation
-│       ├── event.rs           # Event<T> implementation
-│       ├── combinators.rs     # when, combine, if_else, etc.
-│       └── geometric.rs       # IntoGeometric/FromGeometric traits
-│
-├── cliffy-wasm/               # WASM bindings
-│   ├── Cargo.toml
-│   └── src/
-│       └── lib.rs             # wasm_bindgen exports
-│
-├── cliffy-typescript/         # TypeScript wrapper (@cliffy/core)
-│   ├── package.json
-│   ├── tsconfig.json
-│   ├── src/
-│   │   ├── index.ts           # Main exports, thin wrapper around WASM
-│   │   └── dom.ts             # DOM binding helpers
-│   └── pkg/                   # Generated by wasm-pack
-│
-├── examples/
-│   ├── counter-101/           # Reference implementation
-│   └── archive/               # Old examples with migration guide
-│
-├── scripts/
-│   └── run-example.js         # Example runner helper
-│
-└── archive/                   # Old crates (reference only)
-    ├── cliffy-alive/          # Living UI (to be rebuilt)
-    ├── cliffy-protocols/
-    └── ...
-```
-
-## Build Commands
-
-```bash
-# Full build (Rust → WASM → TypeScript)
-npm run build
-
-# Or step by step:
-cargo build -p cliffy-core           # Build Rust core
-cargo build -p cliffy-wasm           # Build WASM crate
-npm run build:wasm                   # wasm-pack build
-npm run build:ts                     # TypeScript compile
-
-# Run tests
-cargo test --workspace               # 39 Rust tests
-```
-
-## Development Server (Hot Reload)
-
-```bash
-# Start dev server with hot reload (recommended)
-npm run dev                          # Runs counter-101 example
-
-# Run any example with hot reload
-npm run example counter-101
-npm run example -- --list            # List all examples
-
-# What happens:
-# 1. cargo-watch monitors cliffy-core and cliffy-wasm
-# 2. On Rust change → rebuilds WASM automatically
-# 3. Vite detects WASM change → reloads browser
-```
-
-The dev server runs two processes concurrently:
-- **[wasm]** `cargo watch` - Rebuilds WASM on Rust changes
-- **[vite]** Vite dev server - Serves example with HMR
+**Never implement React-style hooks. The reactive graph handles everything.**
 
 ## API Reference
 
-### Behavior<T> — Time-Varying Values
-
+### Behavior<T>
 ```typescript
-import { behavior, combine, ifElse, when } from '@cliffy/core';
-
-// Create
 const count = behavior(0);
-const name = behavior('Alice');
-
-// Read
-count.sample();  // 0
-
-// Update
-count.set(10);
-count.update(n => n + 1);
-
-// Subscribe
-const unsub = count.subscribe(n => console.log(n));
-unsub.unsubscribe();
-
-// Derive
-const doubled = count.map(n => n * 2);
-const fullName = combine(firstName, lastName, (f, l) => `${f} ${l}`);
-
-// Conditional
-const message = when(showMessage, () => "Hello!");  // null when false
-const theme = ifElse(isDark, () => "dark", () => "light");
+count.sample();                              // Get current value
+count.set(10);                               // Set directly
+count.update(n => n + 1);                    // Transform
+count.subscribe(n => console.log(n));        // React to changes
+count.map(n => n * 2);                       // Derive new behavior
+combine(a, b, (x, y) => x + y);              // Combine behaviors
 ```
 
-### Event<T> — Discrete Occurrences
-
+### Event<T>
 ```typescript
-import { event } from '@cliffy/core';
-
-// Create
 const clicks = event<MouseEvent>();
-
-// Emit
-clicks.emit(mouseEvent);
-
-// Subscribe
-clicks.subscribe(e => console.log(e.clientX));
-
-// Transform
-const positions = clicks.map(e => ({ x: e.clientX, y: e.clientY }));
-const leftClicks = clicks.filter(e => e.button === 0);
-
-// Merge streams
-const allInputs = mouseEvents.merge(touchEvents);
-
-// Fold into Behavior
-const clickCount = clicks.fold(0, (acc, _) => acc + 1);
+clicks.emit(mouseEvent);                     // Fire event
+clicks.subscribe(e => handle(e));            // Listen
+clicks.map(e => e.clientX);                  // Transform
+clicks.filter(e => e.button === 0);          // Filter
+clicks.fold(0, (acc, _) => acc + 1);         // Accumulate into Behavior
 ```
 
-## Development Guidelines
+## Roadmap
 
-### DO: Foundation First
+See `ROADMAP.md` for full details. Summary:
 
-When adding features, work bottom-up:
+| Phase | Focus |
+|-------|-------|
+| **0** | Algebraic Testing (cliffy-test + amari-flynn) |
+| **1** | Geometric State (rotors, versors, projections) |
+| **2** | Distributed State (CRDT revival, lattice join) |
+| **3** | Synchronization (WebRTC, deltas, persistence) |
+| **4** | Algebraic TSX (composable components, dataflow graphs) |
+| **5** | Edge Computing (WebGPU, distributed compute) |
+| **6** | Production (scale testing, docs, examples) |
+| **7** | Native Mobile (Fek'lhr: RN + Lynx middleware) |
 
-1. **cliffy-core** (Rust): Implement the reactive primitive
-2. **cliffy-wasm**: Expose via wasm_bindgen
-3. **@cliffy/core** (TS): Add type-safe wrapper
+## Key Principles
 
-### DON'T: Skip Layers
+### DO
+- Hide geometric algebra from users
+- Use classical FRP patterns (Behavior, Event, combinators)
+- Work bottom-up: cliffy-core → cliffy-wasm → user code
+- Use phantom types for compile-time guarantees
+- Use amari-flynn contracts for verification
+- Use rayon for data parallelism
 
-Never add functionality directly to TypeScript that should be in Rust:
-- ❌ Complex state logic in TypeScript
-- ❌ Custom reactive primitives in JS
-- ✅ All reactivity in Rust, exposed via WASM
-
-### DO: Hide Geometric Algebra
-
-Users should never see:
-- `GA3`, `Multivector`, `IntoGeometric`, `FromGeometric`
-- Blade indices, basis vectors, geometric products
-
-Users should see:
-- `Behavior<number>`, `Event<string>`, `combine()`, `when()`
-
-### DON'T: React Patterns
-
-Never implement:
-- ❌ `useState`, `useEffect`, `useMemo` style hooks
-- ❌ Component lifecycle methods
-- ❌ Virtual DOM diffing
-- ❌ JSX as runtime (JSX should compile to behavior graphs)
-
-### DO: Classical FRP Patterns
-
-Always implement:
-- ✅ Pure `Behavior<T>` and `Event<T>` types
-- ✅ Combinators: `map`, `combine`, `filter`, `fold`
-- ✅ Declarative composition over imperative updates
-
-## The January 2026 Rebuild
-
-### Why It Happened
-
-The project had accumulated complexity that obscured the core vision:
-- Multiple incomplete crates with circular dependencies
-- GA concepts leaking into user-facing APIs
-- React-like patterns creeping in
-- No clear "simplest example" that worked end-to-end
-
-### What Changed
-
-| Before | After |
-|--------|-------|
-| 8+ Rust crates, many broken | 2 crates: `cliffy-core`, `cliffy-wasm` |
-| Complex TypeScript with JSX runtime | Thin wrapper around WASM |
-| GA types in user code | GA completely hidden |
-| No working examples | `counter-101` works end-to-end |
-
-### Archived Crates
-
-The following crates are archived in `archive/` for reference:
-- `cliffy-alive` — Living UI (to be rebuilt on new foundation)
-- `cliffy-protocols` — CRDT/consensus protocols
-- `cliffy-dom` — DOM manipulation layer
-- `cliffy-components` — Component library
-- `cliffy-frp` — Old FRP implementation
-- `cliffy-gpu` — GPU acceleration
-
-These may be restored once the foundation is solid.
-
-## Future Roadmap
-
-### Phase 1: Foundation (DONE)
-- [x] cliffy-core with Behavior, Event, combinators
-- [x] cliffy-wasm with clean JS bindings
-- [x] @cliffy/core TypeScript wrapper
-- [x] counter-101 example
-
-### Phase 2: DOM Integration (DONE)
-- [x] One-way bindings: `bindText()`, `bindAttr()`, `bindClass()`, `bindStyle()`, `bindVisible()`
-- [x] Two-way bindings: `bindValue()`, `bindChecked()`, `bindNumber()`
-- [x] Event helpers: `fromClick()`, `fromInput()`, `fromSubmit()`, `fromKeyboard()`
-- [x] `BindingGroup` for subscription management
-
-### Phase 3: Component Model
-- [ ] Behavior-based components
-- [ ] Compositional UI patterns
-- [ ] Build-time optimization
-
-### Phase 4: Living UI Revival
-- [ ] Rebuild cliffy-alive on new foundation
-- [ ] Cellular automata with GA state
-- [ ] Evolutionary UI adaptation
+### DON'T
+- Expose GA types to users (GA3, Multivector, etc.)
+- Implement React-style hooks
+- Add functionality in JS that belongs in Rust
+- Create virtual DOM or reconciliation
 
 ## Git Workflow
 
-The project uses a gitflow-like workflow:
-
 ```
-main (stable releases)
-  └── develop (integration branch)
+main (stable)
+  └── develop (integration)
         └── feature/xyz (feature branches)
 ```
 
-### Git Hooks
-
-**Pre-commit** (`.git/hooks/pre-commit`):
-- `cargo fmt --all -- --check` — Code formatting
-- `cargo clippy --all-targets` — Linting (errors fail, warnings allowed)
-- `cargo test --lib` — Unit tests
-- TypeScript check if `cliffy-typescript/` changed
-
-**Pre-push** (`.git/hooks/pre-push`):
-- Full test suite (`cargo test`)
-- Doc tests (`cargo test --doc`)
-- Build check (`cargo build`)
-- WASM build check
-- TypeScript build check
-
-### Contributing
-
-1. Create feature branch from `develop`: `git checkout -b feature/my-feature develop`
-2. Make changes (hooks run automatically)
-3. Push and create PR against `develop`
-4. After review, merge to `develop`
-5. Release PRs go from `develop` → `main`
-
-## Testing
-
-```bash
-# Rust tests (29 unit + 10 doc tests)
-cargo test -p cliffy-core
-
-# Full workspace
-cargo test --workspace
-
-# TypeScript type checking
-cd cliffy-typescript && npx tsc --noEmit
-```
+**Pre-commit**: fmt, clippy, unit tests
+**Pre-push**: full tests, doctests, build, WASM build
 
 ## Key Files
 
 | File | Purpose |
 |------|---------|
-| `cliffy-core/src/behavior.rs` | Core `Behavior<T>` implementation |
-| `cliffy-core/src/event.rs` | Core `Event<T>` implementation |
-| `cliffy-core/src/combinators.rs` | `when`, `combine`, `if_else`, etc. |
-| `cliffy-core/src/geometric.rs` | GA conversion traits (internal) |
-| `cliffy-wasm/src/lib.rs` | All WASM exports |
-| `cliffy-typescript/src/index.ts` | TypeScript API and re-exports |
-| `cliffy-typescript/src/dom.ts` | DOM binding helpers |
-| `examples/counter-101/src/main.ts` | Reference example |
+| `cliffy-core/src/behavior.rs` | Behavior<T> implementation |
+| `cliffy-core/src/event.rs` | Event<T> implementation |
+| `cliffy-core/src/combinators.rs` | when, combine, if_else |
+| `cliffy-core/src/geometric.rs` | GA conversion (internal) |
+| `cliffy-wasm/src/lib.rs` | WASM exports |
+| `ROADMAP.md` | Full development roadmap |
 
 ## Remember
 
-> **Simple API. Elegant internals. Classical FRP. No React patterns.**
+> **Simple API. Elegant internals. Classical FRP. Geometric algebra. No React patterns.**
 
-When in doubt, ask: "Would Conal Elliott approve?"
+When in doubt: "Would Conal Elliott approve? Does it compose geometrically?"

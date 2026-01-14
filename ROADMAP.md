@@ -985,6 +985,299 @@ const result = await cluster.compute(
 
 ---
 
+## Phase 7: Native Mobile (Fek'lhr)
+
+**Goal**: Algebraic UI middleware for React Native and Lynx—pure functional state machines with zero hooks.
+
+### Motivation
+
+React Native and ByteDance's Lynx framework represent the two major approaches to cross-platform mobile development. Both use React paradigms but with fundamentally different runtime architectures:
+
+| Aspect | React Native | Lynx |
+|--------|--------------|------|
+| Threading | JSI + TurboModules | Dual-thread (PrimJS + UI thread) |
+| Styling | StyleSheet abstraction | Native CSS with selectors |
+| Elements | `<View>`, `<Text>` (imported) | `<view>`, `<text>` (intrinsic) |
+| Animation | Animated/Reanimated | CSS transitions + main thread |
+
+A shared component library that tries to hide these differences behind adapters inevitably leaks. Fek'lhr takes a different approach: **parallel implementations with shared algebraic middleware**.
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Fek'lhr Middleware                          │
+│  (State machines, Behaviors, Events, geometric embedding)       │
+│              100% shared, zero platform awareness               │
+└───────────────────────────┬─────────────────────────────────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              │                           │
+              ▼                           ▼
+┌─────────────────────────┐     ┌─────────────────────────┐
+│   React Native Shell    │     │      Lynx Shell         │
+│                         │     │                         │
+│  • StyleSheet           │     │  • Native CSS           │
+│  • Animated/Reanimated  │     │  • Dual-thread aware    │
+│  • TurboModules         │     │  • PrimJS runtime       │
+│  • Gesture Handler      │     │  • bindtap/bindtouch    │
+└─────────────────────────┘     └─────────────────────────┘
+```
+
+### Core Principle: No Hooks
+
+Hooks are antithetical to algebraic FRP:
+- Call-order invariants obscure dataflow
+- Closure capture creates implicit state
+- Rules-of-hooks are runtime constraints, not type-level guarantees
+
+Fek'lhr uses Cliffy's `Behavior<T>` and `Event<T>` primitives directly. State lives in machines. Machines are pure data.
+
+### 7.1 FRP Primitives (from cliffy-core)
+
+Fek'lhr reuses Cliffy's FRP foundation:
+
+```rust
+// Behavior<A> ≅ Time → A (continuous, always has current value)
+// Event<A> ≅ [(Time, A)] (discrete occurrences)
+
+// The fundamental FRP combinator
+fn stepper<A>(initial: A, updates: Event<A>) -> Behavior<A>;
+
+// Behaviors are Applicative
+impl<A> Behavior<A> {
+    fn map<B>(self, f: impl Fn(A) -> B) -> Behavior<B>;
+    fn ap<B>(self, bf: Behavior<impl Fn(A) -> B>) -> Behavior<B>;
+}
+
+// Events are Filterable + Foldable
+impl<A> Event<A> {
+    fn filter(self, pred: impl Fn(&A) -> bool) -> Event<A>;
+    fn fold<B>(self, initial: B, f: impl Fn(B, A) -> B) -> Behavior<B>;
+    fn snapshot<B>(self, behavior: Behavior<B>) -> Event<(A, B)>;
+}
+```
+
+### 7.2 State Machines as Coalgebras
+
+```rust
+/// A state machine is a coalgebra for F(X) = A × (E → X)
+pub trait Machine<S, E, A> {
+    fn initial(&self) -> S;
+    fn transition(&self, state: S, event: E) -> S;
+    fn output(&self, state: &S) -> A;
+
+    /// Optional geometric embedding for interpolation/animation
+    fn embed(&self, state: &S) -> Option<GA8>;
+}
+
+/// Run machine: Event<E> → Behavior<A>
+fn run_machine<S, E, A>(
+    machine: impl Machine<S, E, A>,
+    events: Event<E>
+) -> Behavior<A> {
+    events
+        .fold(machine.initial(), |s, e| machine.transition(s, e))
+        .map(|s| machine.output(&s))
+}
+
+/// Compose machines in parallel
+fn parallel<M1, M2>(m1: M1, m2: M2) -> ParallelMachine<M1, M2>;
+
+/// Compose machines sequentially
+fn sequence<M1, M2>(m1: M1, m2: M2) -> SequenceMachine<M1, M2>;
+```
+
+### 7.3 Geometric Embedding (8D UI Space)
+
+UI state embeds in an 8-dimensional Clifford algebra:
+
+| Grade 1 Basis | Dimension | Meaning |
+|---------------|-----------|---------|
+| e₁ | x | Horizontal position |
+| e₂ | y | Vertical position |
+| e₃ | width | Element width |
+| e₄ | height | Element height |
+| e₅ | z-index | Stacking order |
+| e₆ | opacity | Transparency [0,1] |
+| e₇ | rotation | Rotation angle |
+| e₈ | scale | Uniform scale factor |
+
+```rust
+/// Embed component state for geometric interpolation
+fn embed_toggle(state: &ToggleState) -> GA8 {
+    mv::vector([
+        state.thumb_x,      // x: thumb position
+        0.0,                // y: fixed
+        40.0,               // width: track width
+        24.0,               // height: track height
+        0.0,                // z-index
+        1.0,                // opacity
+        0.0,                // rotation
+        1.0,                // scale
+    ])
+}
+
+/// Geometric interpolation for smooth animations
+fn animate(from: GA8, to: GA8, duration: Duration) -> Behavior<GA8> {
+    animation_frame
+        .fold(0.0, |t, dt| (t + dt).min(1.0))
+        .map(|t| {
+            let eased = ease_out_cubic(t);
+            mv::lerp(&from, &to, eased)
+        })
+}
+```
+
+### 7.4 Platform Adapters
+
+```rust
+/// Abstract interface both platforms implement
+pub trait PlatformAdapter {
+    type Handle;
+
+    /// Create native view
+    fn create_view(&self, spec: &ViewSpec) -> Self::Handle;
+
+    /// Bind behavior to view property (auto-updates)
+    fn bind<A>(&self, handle: &Self::Handle, prop: &str, behavior: Behavior<A>);
+
+    /// Connect native event to Event stream
+    fn connect(&self, handle: &Self::Handle, event_name: &str) -> Event<NativeEvent>;
+
+    /// Animation frame source
+    fn animation_frame(&self) -> Event<Duration>;
+
+    /// Geometric interpolation (can use platform animation system)
+    fn interpolate(&self, from: GA8, to: GA8, duration: Duration) -> Behavior<GA8>;
+}
+```
+
+**React Native Adapter:**
+```rust
+impl PlatformAdapter for ReactNativeAdapter {
+    // Uses Animated.Value for numeric behaviors
+    // TurboModules for native bridge
+    // Reanimated worklets for gesture-driven animation
+}
+```
+
+**Lynx Adapter:**
+```rust
+impl PlatformAdapter for LynxAdapter {
+    // Leverages dual-thread architecture
+    // CSS transitions for declarative animation
+    // Main thread scripts for complex interactions
+}
+```
+
+### 7.5 Component Definition
+
+```rust
+/// Platform-agnostic component specification
+pub struct Component<Props, State, Events: EventSet> {
+    pub machine: Box<dyn Machine<State, Events::Union, State>>,
+    pub project: fn(&State, &Props) -> ViewProps,
+    pub embed: Option<fn(&State) -> GA8>,
+}
+
+/// Example: Counter component
+const COUNTER: Component<CounterProps, CounterState, CounterEvents> = Component {
+    machine: Box::new(CounterMachine),
+    project: |state, _props| ViewProps {
+        text: Some(state.count.to_string().into()),
+        ..Default::default()
+    },
+    embed: Some(|s| mv::vector([s.count as f64, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 1.0])),
+};
+```
+
+### 7.6 View Specification
+
+```rust
+/// Platform-agnostic view tree
+pub struct ViewSpec {
+    pub element_type: ElementType,
+    pub props: ViewProps,
+    pub events: EventBindings,
+    pub children: Vec<ViewChild>,
+}
+
+pub enum ViewChild {
+    Static(ViewSpec),
+    Dynamic(Behavior<ViewSpec>),
+    List { items: Behavior<Vec<ViewSpec>>, key: fn(&ViewSpec) -> String },
+}
+
+/// Props can be static or reactive
+pub struct ViewProps {
+    pub x: Option<PropValue<f64>>,
+    pub y: Option<PropValue<f64>>,
+    pub width: Option<PropValue<f64>>,
+    pub height: Option<PropValue<f64>>,
+    pub opacity: Option<PropValue<f64>>,
+    pub rotation: Option<PropValue<f64>>,
+    pub scale: Option<PropValue<f64>>,
+    pub text: Option<PropValue<String>>,
+    pub style: Option<StyleMap>,
+    // ...
+}
+
+pub enum PropValue<T> {
+    Static(T),
+    Reactive(Behavior<T>),
+}
+```
+
+### Tasks
+
+**7.1 Core Middleware**
+- [ ] Create `feklhr-core` crate
+- [ ] Port `Behavior<T>` and `Event<T>` from cliffy-core (or re-export)
+- [ ] Implement `Machine` trait with coalgebraic semantics
+- [ ] Add machine composition (parallel, sequence)
+- [ ] Implement 8D geometric embedding
+
+**7.2 Platform Adapters**
+- [ ] Define `PlatformAdapter` trait
+- [ ] Implement React Native adapter (TurboModules integration)
+- [ ] Implement Lynx adapter (dual-thread aware)
+- [ ] Add animation frame synchronization
+- [ ] Implement geometric interpolation per platform
+
+**7.3 View System**
+- [ ] Define `ViewSpec` and `ViewProps` types
+- [ ] Implement reactive prop binding
+- [ ] Add event connection system
+- [ ] Create view diffing for dynamic children (non-VDOM, structural)
+
+**7.4 TypeScript API**
+- [ ] Generate TypeScript types from Rust
+- [ ] Create idiomatic TS API for component definition
+- [ ] Add TSX support via build plugin (optional, not required)
+- [ ] Export platform adapters for RN and Lynx
+
+**7.5 Testing**
+- [ ] Port `cliffy-test` patterns for component testing
+- [ ] Add machine property tests (transition determinism, output consistency)
+- [ ] Create geometric invariant tests for animations
+- [ ] Implement cross-platform snapshot testing
+
+**7.6 Example Components**
+- [ ] Counter (minimal state machine)
+- [ ] Toggle with animation (geometric interpolation)
+- [ ] Form with validation (composed machines)
+- [ ] Gesture-driven component (event composition)
+- [ ] List with add/remove (dynamic children)
+
+### Dependencies
+
+| Crate | Purpose |
+|-------|---------|
+| `cliffy-core` | FRP primitives (Behavior, Event) |
+| `amari-core` | Geometric algebra (GA8 for embeddings) |
+| `amari-flynn` | Probabilistic contracts for testing |
+
+---
+
 ## Success Criteria
 
 ### Phase 0
@@ -1027,6 +1320,14 @@ const result = await cluster.compute(
 - [ ] Documentation complete
 - [ ] Example applications functional
 
+### Phase 7
+- [ ] Same middleware code runs on both RN and Lynx
+- [ ] Zero hooks in application code
+- [ ] State machines compose algebraically
+- [ ] Animations use geometric interpolation
+- [ ] TypeScript API feels idiomatic
+- [ ] Performance matches or exceeds hooks-based equivalent
+
 ---
 
 ## Architecture Summary
@@ -1037,10 +1338,13 @@ const result = await cluster.compute(
 │  (Collaborative Docs, Games, Design Tools, Whiteboards)         │
 └─────────────────────────────────────────────────────────────────┘
                               │
-┌─────────────────────────────────────────────────────────────────┐
-│                      Algebraic TSX                               │
-│  (Dataflow graphs, compile-time optimization, direct DOM)       │
-└─────────────────────────────────────────────────────────────────┘
+        ┌─────────────────────┴─────────────────────┐
+        │                                           │
+        ▼                                           ▼
+┌───────────────────────────────┐     ┌───────────────────────────────┐
+│        Algebraic TSX          │     │      Fek'lhr (Mobile)         │
+│  (Web: dataflow → DOM)        │     │  (RN/Lynx: machines → native) │
+└───────────────────────────────┘     └───────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Synchronization Layer                         │
