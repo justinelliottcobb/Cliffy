@@ -2,45 +2,13 @@
 
 A WASM-first reactive framework with classical FRP semantics, powered by geometric algebra.
 
-## Overview
+## Status
 
-Cliffy provides a clean, familiar API for building reactive web applications. Under the hood, it uses Clifford/Geometric Algebra for state representation, but this complexity is completely hidden from users.
-
-```typescript
-import { init, behavior, bindText, fromClick } from '@cliffy/core';
-
-await init();
-
-// Create reactive state
-const count = behavior(0);
-const doubled = count.map(n => n * 2);
-
-// Bind to DOM
-bindText(document.getElementById('count')!, count);
-bindText(document.getElementById('doubled')!, doubled);
-
-// Handle events
-fromClick(document.getElementById('increment')!)
-  .subscribe(() => count.update(n => n + 1));
-```
-
-## Key Features
-
-- **Classical FRP**: Based on Conal Elliott's original formulation
-  - `Behavior<T>`: Time-varying values (always have a current value)
-  - `Event<T>`: Discrete occurrences (streams of values)
-- **WASM Performance**: Core logic runs in Rust/WebAssembly
-- **Declarative DOM Bindings**: `bindText()`, `bindClass()`, `bindValue()`, etc.
-- **Type-Safe**: Full TypeScript support
-- **No Virtual DOM**: Direct reactive updates
+Cliffy is in active development. The core Rust implementation is functional, with WASM bindings available via wasm-bindgen.
 
 ## Architecture
 
 ```
-User Code (TypeScript)
-    ↓
-@cliffy/core (thin wrapper)
-    ↓
 cliffy-wasm (WASM bindings)
     ↓
 cliffy-core (Rust FRP + GA)
@@ -48,169 +16,88 @@ cliffy-core (Rust FRP + GA)
 amari-core (Geometric Algebra)
 ```
 
-The geometric algebra is an implementation detail. What you write is simple and familiar.
+The geometric algebra is an implementation detail. The public API exposes familiar FRP primitives.
 
-## Installation
-
-```bash
-npm install @cliffy/core
-```
-
-## Quick Start
-
-```typescript
-import {
-  init,
-  behavior,
-  event,
-  combine,
-  ifElse,
-  bindText,
-  bindClass,
-  bindValue,
-  fromClick,
-  fromInput,
-  BindingGroup,
-} from '@cliffy/core';
-
-// Initialize WASM (required once at startup)
-await init();
-
-// Create a binding group to manage subscriptions
-const bindings = new BindingGroup();
-
-// Reactive state
-const name = behavior('');
-const greeting = name.map(n => n ? `Hello, ${n}!` : 'Enter your name');
-
-// Two-way input binding
-bindings.addCleanup(bindValue(nameInput, name));
-
-// One-way text binding
-bindings.add(bindText(greetingEl, greeting));
-
-// Cleanup when done
-// bindings.dispose();
-```
-
-## API Reference
+## Core Concepts
 
 ### Behaviors (Time-Varying Values)
 
-```typescript
-// Create
-const count = behavior(0);
-const name = behavior('Alice');
+```rust
+use cliffy_core::{behavior, Behavior};
 
-// Read
-count.sample();  // Get current value
+// Create reactive state
+let count = behavior(0);
+assert_eq!(count.sample(), 0);
 
-// Update
-count.set(10);              // Set directly
-count.update(n => n + 1);   // Transform
+// Update via transformation
+count.update(|n| n + 1);
+assert_eq!(count.sample(), 1);
 
-// Derive
-const doubled = count.map(n => n * 2);
-const area = combine(width, height, (w, h) => w * h);
-
-// Subscribe
-count.subscribe(value => console.log(value));
+// Derive computed values
+let doubled = count.map(|n| n * 2);
+assert_eq!(doubled.sample(), 2);
 ```
 
 ### Events (Discrete Occurrences)
 
-```typescript
-// Create from DOM
-const clicks = fromClick(button);
-const inputs = fromInput(textField);
-const submits = fromSubmit(form);
-const keys = fromKeyboard(document.body, 'keydown');
+```rust
+use cliffy_core::{event, Event};
 
-// Transform
-const positions = clicks.map(e => ({ x: e.clientX, y: e.clientY }));
-const enters = keys.filter(e => e.key === 'Enter');
-const allClicks = clicks1.merge(clicks2);
+let clicks = event::<()>();
 
-// Accumulate into Behavior
-const clickCount = clicks.fold(0, (acc, _) => acc + 1);
-```
+clicks.subscribe(|_| {
+    println!("Clicked!");
+});
 
-### DOM Bindings
-
-```typescript
-// One-way (Behavior → DOM)
-bindText(element, textBehavior);
-bindAttr(element, 'href', urlBehavior);
-bindClass(element, 'active', boolBehavior);
-bindStyle(element, 'opacity', opacityBehavior);
-bindVisible(element, visibleBehavior);
-bindDisabled(button, disabledBehavior);
-
-// Two-way (Behavior ↔ DOM)
-bindValue(input, stringBehavior);      // text inputs
-bindChecked(checkbox, boolBehavior);   // checkboxes
-bindNumber(slider, numberBehavior);    // number/range inputs
+clicks.emit(());
 ```
 
 ### Combinators
 
-```typescript
-// Conditional
-const theme = ifElse(isDarkMode, () => 'dark', () => 'light');
-const content = when(isVisible, () => 'Visible!');  // null when false
+```rust
+use cliffy_core::{behavior, when, combine};
 
-// Combine multiple
-const fullName = combine(first, last, (f, l) => `${f} ${l}`);
+let show = behavior(true);
+let message = when(&show, || "Visible!");
 
-// Constant
-const pi = constant(3.14159);
+let width = behavior(10);
+let height = behavior(5);
+let area = combine(&width, &height, |w, h| w * h);
 ```
 
-## Development
+## Building
 
 ### Prerequisites
 
-- Rust (with `wasm-pack`)
-- Node.js 18+
-- cargo-watch (for hot reload)
+- Rust (stable)
+- wasm-pack (`cargo install wasm-pack`)
 
-### Setup
+### Build WASM
 
 ```bash
-git clone https://github.com/justinelliottcobb/Cliffy.git
-cd cliffy
-npm install
+# Development build
+wasm-pack build cliffy-wasm --target web --out-dir pkg
+
+# Release build (optimized)
+wasm-pack build cliffy-wasm --target web --release --out-dir pkg
 ```
 
-### Development Server
+### Run Tests
 
 ```bash
-# Run counter-101 example with hot reload
-npm run dev
-
-# Or run a specific example
-npm run example counter-101
-```
-
-### Build
-
-```bash
-# Full build (Rust → WASM → TypeScript)
-npm run build
-
-# Individual builds
-npm run build:wasm   # WASM only
-npm run build:ts     # TypeScript only
-```
-
-### Test
-
-```bash
-# Run all Rust tests
-npm test
-
-# Run with cargo directly
 cargo test --workspace
+```
+
+## Using from JavaScript
+
+```javascript
+import init, { behavior, when, combine } from './cliffy-wasm/pkg/cliffy_wasm.js';
+
+await init();
+
+const count = behavior(0);
+count.subscribe(n => console.log('Count:', n));
+count.update(n => n + 1);
 ```
 
 ## Project Structure
@@ -223,43 +110,20 @@ cliffy/
 │       ├── event.rs       # Event<T>
 │       ├── combinators.rs # when, ifElse, combine
 │       └── geometric.rs   # GA conversion traits
-├── cliffy-wasm/           # WASM bindings
-├── cliffy-typescript/     # @cliffy/core npm package
-│   └── src/
-│       ├── index.ts       # Main exports
-│       └── dom.ts         # DOM binding helpers
-├── examples/
-│   └── counter-101/       # Reference implementation
+├── cliffy-wasm/           # WASM bindings (wasm-bindgen)
+├── examples/              # Examples (currently archived)
 └── archive/               # Previous implementations
 ```
 
-## Examples
-
-### counter-101 (Reference)
-
-The minimal example demonstrating all core concepts:
-
-```bash
-cd examples/counter-101
-npm install
-npm run dev
-```
-
-See [examples/README.md](examples/README.md) for more details.
-
 ## Why Geometric Algebra?
 
-Cliffy uses [Clifford Algebra](https://en.wikipedia.org/wiki/Clifford_algebra) (specifically GA3 = Cl(3,0)) internally to represent state. This provides:
+Cliffy uses [Clifford Algebra](https://en.wikipedia.org/wiki/Clifford_algebra) (GA3 = Cl(3,0)) internally to represent state. This provides:
 
 - **Unified representation**: Scalars, vectors, and higher-grade elements in one structure
 - **Natural transformations**: Rotations, translations, scaling as algebraic operations
 - **Mathematical elegance**: Clean composition of transformations
 
-However, **you never need to know this**. The GA is purely an implementation detail. Your code uses familiar types like numbers, strings, and objects.
-
-## Contributing
-
-Contributions welcome! Please see the [examples](examples/) for the current API patterns.
+However, **you never need to know this**. The GA is purely an implementation detail.
 
 ## License
 

@@ -1,4 +1,0 @@
-# Ignore wasm-pack generated files except type stubs
-*.js
-*.wasm
-package.json
