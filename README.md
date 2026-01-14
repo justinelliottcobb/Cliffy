@@ -1,184 +1,265 @@
 # Cliffy
 
-An experimental web framework exploring Clifford/Geometric Algebra as a mathematical foundation for reactive user interfaces.
+A WASM-first reactive framework with classical FRP semantics, powered by geometric algebra.
 
 ## Overview
 
-Cliffy is a hobby project investigating whether geometric algebra can provide a more mathematical approach to web development. Instead of traditional virtual DOM reconciliation, it uses algebraic transformations and compile-time graph optimization.
+Cliffy provides a clean, familiar API for building reactive web applications. Under the hood, it uses Clifford/Geometric Algebra for state representation, but this complexity is completely hidden from users.
 
-### Core Concepts
+```typescript
+import { init, behavior, bindText, fromClick } from '@cliffy/core';
 
-- **Algebraic TSX**: TSX expressions compile to geometric dataflow graphs rather than virtual DOM
-- **Geometric Behaviors**: Reactive state management using multivector mathematics
-- **Direct Transformations**: Mathematical operations map directly to DOM updates
-- **WASM Core**: Performance-critical geometric operations implemented in Rust
+await init();
+
+// Create reactive state
+const count = behavior(0);
+const doubled = count.map(n => n * 2);
+
+// Bind to DOM
+bindText(document.getElementById('count')!, count);
+bindText(document.getElementById('doubled')!, doubled);
+
+// Handle events
+fromClick(document.getElementById('increment')!)
+  .subscribe(() => count.update(n => n + 1));
+```
+
+## Key Features
+
+- **Classical FRP**: Based on Conal Elliott's original formulation
+  - `Behavior<T>`: Time-varying values (always have a current value)
+  - `Event<T>`: Discrete occurrences (streams of values)
+- **WASM Performance**: Core logic runs in Rust/WebAssembly
+- **Declarative DOM Bindings**: `bindText()`, `bindClass()`, `bindValue()`, etc.
+- **Type-Safe**: Full TypeScript support
+- **No Virtual DOM**: Direct reactive updates
 
 ## Architecture
 
-The framework consists of several layers:
-
-### Rust/WASM Core
-- `cliffy-core`: Clifford algebra implementation supporting Cl(3,0), Cl(4,1), Cl(4,4)
-- `cliffy-wasm`: WebAssembly bindings with SIMD optimization
-- `cliffy-frp`: Functional reactive programming primitives
-- `cliffy-protocols`: Distributed systems and CRDT implementations
-
-### TypeScript Framework
-- `cliffy-typescript`: Primary development interface
-- `cliffy-dom`: Geometric virtual DOM implementation
-- `cliffy-components`: Reusable algebraic components
-
-### Build Tools
-- `vite-plugin-algebraic-tsx`: Transforms TSX syntax to jsx() function calls
-
-### Language Bindings
-- TypeScript (primary interface)
-- PureScript (functional programming approach)
-
-## Algebraic TSX Support
-
-The framework now supports true TSX syntax through a Vite plugin:
-
-```tsx
-// Write beautiful TSX with algebraic combinators:
-<div>
-  <When condition={isVisible$}>
-    <h1>Hello Cliffy!</h1>
-  </When>
-  
-  <For each={items$} key={item => item.id}>
-    {(item$) => <div>{item$.map(i => i.name)}</div>}
-  </For>
-</div>
+```
+User Code (TypeScript)
+    ↓
+@cliffy/core (thin wrapper)
+    ↓
+cliffy-wasm (WASM bindings)
+    ↓
+cliffy-core (Rust FRP + GA)
+    ↓
+amari-core (Geometric Algebra)
 ```
 
-This gets transformed at build time into geometric dataflow graphs.
+The geometric algebra is an implementation detail. What you write is simple and familiar.
 
-## Build System
-
-The project uses a multi-language build pipeline:
+## Installation
 
 ```bash
-# Full build (Rust → WASM → TypeScript → Examples)
+npm install @cliffy/core
+```
+
+## Quick Start
+
+```typescript
+import {
+  init,
+  behavior,
+  event,
+  combine,
+  ifElse,
+  bindText,
+  bindClass,
+  bindValue,
+  fromClick,
+  fromInput,
+  BindingGroup,
+} from '@cliffy/core';
+
+// Initialize WASM (required once at startup)
+await init();
+
+// Create a binding group to manage subscriptions
+const bindings = new BindingGroup();
+
+// Reactive state
+const name = behavior('');
+const greeting = name.map(n => n ? `Hello, ${n}!` : 'Enter your name');
+
+// Two-way input binding
+bindings.addCleanup(bindValue(nameInput, name));
+
+// One-way text binding
+bindings.add(bindText(greetingEl, greeting));
+
+// Cleanup when done
+// bindings.dispose();
+```
+
+## API Reference
+
+### Behaviors (Time-Varying Values)
+
+```typescript
+// Create
+const count = behavior(0);
+const name = behavior('Alice');
+
+// Read
+count.sample();  // Get current value
+
+// Update
+count.set(10);              // Set directly
+count.update(n => n + 1);   // Transform
+
+// Derive
+const doubled = count.map(n => n * 2);
+const area = combine(width, height, (w, h) => w * h);
+
+// Subscribe
+count.subscribe(value => console.log(value));
+```
+
+### Events (Discrete Occurrences)
+
+```typescript
+// Create from DOM
+const clicks = fromClick(button);
+const inputs = fromInput(textField);
+const submits = fromSubmit(form);
+const keys = fromKeyboard(document.body, 'keydown');
+
+// Transform
+const positions = clicks.map(e => ({ x: e.clientX, y: e.clientY }));
+const enters = keys.filter(e => e.key === 'Enter');
+const allClicks = clicks1.merge(clicks2);
+
+// Accumulate into Behavior
+const clickCount = clicks.fold(0, (acc, _) => acc + 1);
+```
+
+### DOM Bindings
+
+```typescript
+// One-way (Behavior → DOM)
+bindText(element, textBehavior);
+bindAttr(element, 'href', urlBehavior);
+bindClass(element, 'active', boolBehavior);
+bindStyle(element, 'opacity', opacityBehavior);
+bindVisible(element, visibleBehavior);
+bindDisabled(button, disabledBehavior);
+
+// Two-way (Behavior ↔ DOM)
+bindValue(input, stringBehavior);      // text inputs
+bindChecked(checkbox, boolBehavior);   // checkboxes
+bindNumber(slider, numberBehavior);    // number/range inputs
+```
+
+### Combinators
+
+```typescript
+// Conditional
+const theme = ifElse(isDarkMode, () => 'dark', () => 'light');
+const content = when(isVisible, () => 'Visible!');  // null when false
+
+// Combine multiple
+const fullName = combine(first, last, (f, l) => `${f} ${l}`);
+
+// Constant
+const pi = constant(3.14159);
+```
+
+## Development
+
+### Prerequisites
+
+- Rust (with `wasm-pack`)
+- Node.js 18+
+- cargo-watch (for hot reload)
+
+### Setup
+
+```bash
+git clone https://github.com/justinelliottcobb/Cliffy.git
+cd cliffy
+npm install
+```
+
+### Development Server
+
+```bash
+# Run counter-101 example with hot reload
+npm run dev
+
+# Or run a specific example
+npm run example counter-101
+```
+
+### Build
+
+```bash
+# Full build (Rust → WASM → TypeScript)
 npm run build
 
 # Individual builds
-npm run build:rust          # Rust to WASM with SIMD
-npm run build:typescript    # TypeScript compilation
-npm run build:purescript    # PureScript bindings
-
-# Development
-npm run dev                 # Concurrent development server
-npm run watch:rust          # Watch Rust changes
+npm run build:wasm   # WASM only
+npm run build:ts     # TypeScript only
 ```
 
-### Testing
+### Test
 
 ```bash
-# Run all tests
+# Run all Rust tests
 npm test
 
-# Individual test suites
-cargo test --workspace      # Rust tests
-npm run test:typescript     # TypeScript tests
+# Run with cargo directly
+cargo test --workspace
+```
+
+## Project Structure
+
+```
+cliffy/
+├── cliffy-core/           # Rust FRP implementation
+│   └── src/
+│       ├── behavior.rs    # Behavior<T>
+│       ├── event.rs       # Event<T>
+│       ├── combinators.rs # when, ifElse, combine
+│       └── geometric.rs   # GA conversion traits
+├── cliffy-wasm/           # WASM bindings
+├── cliffy-typescript/     # @cliffy/core npm package
+│   └── src/
+│       ├── index.ts       # Main exports
+│       └── dom.ts         # DOM binding helpers
+├── examples/
+│   └── counter-101/       # Reference implementation
+└── archive/               # Previous implementations
 ```
 
 ## Examples
 
-### Basic Counter (TypeScript + Algebraic TSX)
-Demonstrates fundamental concepts with the new TSX syntax:
+### counter-101 (Reference)
+
+The minimal example demonstrating all core concepts:
 
 ```bash
-cd examples/algebraic-tsx-test
+cd examples/counter-101
+npm install
 npm run dev
 ```
 
-### Todo App (TypeScript)
-Classic TodoMVC with geometric behaviors:
+See [examples/README.md](examples/README.md) for more details.
 
-```bash
-cd examples/todo-app
-npm run dev
-```
+## Why Geometric Algebra?
 
-### Form Validation
-Complex state management and validation:
+Cliffy uses [Clifford Algebra](https://en.wikipedia.org/wiki/Clifford_algebra) (specifically GA3 = Cl(3,0)) internally to represent state. This provides:
 
-```bash
-cd examples/form-validation
-npm run dev
-```
+- **Unified representation**: Scalars, vectors, and higher-grade elements in one structure
+- **Natural transformations**: Rotations, translations, scaling as algebraic operations
+- **Mathematical elegance**: Clean composition of transformations
 
-### Geometric Animations
-Showcases Clifford algebra transformations:
-
-```bash
-cd examples/geometric-animations
-npm run dev
-```
-
-### Collaborative Editor
-Real-time collaborative text editor using geometric algebra for conflict resolution:
-
-```bash
-cd examples/collaborative-editor
-npm run dev
-```
-
-## Development Status
-
-This is an experimental project exploring novel approaches to UI frameworks. The geometric algebra implementation is under active development and may not compile successfully.
-
-### Current Focus
-- ✅ Core Clifford algebra operations
-- ✅ Algebraic control flow combinators
-- ✅ Vite plugin for TSX transformation
-- 🚧 WASM performance optimization with SIMD
-- 🚧 Example applications
-
-## CI/CD Pipeline
-
-The project includes comprehensive automation:
-
-- **Continuous Integration**: Rust compilation, TypeScript builds, testing
-- **Security Auditing**: Dependency vulnerability scanning
-- **Performance Monitoring**: Geometric algebra operation benchmarks
-- **Automated Releases**: NPM package publishing
-- **Dependency Management**: Automated updates via Dependabot
-
-## Mathematical Foundation
-
-### Algebraic Control Flow
-Traditional JavaScript control structures are replaced with mathematical operations:
-
-```tsx
-// Instead of: {condition ? <Component /> : null}
-<When condition={condition$}>
-  <Component />
-</When>
-
-// Instead of: {items.map(item => <Item key={item.id} {...item} />)}
-<For each={items$} key={item => item.id}>
-  {item => <Item {...item} />}
-</For>
-```
-
-### Geometric Behaviors
-State management uses `GeometricBehavior<T>` with Clifford algebra operations:
-
-```tsx
-const position$ = createGeometricBehavior(Vector3.zero());
-const rotation$ = createGeometricBehavior(Rotor.identity());
-
-// Updates use geometric transformations
-const translate = (delta: Vector3) => {
-  position$.update(pos => pos.add(delta));
-};
-```
+However, **you never need to know this**. The GA is purely an implementation detail. Your code uses familiar types like numbers, strings, and objects.
 
 ## Contributing
 
-This is a personal exploration project, but contributions and discussions are welcome. Please note that the codebase is experimental and may undergo significant changes.
+Contributions welcome! Please see the [examples](examples/) for the current API patterns.
 
 ## License
 
