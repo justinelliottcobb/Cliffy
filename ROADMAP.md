@@ -39,6 +39,92 @@ All state transformations are geometric operations in Clifford algebra:
 | `cliffy-alive` | 📦 Archived | Living UI / cellular automata (experimental) |
 | `cliffy-frp` | 📦 Archived | Additional FRP utilities |
 
+### Development Standards
+
+Cliffy follows the same idioms as other Industrial Algebra projects:
+
+**Idiomatic Rust**
+- Leverage the type system fully (enums, traits, generics)
+- Prefer `Result`/`Option` over exceptions/nulls
+- Use iterators and combinators over manual loops
+- Follow Rust API guidelines
+
+**Phantom Types for Type-Level Safety**
+```rust
+use std::marker::PhantomData;
+
+/// State machine encoded in types - invalid transitions don't compile
+pub struct Document<S: DocumentState> {
+    content: String,
+    _state: PhantomData<S>,
+}
+
+pub struct Draft;
+pub struct Published;
+pub struct Archived;
+
+impl Document<Draft> {
+    pub fn publish(self) -> Document<Published> { ... }
+}
+
+impl Document<Published> {
+    pub fn archive(self) -> Document<Archived> { ... }
+    // Can't call publish() on Published - doesn't exist
+}
+```
+
+**Contracts via amari-flynn**
+- Use `#[requires]`, `#[ensures]` for function contracts
+- Probabilistic bounds for distributed properties
+- Formal verification where possible (Why3/Creusot integration planned)
+
+```rust
+use amari_flynn::prelude::*;
+
+#[requires(probability > 0.0 && probability < 1.0)]
+#[ensures(result.probability() == probability)]
+pub fn create_rare_event(probability: f64) -> RareEvent<()> {
+    RareEvent::new(probability, "event")
+}
+```
+
+**Rayon for Parallelism**
+- Use `par_iter()` for data-parallel operations
+- Geometric operations naturally parallelize
+- CRDT merges can be parallelized across partitions
+
+```rust
+use rayon::prelude::*;
+
+// Parallel geometric mean computation
+pub fn parallel_geometric_mean(states: &[GA3]) -> GA3 {
+    let sum: GA3 = states
+        .par_iter()
+        .map(|s| s.log())
+        .reduce(GA3::zero, |a, b| &a + &b);
+
+    (sum / states.len() as f64).exp()
+}
+
+// Parallel CRDT merge
+pub fn parallel_merge(nodes: &[GeometricCRDT]) -> GeometricCRDT {
+    nodes
+        .par_iter()
+        .cloned()
+        .reduce_with(|a, b| a.merge(&b))
+        .unwrap_or_default()
+}
+```
+
+**Dependencies Alignment**
+```toml
+[dependencies]
+rayon = "1.10"
+amari-flynn = { path = "../amari/amari-flynn" }  # or version
+```
+
+---
+
 ### Not Yet Built
 
 | Component | Description |
