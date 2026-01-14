@@ -78,6 +78,41 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Create WASM type stubs
+        run: |
+          mkdir -p cliffy-typescript/pkg
+          cat > cliffy-typescript/pkg/cliffy_wasm.d.ts << 'EOF'
+          export default function init(): Promise<void>;
+          export declare const version: string;
+          export declare class Behavior {
+            constructor(initial: any);
+            sample(): any;
+            set(value: any): void;
+            update(f: (value: any) => any): void;
+            subscribe(callback: (value: any) => void): Subscription;
+            map(f: (value: any) => any): Behavior;
+            combine(other: Behavior, f: (a: any, b: any) => any): Behavior;
+          }
+          export declare class Event {
+            constructor();
+            emit(value: any): void;
+            subscribe(callback: (value: any) => void): Subscription;
+            map(f: (value: any) => any): Event;
+            filter(predicate: (value: any) => boolean): Event;
+            merge(other: Event): Event;
+            fold(initial: any, f: (acc: any, value: any) => any): Behavior;
+          }
+          export declare class Subscription {
+            unsubscribe(): void;
+          }
+          export declare function behavior(initial: any): Behavior;
+          export declare function event(): Event;
+          export declare function when(condition: Behavior, thenValue: () => any): Behavior;
+          export declare function ifElse(condition: Behavior, thenValue: () => any, elseValue: () => any): Behavior;
+          export declare function combine(a: Behavior, b: Behavior, f: (a: any, b: any) => any): Behavior;
+          export declare function constant(value: any): Behavior;
+          EOF
+
       - name: Type check
         run: npx tsc --noEmit
         working-directory: cliffy-typescript

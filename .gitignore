@@ -6,8 +6,6 @@ node_modules/
 
 # Build outputs
 dist/
-*.wasm
-cliffy-typescript/pkg/
 
 # IDE
 .idea/
