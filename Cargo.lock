@@ -5,6 +5,8 @@ version = 4
 [[package]]
 name = "amari-core"
 version = "0.17.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "21ce640952988d6180a1b4960fa29eff4bdc38a6d2ddac98c46c980b8ca8746a"
 dependencies = [
  "approx",
  "bytemuck",

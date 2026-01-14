@@ -12,7 +12,9 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 /// A subscription handle that can be used to unsubscribe
+#[allow(clippy::type_complexity)]
 pub struct Subscription {
+    #[allow(dead_code)] // Reserved for debugging
     id: usize,
     unsubscribe: Rc<RefCell<Option<Box<dyn Fn()>>>>,
 }
@@ -46,6 +48,7 @@ impl Subscription {
 /// count.update(|n| n + 1);
 /// assert_eq!(count.sample(), 1);
 /// ```
+#[allow(clippy::type_complexity)]
 pub struct Behavior<T> {
     /// Internal geometric state
     state: Rc<RefCell<GA3>>,

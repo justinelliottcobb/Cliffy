@@ -39,6 +39,7 @@ pub struct Occurrence<T> {
 ///
 /// clicks.emit(());
 /// ```
+#[allow(clippy::type_complexity)]
 pub struct Event<T> {
     /// Subscribers to notify on occurrence
     subscribers: Rc<RefCell<Vec<(usize, Box<dyn Fn(&Occurrence<T>)>)>>>,
@@ -186,7 +187,9 @@ impl<T: Clone + 'static> Default for Event<T> {
 }
 
 /// A subscription handle for events
+#[allow(clippy::type_complexity)]
 pub struct EventSubscription {
+    #[allow(dead_code)] // Reserved for debugging
     id: usize,
     unsubscribe: Rc<RefCell<Option<Box<dyn Fn()>>>>,
 }
