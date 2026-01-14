@@ -1,10 +1,10 @@
 # Vite Plugin Algebraic TSX
 
-Transform Algebraic TSX syntax into Cliffy jsx() function calls at build time.
+> **Note**: This plugin is part of the previous Cliffy architecture and is currently not in active use. The current approach uses plain TypeScript with DOM bindings instead of TSX transformation. See the main [README](../README.md) for the current API.
 
 ## Overview
 
-This Vite plugin enables you to write TSX using algebraic combinators directly:
+This Vite plugin transforms Algebraic TSX syntax into Cliffy jsx() function calls at build time.
 
 ```tsx
 // Write this:
@@ -12,7 +12,7 @@ This Vite plugin enables you to write TSX using algebraic combinators directly:
   <When condition={isVisible}>
     <span>Hello World</span>
   </When>
-  
+
   <For each={items} key={item => item.id}>
     {(item, index) => <div>{item.name}</div>}
   </For>
@@ -21,7 +21,7 @@ This Vite plugin enables you to write TSX using algebraic combinators directly:
 // Gets transformed to:
 jsx('div', {
   children: [
-    When({ 
+    When({
       condition: isVisible,
       children: jsx('span', { children: 'Hello World' })
     }),
@@ -32,6 +32,18 @@ jsx('div', {
     })
   ]
 })
+```
+
+## Status
+
+This plugin may be revived in a future phase of Cliffy development when a component model is established. For now, use the current DOM binding approach:
+
+```typescript
+import { behavior, bindText, fromClick } from '@cliffy/core';
+
+const count = behavior(0);
+bindText(document.getElementById('count')!, count);
+fromClick(button).subscribe(() => count.update(n => n + 1));
 ```
 
 ## Installation
@@ -52,7 +64,6 @@ import algebraicTSX from 'vite-plugin-algebraic-tsx';
 export default defineConfig({
   plugins: [
     algebraicTSX({
-      // Options
       jsxFactory: 'jsx',
       jsxImportSource: '@cliffy/typescript',
       debug: true
@@ -73,36 +84,7 @@ export default defineConfig({
 }
 ```
 
-### In Your TSX Files
-
-```tsx
-import { jsx, When, For, GeometricBehavior } from '@cliffy/typescript';
-
-// The plugin will automatically add missing imports
-
-export function MyComponent() {
-  const items$ = createGeometricBehavior([1, 2, 3]);
-  const isVisible$ = createGeometricBehavior(true);
-  
-  return (
-    <div className="container">
-      <When condition={isVisible$}>
-        <h1>Algebraic TSX Demo</h1>
-      </When>
-      
-      <For each={items$} key={item => item}>
-        {(item$) => (
-          <div>Item: {item$}</div>
-        )}
-      </For>
-    </div>
-  );
-}
-```
-
 ## Supported Algebraic Combinators
-
-The plugin recognizes and transforms these algebraic combinators:
 
 ### Control Flow
 - `<When condition={boolean$}>{children}</When>` - Conditional rendering
@@ -115,7 +97,7 @@ The plugin recognizes and transforms these algebraic combinators:
 - `<For each={items$} key={keyFn}>{renderFn}</For>` - List rendering with keys
 - `<Filter from={items$} where={predicate}>{renderFn}</Filter>` - Filtered lists
 
-### Data Transformations  
+### Data Transformations
 - `<Map from={data$} to={transform}>{renderFn}</Map>` - Transform values
 - `<FlatMap from={data$} to={transform}>{renderFn}</FlatMap>` - Monadic bind
 - `<Combine a={data1$} b={data2$} with={combineFn}>{renderFn}</Combine>` - Combine behaviors
@@ -127,29 +109,14 @@ The plugin recognizes and transforms these algebraic combinators:
 
 ```ts
 interface AlgebraicTSXOptions {
-  /** File extensions to transform @default ['.tsx', '.jsx'] */
-  extensions?: string[];
-  
-  /** Include patterns @default /\.(tsx?|jsx?)$/ */
-  include?: RegExp | RegExp[];
-  
-  /** Exclude patterns @default /node_modules/ */
-  exclude?: RegExp | RegExp[];
-  
-  /** JSX factory function name @default 'jsx' */
-  jsxFactory?: string;
-  
-  /** JSX fragment factory @default 'Fragment' */
-  jsxFragment?: string;
-  
-  /** Import source for jsx functions @default '@cliffy/typescript' */
-  jsxImportSource?: string;
-  
-  /** Enable debugging output @default false */
-  debug?: boolean;
-  
-  /** Algebraic combinators to transform @default [...] */
-  algebraicCombinators?: string[];
+  extensions?: string[];       // File extensions to transform
+  include?: RegExp | RegExp[]; // Include patterns
+  exclude?: RegExp | RegExp[]; // Exclude patterns
+  jsxFactory?: string;         // JSX factory function name
+  jsxFragment?: string;        // JSX fragment factory
+  jsxImportSource?: string;    // Import source for jsx functions
+  debug?: boolean;             // Enable debugging output
+  algebraicCombinators?: string[]; // Algebraic combinators to transform
 }
 ```
 
@@ -157,42 +124,6 @@ interface AlgebraicTSXOptions {
 
 1. **Parse**: Uses Babel to parse TSX files into AST
 2. **Transform**: Identifies algebraic combinators and regular JSX elements
-3. **Convert**: 
-   - `<When condition={x}>{children}</When>` → `When({ condition: x, children: [...] })`
-   - `<div prop={x}>{children}</div>` → `jsx('div', { prop: x, children: [...] })`
-4. **Import**: Automatically adds missing imports from `@cliffy/typescript`
+3. **Convert**: Transforms combinators and JSX to function calls
+4. **Import**: Automatically adds missing imports
 5. **Output**: Generates transformed code with source maps
-
-## TypeScript Support
-
-The plugin includes TypeScript declarations for all algebraic combinators, providing:
-
-- Full IntelliSense support
-- Type checking for combinator props
-- Auto-completion for algebraic elements
-- Proper error reporting
-
-## Debugging
-
-Enable debug mode to see transformation details:
-
-```ts
-algebraicTSX({ debug: true })
-```
-
-This will log:
-- Which files are being transformed
-- Before/after code samples
-- Import additions
-- Transformation statistics
-
-## Limitations
-
-- Requires Babel for AST parsing (adds to build time)
-- Source maps may not be perfect for complex transformations
-- TSX syntax is limited to supported algebraic combinators
-- No runtime JSX support (all transforms happen at build time)
-
-## Contributing
-
-This plugin is part of the Cliffy framework. See the main repository for contribution guidelines.

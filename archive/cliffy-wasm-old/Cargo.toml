@@ -1,0 +1,35 @@
+[package]
+name = "cliffy-wasm"
+version = "0.1.0"
+edition = "2021"
+description = "WebAssembly bindings for the Cliffy framework"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+cliffy-frp = { path = "../cliffy-frp" }
+cliffy-protocols = { path = "../cliffy-protocols" }
+wasm-bindgen = { workspace = true, features = ["serde-serialize"] }
+js-sys = { workspace = true }
+web-sys = { workspace = true, features = [
+  "console",
+  "Performance",
+  "Window",
+  "WebGl2RenderingContext",
+  "WebGlBuffer",
+  "WebGlProgram",
+  "WebGlShader",
+  "WebGlUniformLocation",
+] }
+serde = { workspace = true }
+serde-wasm-bindgen = "0.6"
+uuid = { version = "1.0", features = ["v4", "js", "wasm-bindgen"] }
+getrandom = { version = "0.2", features = ["js"] }
+amari-core = { workspace = true }
+amari-fusion = { workspace = true }
+
+[features]
+default = []
+simd = ["cliffy-core/simd"]
