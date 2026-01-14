@@ -1,0 +1,44 @@
+{
+  "name": "@cliffy/core",
+  "version": "0.1.0",
+  "description": "Cliffy - Reactive FRP framework powered by geometric algebra",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "pkg"
+  ],
+  "scripts": {
+    "build:wasm": "wasm-pack build ../cliffy-wasm --target web --out-dir ../cliffy-typescript/pkg",
+    "build": "npm run build:wasm && tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src/**/*.ts",
+    "type-check": "tsc --noEmit",
+    "clean": "rm -rf dist pkg"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "@types/node": "^24.3.1",
+    "vitest": "^1.0.0"
+  },
+  "keywords": [
+    "frp",
+    "reactive",
+    "functional-reactive-programming",
+    "geometric-algebra",
+    "webassembly",
+    "wasm",
+    "typescript"
+  ],
+  "author": "Cliffy Team",
+  "license": "MIT"
+}

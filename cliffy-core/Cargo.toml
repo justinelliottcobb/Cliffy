@@ -2,13 +2,18 @@
 name = "cliffy-core"
 version = "0.1.0"
 edition = "2021"
-description = "Cliffy framework core functionality using Amari geometric algebra"
+description = "Reactive UI framework with geometric algebra state management"
+license = "MIT"
+repository = "https://github.com/your-username/cliffy"
+keywords = ["reactive", "frp", "geometric-algebra", "ui", "wasm"]
+categories = ["gui", "wasm", "mathematics"]
 
 [dependencies]
+# Amari provides geometric algebra
 amari-core = { workspace = true }
-amari-fusion = { workspace = true }
+
+# Serialization
 serde = { workspace = true }
 
-[features]
-default = []
-simd = ["amari-core/simd"]
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt", "macros"] }

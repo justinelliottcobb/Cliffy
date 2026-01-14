@@ -1,0 +1,33 @@
+[package]
+name = "cliffy-dom"
+version = "0.1.0"
+edition = "2021"
+description = "Geometric virtual DOM implementation for Cliffy web framework"
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+cliffy-frp = { path = "../cliffy-frp" }
+serde = { workspace = true }
+amari-core = { workspace = true }
+amari-fusion = { workspace = true }
+wasm-bindgen = { workspace = true }
+web-sys = { workspace = true, features = [
+  "console",
+  "Comment",
+  "Document",
+  "DocumentFragment",
+  "Element",
+  "HtmlElement",
+  "Node",
+  "Text",
+  "Event",
+  "EventTarget",
+  "Window",
+  "HtmlInputElement",
+  "HtmlButtonElement",
+  "MouseEvent",
+  "KeyboardEvent",
+] }
+js-sys = { workspace = true }
+slotmap = "1.0"
+fxhash = "0.2"
