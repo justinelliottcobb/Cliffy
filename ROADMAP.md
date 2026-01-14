@@ -223,7 +223,120 @@ fn state_evolution() {
 }
 ```
 
+### 0.8 Probabilistic Contracts (amari-flynn Integration)
+
+Integrate with `amari-flynn` for probabilistic verification. Tests aren't just pass/fail - they have three categories matching the ISO philosophy:
+
+**Three Categories of Test Events:**
+
+| Category | Probability | Meaning |
+|----------|-------------|---------|
+| **Impossible** | P = 0 | Formally proven to never occur |
+| **Rare** | 0 < P << 1 | Statistically bounded failure rate |
+| **Emergent** | P > 0 | Valid but unpredicted behaviors |
+
+```rust
+use amari_flynn::prelude::*;
+use cliffy_test::prelude::*;
+
+// Invariant that must NEVER fail (P = 0)
+// Verified formally or via exhaustive testing
+invariant_impossible! {
+    name: "Rotor preserves magnitude",
+    forall: (v: Vector, r: Rotor),
+    property: |v.magnitude() - sandwich(r, v).magnitude()| < EPSILON
+}
+
+// Property with bounded failure probability (floating point, edge cases)
+invariant_rare! {
+    name: "Geometric mean converges within 100 iterations",
+    probability_bound: 1e-9,
+    samples: 100_000,
+    verify: |states| {
+        let mean = geometric_mean(&states);
+        states.iter().all(|s| mean.distance_to(s) < CONVERGENCE_THRESHOLD)
+    }
+}
+
+// Track emergent behaviors - not failures, just unexpected
+emergent! {
+    name: "Novel CRDT merge trajectories",
+    description: "Merge paths we didn't anticipate but are valid",
+    on_observe: |trajectory| {
+        log::info!("Emergent merge pattern: {:?}", trajectory);
+    }
+}
+```
+
+**Monte Carlo Verification for Distributed Properties:**
+
+```rust
+use amari_flynn::backend::MonteCarloVerifier;
+
+#[probabilistic_test]
+fn crdt_convergence_is_rare_to_fail() {
+    let verifier = MonteCarloVerifier::new(100_000);
+
+    // Verify P(non-convergence) < 1e-6
+    let result = verifier.verify_probability_bound(
+        || {
+            let nodes = spawn_random_nodes(10);
+            let ops = generate_random_operations(1000);
+            apply_concurrent_operations(&nodes, &ops);
+            !all_nodes_converged(&nodes)  // predicate: failure to converge
+        },
+        1e-6  // bound: must fail less than 1 in a million
+    );
+
+    assert_eq!(result, VerificationResult::Verified);
+}
+```
+
+**Statistical Bounds for Performance:**
+
+```rust
+use amari_flynn::statistical::bounds::*;
+
+#[statistical_test]
+fn merge_performance_is_bounded() {
+    let samples = 10_000;
+    let measurements: Vec<Duration> = (0..samples)
+        .map(|_| measure_merge_time())
+        .collect();
+
+    let mean = measurements.iter().sum::<Duration>() / samples;
+    let max_allowed = Duration::from_millis(10);
+
+    // Compute confidence that true mean is within bounds
+    let confidence = compute_confidence(samples, 0.01);
+    assert!(confidence > 0.99);
+    assert!(mean < max_allowed);
+}
+```
+
+**Why This Matters for Cliffy:**
+
+Distributed systems are inherently probabilistic. Network partitions, timing variations, and concurrent operations create scenarios that can't be tested deterministically. By integrating amari-flynn:
+
+1. **Impossible invariants** catch true bugs (violations of geometric laws)
+2. **Rare events** track edge cases with statistical bounds (not flaky tests)
+3. **Emergent behaviors** document valid but unexpected system behaviors
+
+This transforms "flaky tests" into properly categorized probabilistic properties.
+
 **Tasks**:
+- [ ] Add `amari-flynn` as dependency
+- [ ] Create `invariant_impossible!` macro
+- [ ] Create `invariant_rare!` macro with Monte Carlo verification
+- [ ] Create `emergent!` macro for tracking unexpected-but-valid behaviors
+- [ ] Integrate `MonteCarloVerifier` for distributed property testing
+- [ ] Add statistical bounds for performance testing
+- [ ] Create test report format showing probability categories
+- [ ] Document the impossible/rare/emergent philosophy
+
+---
+
+**Tasks (Phase 0 Summary)**:
 - [ ] Create `cliffy-test` crate
 - [ ] Implement `GeometricTest` trait
 - [ ] Add `invariant!` macro for property testing
@@ -232,6 +345,7 @@ fn state_evolution() {
 - [ ] Add `proof!` macro for geometric proofs
 - [ ] Implement cross-layer homomorphism testing
 - [ ] Create visual debugging for test failures
+- [ ] Integrate amari-flynn for probabilistic contracts
 - [ ] Integrate with `cargo test` runner
 
 ---
@@ -793,6 +907,9 @@ const result = await cluster.compute(
 - [ ] Test failures include geometric error information
 - [ ] Tests compose via geometric product
 - [ ] Cross-layer homomorphism tests work
+- [ ] `amari-flynn` integrated for probabilistic contracts
+- [ ] `invariant_impossible!`, `invariant_rare!`, `emergent!` macros work
+- [ ] Monte Carlo verification runs for distributed properties
 
 ### Phase 1
 - [ ] Geometric operations exposed in API
