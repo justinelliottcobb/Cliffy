@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "cliffy-core",
+    "cliffy-test",
     "cliffy-wasm",
 ]
 resolver = "2"

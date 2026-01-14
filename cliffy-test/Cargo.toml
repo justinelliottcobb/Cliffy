@@ -1,0 +1,33 @@
+[package]
+name = "cliffy-test"
+version = "0.1.0"
+edition = "2021"
+description = "Algebraic testing framework for Cliffy - tests as geometric invariants"
+license = "MIT"
+repository = "https://github.com/justinelliottcobb/Cliffy"
+keywords = ["testing", "geometric-algebra", "property-testing", "invariants", "probabilistic"]
+categories = ["development-tools::testing", "mathematics"]
+
+[dependencies]
+# Geometric algebra
+amari-core = { workspace = true }
+
+# Probabilistic contracts
+amari-flynn = "0.17.0"
+
+# Property-based testing
+quickcheck = "1.0"
+quickcheck_macros = "1.0"
+
+# Parallelism
+rayon = "1.10"
+
+# Random sampling
+rand = "0.8"
+
+# Serialization for test results
+serde = { workspace = true }
+
+[dev-dependencies]
+# For testing the test framework
+tokio = { workspace = true, features = ["rt", "macros"] }
