@@ -1,269 +1,205 @@
 # Cliffy Examples
 
-This directory contains example applications demonstrating various aspects of the Cliffy framework. Each example focuses on specific concepts to help you understand how to use geometric algebra for web development.
+## Current Examples
 
-## Getting Started
+### counter-101 (Reference Implementation)
 
-All examples are built with Vite and TypeScript. To run any example:
+The minimal "hello world" for Cliffy, demonstrating the new foundation-first architecture (January 2026):
+
+- **Behaviors**: Reactive state with `behavior()`, derived values with `.map()`
+- **Events**: Click streams with `fromClick()`, accumulation with `.fold()`
+- **DOM Bindings**: `bindText()`, `bindClass()`, `BindingGroup`
+- **Combinators**: `ifElse()`, `combine()`
 
 ```bash
-cd examples/[example-name]
+cd counter-101
+npm install
+npm run dev
+# Open http://localhost:3000
+```
+
+## Architecture
+
+```
+User Code (TypeScript)
+    ↓
+@cliffy/core (thin wrapper)
+    ↓
+cliffy-wasm (WASM bindings)
+    ↓
+cliffy-core (Rust FRP + GA)
+    ↓
+amari-core (Geometric Algebra)
+```
+
+The geometric algebra is completely hidden from users. What you write is simple and familiar. What happens underneath is mathematically elegant.
+
+## Key Concepts
+
+### Behaviors (Time-Varying Values)
+
+```typescript
+// Create reactive state
+const count = behavior(0);
+
+// Derive computed values (automatically updates)
+const doubled = count.map(n => n * 2);
+const isEven = count.map(n => n % 2 === 0);
+
+// Update state
+count.update(n => n + 1);
+count.set(0);
+```
+
+### Events (Discrete Occurrences)
+
+```typescript
+// Create events from DOM
+const clicks = fromClick(button);
+const inputs = fromInput(textField);
+
+// Fold events into behaviors
+const clickCount = clicks.fold(0, (acc, _) => acc + 1);
+
+// Filter and map events
+const enterKeys = fromKeyboard(input, 'keydown')
+  .filter(e => e.key === 'Enter');
+```
+
+### DOM Bindings
+
+```typescript
+// One-way bindings (Behavior → DOM)
+bindText(element, count);
+bindClass(element, 'active', isActive);
+bindStyle(element, 'opacity', opacity);
+bindVisible(element, isVisible);
+
+// Two-way bindings (Behavior ↔ DOM)
+bindValue(input, text);
+bindChecked(checkbox, checked);
+bindNumber(slider, value);
+```
+
+### Combinators
+
+```typescript
+// Conditional value
+const message = ifElse(isLoggedIn, () => 'Welcome!', () => 'Please log in');
+
+// Combined behaviors
+const area = combine(width, height, (w, h) => w * h);
+
+// Optional value
+const content = when(showDetails, () => 'Details here...');
+```
+
+---
+
+## Archived Examples
+
+Previous examples using the older Algebraic JSX approach have been moved to `archive/`.
+See `archive/MIGRATION.md` for detailed migration plans.
+
+| Example | Description | Migration Complexity |
+|---------|-------------|---------------------|
+| basic-counter | Simple counter | Simple |
+| form-validation | Multi-field validation | Simple |
+| todo-app | TodoMVC implementation | Medium |
+| geometric-animations | Animation showcase | Simple |
+| algebraic-tsx-test | Vite plugin testing | Simple |
+| dashboard | Dashboard UI | Unknown |
+| collaborative-editor | Real-time CRDT editor | Complex |
+| geometric-visualization | 3D Three.js demos | Complex |
+
+---
+
+## Creating New Examples
+
+Use counter-101 as a template:
+
+```bash
+cp -r counter-101 my-new-example
+cd my-new-example
+# Edit package.json name
+# Edit src/main.ts
 npm install
 npm run dev
 ```
 
-**Note**: These examples currently won't run successfully as the core Cliffy framework is still under development. They serve as documentation of the intended API and patterns.
+### Recommended Structure
 
-## Examples Overview
+```
+my-example/
+├── package.json
+├── index.html
+├── vite.config.ts
+├── tsconfig.json
+├── .env              # VITE_ALLOWED_HOST for remote access
+├── .gitignore        # Include .env
+└── src/
+    └── main.ts
+```
 
-### 1. Basic Counter (`basic-counter/`)
-**Port**: 3000  
-**Concepts**: Fundamental Cliffy patterns
+### Template main.ts
 
-The simplest possible Cliffy application. Perfect for getting started.
+```typescript
+import {
+  init,
+  behavior,
+  combine,
+  ifElse,
+  bindText,
+  bindClass,
+  fromClick,
+  BindingGroup,
+} from '@cliffy/core';
 
-**What you'll learn:**
-- Creating `GeometricBehavior<T>` for state management
-- Using the `jsx()` function to create algebraic elements
-- Handling events with geometric transformations
-- Basic `When` combinator for conditional rendering
-- Geometric scaling and transformation effects
+await init();
 
-**Key Files:**
-- `src/CounterApp.tsx` - Main component with detailed comments
-- `src/main.ts` - Application bootstrap
+// Manage subscriptions
+const bindings = new BindingGroup();
 
-**Run it:**
+// Create reactive state
+const count = behavior(0);
+const isEven = count.map(n => n % 2 === 0);
+
+// Bind to DOM
+bindings.add(bindText(document.getElementById('count')!, count));
+bindings.add(bindClass(document.getElementById('count')!, 'even', isEven));
+
+// Handle events
+const clicks = fromClick(document.getElementById('button')!);
+bindings.add(clicks.subscribe(() => count.update(n => n + 1)));
+
+// Cleanup when done (e.g., on page unload)
+// bindings.dispose();
+```
+
+---
+
+## Development
+
+### Running from Root
+
 ```bash
-cd examples/basic-counter
-npm install && npm run dev
-# Open http://localhost:3000
+# From cliffy root directory
+npm run dev              # Runs counter-101 with WASM hot reload
+npm run example counter-101  # Same as above
 ```
-
-### 2. Form Validation (`form-validation/`)
-**Port**: 3000  
-**Concepts**: Complex state management and validation
-
-A registration form demonstrating advanced Cliffy patterns.
-
-**What you'll learn:**
-- Multiple interconnected geometric behaviors
-- Combining behaviors with `.combine()` for complex logic
-- Real-time validation with visual feedback
-- Geometric animations for error states and loading
-- Form submission with async state management
-- Password strength visualization using geometric "magnitude"
-
-**Key Features:**
-- Email, password, and age validation
-- Password strength indicator with geometric scaling
-- Real-time error feedback with geometric shake animations
-- Form submission with loading states
-- Terms of service checkbox
-
-**Run it:**
-```bash
-cd examples/form-validation
-npm install && npm run dev
-# Open http://localhost:3000
-```
-
-### 3. Geometric Animations (`geometric-animations/`)
-**Port**: 3000  
-**Concepts**: Clifford algebra transformations for UI
-
-Visual showcase of geometric algebra's power for animations.
-
-**What you'll learn:**
-- Pure rotations using geometric rotors
-- Translations with conformal geometric algebra
-- Scaling transformations with scalar multivectors
-- Complex motions combining multiple transformations
-- Particle systems with phase-offset animations
-- Mathematical explanations of each transformation
-
-**Animation Types:**
-- **Rotation**: `R = cos(θ/2) + sin(θ/2)(e₁∧e₂)` - Geometric rotors
-- **Translation**: Conformal translators for smooth motion
-- **Scaling**: Scalar multivectors for size changes
-- **Spiral**: Combined translation and rotation motors
-- **Figure-8**: Lissajous curves via geometric transformations
-- **Particles**: Multi-body system with individual transformations
-
-**Run it:**
-```bash
-cd examples/geometric-animations
-npm install && npm run dev
-# Open http://localhost:3000
-```
-
-### 4. Todo App (`todo-app/`)
-**Port**: 3000  
-**Concepts**: Complete application patterns
-
-The classic TodoMVC application built with Cliffy's algebraic approach.
-
-**What you'll learn:**
-- `For` combinator for rendering lists
-- `Map` combinator for data transformations
-- Filtering and derived behaviors
-- Component composition patterns
-- State management for CRUD operations
-- Geometric transformations for visual feedback
-
-**Features:**
-- Add, edit, delete todos
-- Filter by all/active/completed
-- Clear completed todos
-- Visual transformations for completed items
-- Statistics display
-
-### 5. Collaborative Editor (`collaborative-editor/`)
-**Port**: 3000  
-**Concepts**: Real-time collaboration and distributed systems
-
-A collaborative text editor using geometric algebra for conflict resolution.
-
-**What you'll learn:**
-- Distributed state management
-- CRDT (Conflict-free Replicated Data Types) with geometric algebra
-- WebSocket integration
-- Real-time synchronization
-- Geometric operations for text transformations
-
-**Features:**
-- Real-time collaborative editing
-- Conflict resolution using geometric algebra
-- Multiple cursor positions
-- Operational transformation
-- Persistent document state
-
-## Common Patterns
-
-### Creating Geometric Behaviors
-
-All Cliffy applications use `GeometricBehavior<T>` for state management:
-
-```tsx
-// Create state
-const countState = createGeometricBehavior<number>(0);
-
-// Derived behaviors
-const isPositive = countState.map(count => count > 0);
-const displayText = countState.map(count => `Count: ${count}`);
-
-// Combined behaviors
-const validation = emailState.combine(
-  passwordState,
-  (email, password) => validateForm(email, password)
-);
-```
-
-### Algebraic JSX Elements
-
-Use the `jsx()` function instead of React's JSX:
-
-```tsx
-// Basic element
-const button = jsx('button', {
-  onClick: handleClick,
-  children: 'Click me'
-});
-
-// With geometric transformations
-const animatedDiv = jsx('div', {
-  style: {
-    transform: rotationBehavior, // GeometricBehavior<Transform>
-    opacity: fadeInBehavior      // GeometricBehavior<number>
-  },
-  children: 'Animated content'
-});
-```
-
-### Control Flow Combinators
-
-Replace JavaScript control structures with mathematical operations:
-
-```tsx
-// Conditional rendering
-When({
-  condition: isLoggedIn,
-  children: jsx('div', { children: 'Welcome!' })
-})
-
-// List rendering  
-For({
-  each: todosBehavior,
-  key: (todo) => todo.id,
-  children: (todoBehavior) => TodoItem({ todo: todoBehavior })
-})
-
-// Data transformation
-Map({
-  from: usersBehavior,
-  to: (users) => users.length,
-  children: (count) => `${count} users`
-})
-```
-
-### Geometric Transformations
-
-Use Clifford algebra operations for UI effects:
-
-```tsx
-// Rotation using rotors
-const rotation = cliffy.rotor(angle, 1, 0); // Rotate in e12 plane
-
-// Translation using motors
-const translation = cliffy.translator(x, y, z);
-
-// Scaling with scalars
-const scaling = cliffy.scalar(1.5);
-
-// Complex transformations
-const complexTransform = translation.add(rotation).multiply(scaling);
-```
-
-## Development Notes
-
-### Current Status
-These examples represent the intended API design. The core framework is under development, so:
-
-- Examples won't run successfully yet
-- APIs may change during development  
-- Mathematical operations are simplified implementations
-- Focus on understanding the patterns and concepts
-
-### Mathematical Foundation
-Each example includes explanations of the geometric algebra concepts:
-
-- **Rotors**: Represent rotations as exponentials of bivectors
-- **Translators**: Conformal geometric algebra for translations
-- **Motors**: General transformations combining rotation and translation
-- **Multivectors**: Unified representation of geometric objects
 
 ### Build System
+
 All examples use:
 - **Vite** for development and building
 - **TypeScript** for type safety
 - **ESM modules** for modern JavaScript
-- **Hot reloading** for development
+- **Hot reloading** for both TypeScript and WASM
 
-### Contributing
-When the core framework is ready:
+### Remote Access
 
-1. Test examples work correctly
-2. Add more complex use cases  
-3. Improve mathematical explanations
-4. Add performance benchmarks
-5. Create interactive tutorials
+To access dev server remotely, create `.env` in the example directory:
 
-## Next Steps
-
-1. **Start with basic-counter** - Understand fundamental concepts
-2. **Try form-validation** - Learn complex state management
-3. **Explore geometric-animations** - See mathematical transformations in action
-4. **Study todo-app** - Complete application patterns
-5. **Build your own** - Apply the concepts to your own projects
-
-Each example builds on concepts from previous ones, so follow them in order for the best learning experience.
+```env
+VITE_ALLOWED_HOST=your-hostname.example.com
+```

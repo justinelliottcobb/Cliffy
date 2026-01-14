@@ -1,389 +1,714 @@
+//! Cliffy WASM - WebAssembly bindings for Cliffy
+//!
+//! This crate exposes Cliffy's reactive primitives to JavaScript/TypeScript
+//! via WebAssembly.
+//!
+//! # Example (JavaScript)
+//!
+//! ```javascript
+//! import init, { Behavior, Event, when } from '@cliffy/core';
+//!
+//! await init();
+//!
+//! const count = new Behavior(0);
+//! count.subscribe(n => console.log('Count:', n));
+//!
+//! count.update(n => n + 1);  // Logs: Count: 1
+//! ```
+
+use js_sys::Function;
+use std::cell::RefCell;
+use std::rc::Rc;
 use wasm_bindgen::prelude::*;
-use js_sys::{Array, Object};
-use web_sys::console;
-use serde::{Serialize, Deserialize};
-use uuid::Uuid;
 
-use cliffy_core::{Multivector, cl3_0, cl4_1};
-use cliffy_frp::GeometricBehavior;
-use cliffy_protocols::{GeometricCRDT, GeometricConsensus};
-
+/// Initialize the Cliffy WASM module.
+///
+/// Call this once before using any other Cliffy functions.
 #[wasm_bindgen]
-extern "C" {
-    fn alert(s: &str);
-    
-    #[wasm_bindgen(js_namespace = console)]
-    fn log(s: &str);
+pub fn init() {
+    #[cfg(feature = "console_error_panic_hook")]
+    console_error_panic_hook::set_once();
 }
 
-macro_rules! console_log {
-    ($($t:tt)*) => (log(&format_args!($($t)*).to_string()))
+/// Get the Cliffy version.
+#[wasm_bindgen]
+pub fn version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+// Type alias for subscriber callbacks
+type SubscriberFn = Rc<RefCell<Vec<(usize, Function)>>>;
+
+/// A reactive value that can change over time.
+///
+/// `Behavior` represents a value that can be updated and observed.
+/// Subscribers are notified whenever the value changes.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const count = new Behavior(0);
+///
+/// // Subscribe to changes
+/// const unsubscribe = count.subscribe(value => {
+///     console.log('New value:', value);
+/// });
+///
+/// // Update the value
+/// count.update(n => n + 1);
+///
+/// // Get current value
+/// console.log(count.sample()); // 1
+///
+/// // Clean up
+/// unsubscribe();
+/// ```
+#[wasm_bindgen]
+pub struct Behavior {
+    value: Rc<RefCell<JsValue>>,
+    subscribers: SubscriberFn,
+    next_id: Rc<RefCell<usize>>,
 }
 
 #[wasm_bindgen]
-pub struct CliffySystem {
-    node_id: Uuid,
-}
-
-#[wasm_bindgen]
-impl CliffySystem {
+impl Behavior {
+    /// Create a new Behavior with an initial value.
     #[wasm_bindgen(constructor)]
-    pub fn new() -> CliffySystem {
-        console_error_panic_hook::set_once();
-        
-        Self {
-            node_id: Uuid::new_v4(),
-        }
-    }
-    
-    #[wasm_bindgen(getter)]
-    pub fn node_id(&self) -> String {
-        self.node_id.to_string()
-    }
-}
-
-#[wasm_bindgen]
-pub struct MultivectorJs {
-    inner: cl3_0::Multivector3D<f64>,
-}
-
-#[wasm_bindgen]
-impl MultivectorJs {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> MultivectorJs {
-        Self {
-            inner: cl3_0::Multivector3D::zero(),
+    pub fn new(initial: JsValue) -> Behavior {
+        Behavior {
+            value: Rc::new(RefCell::new(initial)),
+            subscribers: Rc::new(RefCell::new(Vec::new())),
+            next_id: Rc::new(RefCell::new(0)),
         }
     }
 
-    #[wasm_bindgen(js_name = fromScalar)]
-    pub fn from_scalar(value: f64) -> MultivectorJs {
-        Self {
-            inner: cl3_0::Multivector3D::scalar(value),
-        }
-    }
-
-    #[wasm_bindgen(js_name = fromCoeffs)]
-    pub fn from_coeffs(coeffs: &[f64]) -> MultivectorJs {
-        if coeffs.len() != 8 {
-            panic!("Coefficients array must have exactly 8 elements");
-        }
-        
-        let mut coeff_array = [0.0; 8];
-        coeff_array.copy_from_slice(coeffs);
-        
-        Self {
-            inner: cl3_0::Multivector3D::new(coeff_array.into()),
-        }
-    }
-
-    #[wasm_bindgen(js_name = e1)]
-    pub fn e1() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e1(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = e2)]
-    pub fn e2() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e2(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = e3)]
-    pub fn e3() -> MultivectorJs {
-        Self {
-            inner: cl3_0::e3(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = geometricProduct)]
-    pub fn geometric_product(&self, other: &MultivectorJs) -> MultivectorJs {
-        Self {
-            inner: self.inner.geometric_product(&other.inner),
-        }
-    }
-
+    /// Get the current value.
     #[wasm_bindgen]
-    pub fn add(&self, other: &MultivectorJs) -> MultivectorJs {
-        Self {
-            inner: self.inner.clone() + other.inner.clone(),
-        }
+    pub fn sample(&self) -> JsValue {
+        self.value.borrow().clone()
     }
 
+    /// Set the value directly.
     #[wasm_bindgen]
-    pub fn subtract(&self, other: &MultivectorJs) -> MultivectorJs {
-        Self {
-            inner: self.inner.clone() - other.inner.clone(),
-        }
+    pub fn set(&self, value: JsValue) {
+        *self.value.borrow_mut() = value;
+        self.notify_subscribers();
     }
 
+    /// Update the value using a transformation function.
+    ///
+    /// The function receives the current value and should return the new value.
     #[wasm_bindgen]
-    pub fn scale(&self, scalar: f64) -> MultivectorJs {
-        Self {
-            inner: self.inner.scale(scalar),
-        }
+    pub fn update(&self, f: &Function) -> Result<(), JsValue> {
+        let current = self.value.borrow().clone();
+        let this = JsValue::null();
+        let new_value = f.call1(&this, &current)?;
+        *self.value.borrow_mut() = new_value;
+        self.notify_subscribers();
+        Ok(())
     }
 
+    /// Subscribe to value changes.
+    ///
+    /// Returns a Subscription that can be used to unsubscribe.
     #[wasm_bindgen]
-    pub fn magnitude(&self) -> f64 {
-        self.inner.magnitude()
-    }
-
-    #[wasm_bindgen]
-    pub fn normalize(&self) -> MultivectorJs {
-        Self {
-            inner: self.inner.normalize(),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn exp(&self) -> MultivectorJs {
-        Self {
-            inner: self.inner.exp(),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn log(&self) -> MultivectorJs {
-        Self {
-            inner: self.inner.log(),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn sandwich(&self, x: &MultivectorJs) -> MultivectorJs {
-        Self {
-            inner: self.inner.sandwich(&x.inner),
-        }
-    }
-
-    #[wasm_bindgen(js_name = gradeProjection)]
-    pub fn grade_projection(&self, grade: usize) -> MultivectorJs {
-        Self {
-            inner: self.inner.grade_projection(grade),
-        }
-    }
-
-    #[wasm_bindgen(js_name = getCoeffs)]
-    pub fn get_coeffs(&self) -> Vec<f64> {
-        self.inner.coeffs.as_slice().to_vec()
-    }
-
-    #[wasm_bindgen(js_name = toString)]
-    pub fn to_string_js(&self) -> String {
-        format!("{:?}", self.inner)
-    }
-}
-
-#[wasm_bindgen]
-pub fn create_rotor(angle: f64, bivector: &MultivectorJs) -> MultivectorJs {
-    MultivectorJs {
-        inner: cl3_0::rotor(angle, &bivector.inner),
-    }
-}
-
-#[wasm_bindgen]
-pub struct GeometricBehaviorJs {
-    #[wasm_bindgen(skip)]
-    pub inner: std::sync::Arc<std::sync::Mutex<Option<GeometricBehavior<f64, 8>>>>,
-}
-
-#[wasm_bindgen]
-impl GeometricBehaviorJs {
-    #[wasm_bindgen(constructor)]
-    pub fn new(initial_value: &MultivectorJs) -> GeometricBehaviorJs {
-        Self {
-            inner: std::sync::Arc::new(std::sync::Mutex::new(Some(
-                GeometricBehavior::new(initial_value.inner.clone())
-            ))),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn sample(&self) -> MultivectorJs {
-        let guard = self.inner.lock().unwrap();
-        if let Some(ref behavior) = *guard {
-            MultivectorJs {
-                inner: behavior.sample(),
-            }
-        } else {
-            MultivectorJs::new()
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn update(&self, new_value: &MultivectorJs) {
-        let guard = self.inner.lock().unwrap();
-        if let Some(ref behavior) = *guard {
-            behavior.update(new_value.inner.clone());
-        }
-    }
-
-    #[wasm_bindgen(js_name = transformWith)]
-    pub fn transform_with(&self, transformer: &js_sys::Function) -> GeometricBehaviorJs {
-        let guard = self.inner.lock().unwrap();
-        if let Some(ref behavior) = *guard {
-            let transformed = behavior.transform(move |mv| {
-                let js_mv = MultivectorJs { inner: mv.clone() };
-                let result = transformer.call1(&JsValue::NULL, &JsValue::from(js_mv)).unwrap();
-                let result_mv: MultivectorJs = result.into_serde().unwrap();
-                result_mv.inner
-            });
-
-            GeometricBehaviorJs {
-                inner: std::sync::Arc::new(std::sync::Mutex::new(Some(transformed))),
-            }
-        } else {
-            GeometricBehaviorJs::new(&MultivectorJs::new())
-        }
-    }
-}
-
-#[wasm_bindgen]
-pub struct ConformalMultivectorJs {
-    inner: cl4_1::ConformalMultivector<f64>,
-}
-
-#[wasm_bindgen]
-impl ConformalMultivectorJs {
-    #[wasm_bindgen(constructor)]
-    pub fn new() -> ConformalMultivectorJs {
-        Self {
-            inner: cl4_1::ConformalMultivector::zero(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = createPoint)]
-    pub fn create_point(x: f64, y: f64, z: f64) -> ConformalMultivectorJs {
-        Self {
-            inner: cl4_1::point(x, y, z),
-        }
-    }
-
-    #[wasm_bindgen(js_name = geometricProduct)]
-    pub fn geometric_product(&self, other: &ConformalMultivectorJs) -> ConformalMultivectorJs {
-        Self {
-            inner: self.inner.geometric_product(&other.inner),
-        }
-    }
-
-    #[wasm_bindgen]
-    pub fn magnitude(&self) -> f64 {
-        self.inner.magnitude()
-    }
-
-    #[wasm_bindgen(js_name = getCoeffs)]
-    pub fn get_coeffs(&self) -> Vec<f64> {
-        self.inner.coeffs.as_slice().to_vec()
-    }
-}
-
-#[wasm_bindgen]
-pub struct GeometricCRDTJs {
-    inner: GeometricCRDT<f64, 8>,
-}
-
-#[wasm_bindgen]
-impl GeometricCRDTJs {
-    #[wasm_bindgen(constructor)]
-    pub fn new(initial_state: &MultivectorJs) -> GeometricCRDTJs {
-        Self {
-            inner: GeometricCRDT::new(Uuid::new_v4(), initial_state.inner.clone()),
-        }
-    }
-
-    #[wasm_bindgen(js_name = getCurrentState)]
-    pub fn get_current_state(&self) -> MultivectorJs {
-        MultivectorJs {
-            inner: self.inner.state.clone(),
-        }
-    }
-
-    #[wasm_bindgen(js_name = createOperation)]
-    pub fn create_operation(&mut self, transform: &MultivectorJs, op_type: &str) -> String {
-        let operation_type = match op_type {
-            "geometric_product" => cliffy_protocols::OperationType::GeometricProduct,
-            "addition" => cliffy_protocols::OperationType::Addition,
-            "sandwich" => cliffy_protocols::OperationType::Sandwich,
-            "exponential" => cliffy_protocols::OperationType::Exponential,
-            _ => cliffy_protocols::OperationType::Addition,
+    pub fn subscribe(&self, callback: Function) -> Subscription {
+        let id = {
+            let mut next = self.next_id.borrow_mut();
+            let id = *next;
+            *next += 1;
+            id
         };
 
-        let op = self.inner.create_operation(transform.inner.clone(), operation_type);
-        serde_json::to_string(&op).unwrap_or_default()
-    }
+        self.subscribers.borrow_mut().push((id, callback));
 
-    #[wasm_bindgen(js_name = applyOperation)]
-    pub fn apply_operation(&mut self, operation_json: &str) {
-        if let Ok(op) = serde_json::from_str(operation_json) {
-            self.inner.apply_operation(op);
+        Subscription {
+            id,
+            subscribers: Rc::clone(&self.subscribers),
         }
     }
 
+    /// Create a derived Behavior by mapping a function over this one.
+    ///
+    /// The derived Behavior will automatically update when this Behavior changes.
     #[wasm_bindgen]
-    pub fn merge(&mut self, other: &GeometricCRDTJs) -> GeometricCRDTJs {
-        let merged = self.inner.merge(&other.inner);
-        GeometricCRDTJs { inner: merged }
+    pub fn map(&self, f: &Function) -> Result<Behavior, JsValue> {
+        let current = self.value.borrow().clone();
+        let this_js = JsValue::null();
+        let initial = f.call1(&this_js, &current)?;
+
+        let derived = Behavior::new(initial);
+
+        // Subscribe to changes
+        let derived_value = Rc::clone(&derived.value);
+        let derived_subscribers = Rc::clone(&derived.subscribers);
+        let f_clone = f.clone();
+
+        let callback = Closure::wrap(Box::new(move |value: JsValue| {
+            let this = JsValue::null();
+            if let Ok(new_value) = f_clone.call1(&this, &value) {
+                *derived_value.borrow_mut() = new_value;
+                // Notify derived's subscribers
+                for (_, cb) in derived_subscribers.borrow().iter() {
+                    let _ = cb.call1(&this, &derived_value.borrow());
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        // Get the Function from the closure
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget(); // Prevent the closure from being dropped
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        Ok(derived)
+    }
+
+    /// Combine this Behavior with another using a function.
+    #[wasm_bindgen]
+    pub fn combine(&self, other: &Behavior, f: &Function) -> Result<Behavior, JsValue> {
+        let a = self.value.borrow().clone();
+        let b = other.value.borrow().clone();
+        let this_js = JsValue::null();
+        let initial = f.call2(&this_js, &a, &b)?;
+
+        let combined = Behavior::new(initial);
+
+        // Subscribe to self
+        let combined_value = Rc::clone(&combined.value);
+        let combined_subscribers = Rc::clone(&combined.subscribers);
+        let other_value = Rc::clone(&other.value);
+        let f_clone = f.clone();
+
+        let callback_a = Closure::wrap(Box::new(move |a_val: JsValue| {
+            let this = JsValue::null();
+            let b_val = other_value.borrow().clone();
+            if let Ok(new_value) = f_clone.call2(&this, &a_val, &b_val) {
+                *combined_value.borrow_mut() = new_value;
+                for (_, cb) in combined_subscribers.borrow().iter() {
+                    let _ = cb.call1(&this, &combined_value.borrow());
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn_a = callback_a.as_ref().unchecked_ref::<Function>().clone();
+        callback_a.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn_a,
+        ));
+
+        // Subscribe to other
+        let combined_value = Rc::clone(&combined.value);
+        let combined_subscribers = Rc::clone(&combined.subscribers);
+        let self_value = Rc::clone(&self.value);
+        let f_clone = f.clone();
+
+        let callback_b = Closure::wrap(Box::new(move |b_val: JsValue| {
+            let this = JsValue::null();
+            let a_val = self_value.borrow().clone();
+            if let Ok(new_value) = f_clone.call2(&this, &a_val, &b_val) {
+                *combined_value.borrow_mut() = new_value;
+                for (_, cb) in combined_subscribers.borrow().iter() {
+                    let _ = cb.call1(&this, &combined_value.borrow());
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn_b = callback_b.as_ref().unchecked_ref::<Function>().clone();
+        callback_b.forget();
+
+        other.subscribers.borrow_mut().push((
+            {
+                let mut next = other.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn_b,
+        ));
+
+        Ok(combined)
+    }
+
+    /// Notify all subscribers of the current value.
+    fn notify_subscribers(&self) {
+        let value = self.value.borrow().clone();
+        let this = JsValue::null();
+        for (_, callback) in self.subscribers.borrow().iter() {
+            let _ = callback.call1(&this, &value);
+        }
     }
 }
 
-// WebRTC and P2P utilities
+/// A subscription handle that can be used to unsubscribe.
 #[wasm_bindgen]
-extern "C" {
-    #[wasm_bindgen(js_namespace = ["window"], js_name = RTCPeerConnection)]
-    type RtcPeerConnection;
+pub struct Subscription {
+    id: usize,
+    subscribers: SubscriberFn,
 }
 
 #[wasm_bindgen]
-pub fn init_webrtc_peer() -> Result<JsValue, JsValue> {
-    let mut config = Object::new();
-    js_sys::Reflect::set(&config, &"iceServers".into(), &Array::new())?;
-    
-    console_log!("WebRTC peer connection initialized for Cliffy");
-    Ok(config.into())
+impl Subscription {
+    /// Unsubscribe from the Behavior.
+    #[wasm_bindgen]
+    pub fn unsubscribe(&self) {
+        self.subscribers
+            .borrow_mut()
+            .retain(|(id, _)| *id != self.id);
+    }
 }
 
-// Performance monitoring
+/// A stream of discrete events.
+///
+/// `Event` represents a stream of values that occur at discrete moments.
+/// Unlike Behavior, Event does not have a "current value" - it only
+/// emits values when they occur.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const clicks = new Event();
+///
+/// clicks.subscribe(event => {
+///     console.log('Clicked!', event);
+/// });
+///
+/// // Emit an event
+/// clicks.emit({ x: 100, y: 200 });
+/// ```
 #[wasm_bindgen]
-pub fn benchmark_geometric_product(size: usize, iterations: usize) -> f64 {
-    let mv1 = cl3_0::Multivector3D::scalar(1.0) + cl3_0::e1::<f64>();
-    let mv2 = cl3_0::Multivector3D::scalar(2.0) + cl3_0::e2::<f64>();
-    
-    let start = web_sys::window()
-        .unwrap()
-        .performance()
-        .unwrap()
-        .now();
+pub struct Event {
+    subscribers: SubscriberFn,
+    next_id: Rc<RefCell<usize>>,
+}
 
-    for _ in 0..iterations {
-        let _result = mv1.geometric_product(&mv2);
+#[wasm_bindgen]
+impl Event {
+    /// Create a new Event stream.
+    #[wasm_bindgen(constructor)]
+    pub fn new() -> Event {
+        Event {
+            subscribers: Rc::new(RefCell::new(Vec::new())),
+            next_id: Rc::new(RefCell::new(0)),
+        }
     }
 
-    let end = web_sys::window()
-        .unwrap()
-        .performance()
-        .unwrap()
-        .now();
+    /// Emit a value to all subscribers.
+    #[wasm_bindgen]
+    pub fn emit(&self, value: JsValue) {
+        let this = JsValue::null();
+        for (_, callback) in self.subscribers.borrow().iter() {
+            let _ = callback.call1(&this, &value);
+        }
+    }
 
-    (end - start) / iterations as f64
+    /// Subscribe to this event stream.
+    #[wasm_bindgen]
+    pub fn subscribe(&self, callback: Function) -> Subscription {
+        let id = {
+            let mut next = self.next_id.borrow_mut();
+            let id = *next;
+            *next += 1;
+            id
+        };
+
+        self.subscribers.borrow_mut().push((id, callback));
+
+        Subscription {
+            id,
+            subscribers: Rc::clone(&self.subscribers),
+        }
+    }
+
+    /// Map a function over this event stream.
+    #[wasm_bindgen]
+    pub fn map(&self, f: &Function) -> Event {
+        let mapped = Event::new();
+
+        let mapped_subscribers = Rc::clone(&mapped.subscribers);
+        let f_clone = f.clone();
+
+        let callback = Closure::wrap(Box::new(move |value: JsValue| {
+            let this = JsValue::null();
+            if let Ok(mapped_value) = f_clone.call1(&this, &value) {
+                for (_, cb) in mapped_subscribers.borrow().iter() {
+                    let _ = cb.call1(&this, &mapped_value);
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        mapped
+    }
+
+    /// Filter events based on a predicate.
+    #[wasm_bindgen]
+    pub fn filter(&self, predicate: &Function) -> Event {
+        let filtered = Event::new();
+
+        let filtered_subscribers = Rc::clone(&filtered.subscribers);
+        let predicate_clone = predicate.clone();
+
+        let callback = Closure::wrap(Box::new(move |value: JsValue| {
+            let this = JsValue::null();
+            if let Ok(result) = predicate_clone.call1(&this, &value) {
+                if result.is_truthy() {
+                    for (_, cb) in filtered_subscribers.borrow().iter() {
+                        let _ = cb.call1(&this, &value);
+                    }
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        filtered
+    }
+
+    /// Merge two event streams into one.
+    #[wasm_bindgen]
+    pub fn merge(&self, other: &Event) -> Event {
+        let merged = Event::new();
+
+        // Subscribe to self
+        let merged_subscribers_1 = Rc::clone(&merged.subscribers);
+        let callback_1 = Closure::wrap(Box::new(move |value: JsValue| {
+            let this = JsValue::null();
+            for (_, cb) in merged_subscribers_1.borrow().iter() {
+                let _ = cb.call1(&this, &value);
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn_1 = callback_1.as_ref().unchecked_ref::<Function>().clone();
+        callback_1.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn_1,
+        ));
+
+        // Subscribe to other
+        let merged_subscribers_2 = Rc::clone(&merged.subscribers);
+        let callback_2 = Closure::wrap(Box::new(move |value: JsValue| {
+            let this = JsValue::null();
+            for (_, cb) in merged_subscribers_2.borrow().iter() {
+                let _ = cb.call1(&this, &value);
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn_2 = callback_2.as_ref().unchecked_ref::<Function>().clone();
+        callback_2.forget();
+
+        other.subscribers.borrow_mut().push((
+            {
+                let mut next = other.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn_2,
+        ));
+
+        merged
+    }
+
+    /// Fold events into a Behavior, accumulating values.
+    ///
+    /// # Arguments
+    ///
+    /// * `initial` - The initial accumulated value
+    /// * `f` - A function that takes (accumulator, event) and returns new accumulator
+    #[wasm_bindgen]
+    pub fn fold(&self, initial: JsValue, f: &Function) -> Result<Behavior, JsValue> {
+        let behavior = Behavior::new(initial);
+
+        let behavior_value = Rc::clone(&behavior.value);
+        let behavior_subscribers = Rc::clone(&behavior.subscribers);
+        let f_clone = f.clone();
+
+        let callback = Closure::wrap(Box::new(move |event_value: JsValue| {
+            let this = JsValue::null();
+            let current = behavior_value.borrow().clone();
+            if let Ok(new_value) = f_clone.call2(&this, &current, &event_value) {
+                *behavior_value.borrow_mut() = new_value;
+                for (_, cb) in behavior_subscribers.borrow().iter() {
+                    let _ = cb.call1(&this, &behavior_value.borrow());
+                }
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        Ok(behavior)
+    }
 }
 
-// Utility functions for JavaScript integration
+impl Default for Event {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+// ============================================================================
+// Combinators
+// ============================================================================
+
+/// Create a Behavior that holds a value only when a condition is true.
+///
+/// # Arguments
+///
+/// * `condition` - A Behavior<boolean> that controls visibility
+/// * `then_fn` - A function that returns the value when condition is true
+///
+/// # Returns
+///
+/// A Behavior that holds the value when true, or null when false.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const showMessage = new Behavior(true);
+/// const message = when(showMessage, () => "Hello!");
+///
+/// console.log(message.sample()); // "Hello!"
+///
+/// showMessage.set(false);
+/// console.log(message.sample()); // null
+/// ```
 #[wasm_bindgen]
-pub fn cliffy_version() -> String {
-    "0.1.0".to_string()
+pub fn when(condition: &Behavior, then_fn: &Function) -> Result<Behavior, JsValue> {
+    let cond_value = condition.value.borrow().clone();
+    let this_js = JsValue::null();
+
+    let initial = if cond_value.is_truthy() {
+        then_fn.call0(&this_js)?
+    } else {
+        JsValue::null()
+    };
+
+    let result = Behavior::new(initial);
+
+    // Subscribe to condition changes
+    let result_value = Rc::clone(&result.value);
+    let result_subscribers = Rc::clone(&result.subscribers);
+    let then_fn_clone = then_fn.clone();
+
+    let callback = Closure::wrap(Box::new(move |cond: JsValue| {
+        let this = JsValue::null();
+        let new_value = if cond.is_truthy() {
+            then_fn_clone.call0(&this).unwrap_or(JsValue::null())
+        } else {
+            JsValue::null()
+        };
+        *result_value.borrow_mut() = new_value;
+        for (_, cb) in result_subscribers.borrow().iter() {
+            let _ = cb.call1(&this, &result_value.borrow());
+        }
+    }) as Box<dyn Fn(JsValue)>);
+
+    let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+    callback.forget();
+
+    condition.subscribers.borrow_mut().push((
+        {
+            let mut next = condition.next_id.borrow_mut();
+            let id = *next;
+            *next += 1;
+            id
+        },
+        js_fn,
+    ));
+
+    Ok(result)
 }
 
+/// Create a Behavior that selects between two values based on a condition.
+///
+/// # Arguments
+///
+/// * `condition` - A Behavior<boolean> that controls selection
+/// * `then_fn` - A function that returns the value when condition is true
+/// * `else_fn` - A function that returns the value when condition is false
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const isDarkMode = new Behavior(false);
+/// const theme = ifElse(isDarkMode, () => "dark", () => "light");
+///
+/// console.log(theme.sample()); // "light"
+///
+/// isDarkMode.set(true);
+/// console.log(theme.sample()); // "dark"
+/// ```
+#[wasm_bindgen(js_name = ifElse)]
+pub fn if_else(
+    condition: &Behavior,
+    then_fn: &Function,
+    else_fn: &Function,
+) -> Result<Behavior, JsValue> {
+    let cond_value = condition.value.borrow().clone();
+    let this_js = JsValue::null();
+
+    let initial = if cond_value.is_truthy() {
+        then_fn.call0(&this_js)?
+    } else {
+        else_fn.call0(&this_js)?
+    };
+
+    let result = Behavior::new(initial);
+
+    // Subscribe to condition changes
+    let result_value = Rc::clone(&result.value);
+    let result_subscribers = Rc::clone(&result.subscribers);
+    let then_fn_clone = then_fn.clone();
+    let else_fn_clone = else_fn.clone();
+
+    let callback = Closure::wrap(Box::new(move |cond: JsValue| {
+        let this = JsValue::null();
+        let new_value = if cond.is_truthy() {
+            then_fn_clone.call0(&this).unwrap_or(JsValue::null())
+        } else {
+            else_fn_clone.call0(&this).unwrap_or(JsValue::null())
+        };
+        *result_value.borrow_mut() = new_value;
+        for (_, cb) in result_subscribers.borrow().iter() {
+            let _ = cb.call1(&this, &result_value.borrow());
+        }
+    }) as Box<dyn Fn(JsValue)>);
+
+    let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+    callback.forget();
+
+    condition.subscribers.borrow_mut().push((
+        {
+            let mut next = condition.next_id.borrow_mut();
+            let id = *next;
+            *next += 1;
+            id
+        },
+        js_fn,
+    ));
+
+    Ok(result)
+}
+
+/// Combine two Behaviors into one using a function.
+///
+/// # Arguments
+///
+/// * `a` - First Behavior
+/// * `b` - Second Behavior
+/// * `f` - A function that takes both values and returns the combined value
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const width = new Behavior(100);
+/// const height = new Behavior(50);
+/// const area = combine(width, height, (w, h) => w * h);
+///
+/// console.log(area.sample()); // 5000
+/// ```
 #[wasm_bindgen]
-pub fn is_simd_supported() -> bool {
-    cfg!(feature = "simd")
+pub fn combine(a: &Behavior, b: &Behavior, f: &Function) -> Result<Behavior, JsValue> {
+    a.combine(b, f)
 }
 
-// Export panic hook for better debugging
-#[wasm_bindgen(start)]
-pub fn main() {
-    console_error_panic_hook::set_once();
-    console_log!("Cliffy WASM module initialized");
+/// Create a Behavior with a constant value.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const pi = constant(3.14159);
+/// console.log(pi.sample()); // 3.14159
+/// ```
+#[wasm_bindgen]
+pub fn constant(value: JsValue) -> Behavior {
+    Behavior::new(value)
+}
+
+/// Create a new Behavior (convenience function).
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const count = behavior(0);
+/// count.update(n => n + 1);
+/// ```
+#[wasm_bindgen]
+pub fn behavior(initial: JsValue) -> Behavior {
+    Behavior::new(initial)
+}
+
+/// Create a new Event stream (convenience function).
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const clicks = event();
+/// clicks.subscribe(e => console.log('Clicked!', e));
+/// ```
+#[wasm_bindgen]
+pub fn event() -> Event {
+    Event::new()
+}
+
+#[cfg(test)]
+mod tests {
+    // WASM tests go in tests/wasm_tests.rs
 }

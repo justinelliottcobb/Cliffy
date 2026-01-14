@@ -1,37 +1,37 @@
 {
   "name": "cliffy",
   "version": "0.1.0",
-  "description": "Revolutionary reactive web framework using Clifford/Geometric Algebra as the mathematical foundation",
+  "description": "WASM-first reactive framework with classical FRP semantics and geometric algebra foundation",
   "type": "module",
   "workspaces": [
-    "cliffy-typescript",
-    "cliffy-purescript", 
-    "examples/*"
+    "cliffy-typescript"
   ],
   "scripts": {
-    "build:rust": "wasm-pack build cliffy-wasm --target web --out-dir pkg --features simd",
-    "build:typescript": "cd cliffy-typescript && npm run build",
-    "build:purescript": "cd cliffy-purescript && spago build",
-    "build": "npm run build:rust && npm run build:typescript && npm run build:purescript",
-    "dev": "concurrently \"npm run dev:examples\" \"npm run watch:rust\"",
-    "dev:examples": "cd examples/collaborative-editor && npm run dev",
-    "watch:rust": "cargo watch -x 'build --workspace'",
-    "test": "cargo test --workspace && npm run test:typescript",
-    "test:typescript": "cd cliffy-typescript && npm test",
-    "bench": "cargo bench --workspace"
+    "build": "npm run build:wasm && npm run build:ts",
+    "build:wasm": "wasm-pack build cliffy-wasm --target web --out-dir ../cliffy-typescript/pkg",
+    "build:ts": "cd cliffy-typescript && npx tsc",
+    "build:release": "wasm-pack build cliffy-wasm --target web --release --out-dir ../cliffy-typescript/pkg && cd cliffy-typescript && npx tsc",
+
+    "dev": "npm run dev:counter",
+    "dev:wasm": "cargo watch -w cliffy-core -w cliffy-wasm -s 'wasm-pack build cliffy-wasm --target web --out-dir ../cliffy-typescript/pkg --dev'",
+    "dev:counter": "concurrently -k -n wasm,vite -c blue,green \"npm run dev:wasm\" \"cd examples/counter-101 && npm run dev\"",
+    "example": "node scripts/run-example.js",
+
+    "test": "cargo test --workspace",
+    "test:rust": "cargo test --workspace",
+    "clean": "cargo clean && rm -rf cliffy-typescript/dist cliffy-typescript/pkg examples/*/dist examples/*/node_modules/.vite"
   },
   "devDependencies": {
-    "concurrently": "^9.2.1",
-    "cargo-watch": "^8.4.0"
+    "concurrently": "^9.2.1"
   },
   "keywords": [
+    "frp",
+    "reactive",
+    "functional-reactive-programming",
     "geometric-algebra",
-    "clifford-algebra", 
-    "reactive-programming",
     "webassembly",
-    "distributed-systems",
-    "collaborative-editing",
-    "webgpu"
+    "wasm",
+    "typescript"
   ],
   "author": "Cliffy Team",
   "license": "MIT",
