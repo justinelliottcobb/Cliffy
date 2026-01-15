@@ -135,6 +135,7 @@ dependencies = [
 name = "cliffy-wasm"
 version = "0.1.0"
 dependencies = [
+ "cliffy-core",
  "console_error_panic_hook",
  "js-sys",
  "wasm-bindgen",
