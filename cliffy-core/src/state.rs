@@ -27,6 +27,9 @@ use crate::transforms::{Rotor, Transform, Translation, Versor};
 use amari_core::{Bivector, Vector};
 use std::sync::{Arc, Mutex};
 
+/// Type alias for subscriber callbacks to avoid clippy::type_complexity warning
+type SubscriberList = Arc<Mutex<Vec<Box<dyn Fn(&GA3) + Send + Sync>>>>;
+
 /// State that lives in geometric space with explicit transformation support.
 ///
 /// Unlike `Behavior<T>`, which hides the geometric representation,
@@ -40,7 +43,7 @@ pub struct GeometricState {
     /// The underlying multivector
     inner: Arc<Mutex<GA3>>,
     /// Subscribers for reactive updates
-    subscribers: Arc<Mutex<Vec<Box<dyn Fn(&GA3) + Send + Sync>>>>,
+    subscribers: SubscriberList,
 }
 
 impl GeometricState {
@@ -324,7 +327,7 @@ impl std::fmt::Debug for GeometricState {
 /// A subscription handle for geometric state changes
 pub struct GeometricSubscription {
     id: usize,
-    subscribers: Arc<Mutex<Vec<Box<dyn Fn(&GA3) + Send + Sync>>>>,
+    subscribers: SubscriberList,
 }
 
 impl GeometricSubscription {
