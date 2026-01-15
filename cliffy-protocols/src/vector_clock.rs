@@ -7,6 +7,12 @@ pub struct VectorClock {
     pub clocks: HashMap<Uuid, u64>,
 }
 
+impl Default for VectorClock {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl VectorClock {
     pub fn new() -> Self {
         Self {
