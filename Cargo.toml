@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "cliffy-core",
+    "cliffy-protocols",
     "cliffy-test",
     "cliffy-wasm",
 ]
