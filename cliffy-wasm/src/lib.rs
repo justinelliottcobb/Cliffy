@@ -708,6 +708,529 @@ pub fn event() -> Event {
     Event::new()
 }
 
+// ============================================================================
+// Geometric Types
+// ============================================================================
+
+use cliffy_core::{
+    GeometricState as CoreGeometricState, Rotor as CoreRotor, Transform as CoreTransform,
+    Translation as CoreTranslation, Versor as CoreVersor,
+};
+
+/// A rotor represents a rotation in 3D space.
+///
+/// Use rotors for smooth, gimbal-lock-free rotations.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// // Create a 90-degree rotation in the XY plane (around Z axis)
+/// const rot = Rotor.xy(Math.PI / 2);
+///
+/// // Apply to a geometric state
+/// const pos = new GeometricState(1, 0, 0);
+/// const rotated = pos.applyRotor(rot);
+/// ```
+#[wasm_bindgen]
+pub struct Rotor {
+    inner: CoreRotor,
+}
+
+#[wasm_bindgen]
+impl Rotor {
+    /// Create the identity rotor (no rotation).
+    #[wasm_bindgen]
+    pub fn identity() -> Rotor {
+        Rotor {
+            inner: CoreRotor::identity(),
+        }
+    }
+
+    /// Create a rotation in the XY plane (around Z axis).
+    ///
+    /// # Arguments
+    /// * `angle` - Rotation angle in radians
+    #[wasm_bindgen]
+    pub fn xy(angle: f64) -> Rotor {
+        Rotor {
+            inner: CoreRotor::xy(angle),
+        }
+    }
+
+    /// Create a rotation in the XZ plane (around Y axis).
+    ///
+    /// # Arguments
+    /// * `angle` - Rotation angle in radians
+    #[wasm_bindgen]
+    pub fn xz(angle: f64) -> Rotor {
+        Rotor {
+            inner: CoreRotor::xz(angle),
+        }
+    }
+
+    /// Create a rotation in the YZ plane (around X axis).
+    ///
+    /// # Arguments
+    /// * `angle` - Rotation angle in radians
+    #[wasm_bindgen]
+    pub fn yz(angle: f64) -> Rotor {
+        Rotor {
+            inner: CoreRotor::yz(angle),
+        }
+    }
+
+    /// Create a rotation around an arbitrary axis.
+    ///
+    /// # Arguments
+    /// * `x`, `y`, `z` - Axis vector components (doesn't need to be normalized)
+    /// * `angle` - Rotation angle in radians
+    #[wasm_bindgen(js_name = fromAxisAngle)]
+    pub fn from_axis_angle(x: f64, y: f64, z: f64, angle: f64) -> Rotor {
+        Rotor {
+            inner: CoreRotor::from_axis_angle(x, y, z, angle),
+        }
+    }
+
+    /// Get the rotation angle in radians.
+    #[wasm_bindgen]
+    pub fn angle(&self) -> f64 {
+        self.inner.angle()
+    }
+
+    /// Compose this rotor with another (apply self, then other).
+    #[wasm_bindgen]
+    pub fn then(&self, other: &Rotor) -> Rotor {
+        Rotor {
+            inner: self.inner.then(&other.inner),
+        }
+    }
+
+    /// Get the inverse rotor (reverse rotation).
+    #[wasm_bindgen]
+    pub fn inverse(&self) -> Rotor {
+        Rotor {
+            inner: self.inner.inverse(),
+        }
+    }
+
+    /// Spherical linear interpolation from identity to this rotor.
+    ///
+    /// # Arguments
+    /// * `t` - Interpolation factor (0 = identity, 1 = this rotor)
+    #[wasm_bindgen]
+    pub fn slerp(&self, t: f64) -> Rotor {
+        Rotor {
+            inner: self.inner.slerp(t),
+        }
+    }
+
+    /// Spherical linear interpolation to another rotor.
+    ///
+    /// # Arguments
+    /// * `other` - Target rotor
+    /// * `t` - Interpolation factor (0 = this, 1 = other)
+    #[wasm_bindgen(js_name = slerpTo)]
+    pub fn slerp_to(&self, other: &Rotor, t: f64) -> Rotor {
+        Rotor {
+            inner: self.inner.slerp_to(&other.inner, t),
+        }
+    }
+}
+
+/// A versor represents a general geometric transformation (rotation, reflection, or composition).
+///
+/// Versors generalize rotors to include reflections. An even versor (product of an even number
+/// of vectors) is a rotor. An odd versor includes a reflection component.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// // Create a reflection through the XY plane
+/// const reflect = Versor.reflection(0, 0, 1);
+///
+/// // Convert a rotor to a versor
+/// const rot = Rotor.xy(Math.PI / 2);
+/// const versor = Versor.fromRotor(rot);
+///
+/// // Check if it's a pure rotation
+/// console.log(versor.isRotor()); // true
+/// ```
+#[wasm_bindgen]
+pub struct Versor {
+    inner: CoreVersor,
+}
+
+#[wasm_bindgen]
+impl Versor {
+    /// Create the identity versor (no transformation).
+    #[wasm_bindgen]
+    pub fn identity() -> Versor {
+        Versor {
+            inner: CoreVersor::identity(),
+        }
+    }
+
+    /// Create a reflection through a plane with the given normal vector.
+    ///
+    /// The plane passes through the origin with normal (x, y, z).
+    /// The normal doesn't need to be normalized.
+    ///
+    /// # Arguments
+    /// * `x`, `y`, `z` - Normal vector components
+    #[wasm_bindgen]
+    pub fn reflection(x: f64, y: f64, z: f64) -> Versor {
+        Versor {
+            inner: CoreVersor::reflection(x, y, z),
+        }
+    }
+
+    /// Create a versor from a rotor.
+    ///
+    /// This converts a pure rotation into a versor representation.
+    #[wasm_bindgen(js_name = fromRotor)]
+    pub fn from_rotor(rotor: &Rotor) -> Versor {
+        Versor {
+            inner: CoreVersor::from_rotor(rotor.inner.clone()),
+        }
+    }
+
+    /// Compose this versor with another (apply self, then other).
+    #[wasm_bindgen]
+    pub fn then(&self, other: &Versor) -> Versor {
+        Versor {
+            inner: self.inner.then(&other.inner),
+        }
+    }
+
+    /// Check if this is an even versor (a rotor, i.e., pure rotation).
+    #[wasm_bindgen(js_name = isRotor)]
+    pub fn is_rotor(&self) -> bool {
+        self.inner.is_rotor()
+    }
+
+    /// Try to convert to a Rotor.
+    ///
+    /// Returns null if this is an odd versor (includes reflection).
+    #[wasm_bindgen(js_name = toRotor)]
+    pub fn to_rotor(&self) -> Option<Rotor> {
+        self.inner.to_rotor().map(|r| Rotor { inner: r })
+    }
+}
+
+/// A translation in 3D space.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const trans = new Translation(10, 0, 0);
+/// const pos = new GeometricState(0, 0, 0);
+/// const moved = pos.applyTranslation(trans);
+/// ```
+#[wasm_bindgen]
+pub struct Translation {
+    inner: CoreTranslation,
+}
+
+#[wasm_bindgen]
+impl Translation {
+    /// Create a new translation.
+    #[wasm_bindgen(constructor)]
+    pub fn new(x: f64, y: f64, z: f64) -> Translation {
+        Translation {
+            inner: CoreTranslation::new(x, y, z),
+        }
+    }
+
+    /// Create a translation along the X axis.
+    #[wasm_bindgen]
+    pub fn x(amount: f64) -> Translation {
+        Translation {
+            inner: CoreTranslation::x(amount),
+        }
+    }
+
+    /// Create a translation along the Y axis.
+    #[wasm_bindgen]
+    pub fn y(amount: f64) -> Translation {
+        Translation {
+            inner: CoreTranslation::y(amount),
+        }
+    }
+
+    /// Create a translation along the Z axis.
+    #[wasm_bindgen]
+    pub fn z(amount: f64) -> Translation {
+        Translation {
+            inner: CoreTranslation::z(amount),
+        }
+    }
+
+    /// Compose this translation with another.
+    #[wasm_bindgen]
+    pub fn then(&self, other: &Translation) -> Translation {
+        Translation {
+            inner: self.inner.then(&other.inner),
+        }
+    }
+
+    /// Get the inverse translation.
+    #[wasm_bindgen]
+    pub fn inverse(&self) -> Translation {
+        Translation {
+            inner: self.inner.inverse(),
+        }
+    }
+
+    /// Linear interpolation from zero to this translation.
+    #[wasm_bindgen]
+    pub fn lerp(&self, t: f64) -> Translation {
+        Translation {
+            inner: self.inner.lerp(t),
+        }
+    }
+
+    /// Linear interpolation to another translation.
+    #[wasm_bindgen(js_name = lerpTo)]
+    pub fn lerp_to(&self, other: &Translation, t: f64) -> Translation {
+        Translation {
+            inner: self.inner.lerp_to(&other.inner, t),
+        }
+    }
+}
+
+/// A combined rotation and translation transform.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const rot = Rotor.xy(Math.PI / 4);
+/// const trans = new Translation(10, 0, 0);
+/// const transform = Transform.fromRotorAndTranslation(rot, trans);
+///
+/// const pos = new GeometricState(1, 0, 0);
+/// const result = pos.applyTransform(transform);
+/// ```
+#[wasm_bindgen]
+pub struct Transform {
+    inner: CoreTransform,
+}
+
+#[wasm_bindgen]
+impl Transform {
+    /// Create an identity transform (no rotation or translation).
+    #[wasm_bindgen]
+    pub fn identity() -> Transform {
+        Transform {
+            inner: CoreTransform::identity(),
+        }
+    }
+
+    /// Create a transform from a rotor and translation.
+    #[wasm_bindgen(js_name = fromRotorAndTranslation)]
+    pub fn from_rotor_and_translation(rotor: &Rotor, translation: &Translation) -> Transform {
+        Transform {
+            inner: CoreTransform::new(rotor.inner.clone(), translation.inner.clone()),
+        }
+    }
+
+    /// Create a pure rotation transform.
+    #[wasm_bindgen(js_name = fromRotor)]
+    pub fn from_rotor(rotor: &Rotor) -> Transform {
+        Transform {
+            inner: CoreTransform::rotation(rotor.inner.clone()),
+        }
+    }
+
+    /// Create a pure translation transform.
+    #[wasm_bindgen(js_name = fromTranslation)]
+    pub fn from_translation(translation: &Translation) -> Transform {
+        Transform {
+            inner: CoreTransform::translation(translation.inner.clone()),
+        }
+    }
+
+    /// Compose this transform with another (apply self, then other).
+    #[wasm_bindgen]
+    pub fn then(&self, other: &Transform) -> Transform {
+        Transform {
+            inner: self.inner.then(&other.inner),
+        }
+    }
+
+    /// Get the inverse transform.
+    #[wasm_bindgen]
+    pub fn inverse(&self) -> Transform {
+        Transform {
+            inner: self.inner.inverse(),
+        }
+    }
+
+    /// Interpolate from identity to this transform.
+    #[wasm_bindgen]
+    pub fn interpolate(&self, t: f64) -> Transform {
+        Transform {
+            inner: self.inner.interpolate(t),
+        }
+    }
+
+    /// Interpolate to another transform.
+    #[wasm_bindgen(js_name = interpolateTo)]
+    pub fn interpolate_to(&self, other: &Transform, t: f64) -> Transform {
+        Transform {
+            inner: self.inner.interpolate_to(&other.inner, t),
+        }
+    }
+}
+
+/// Geometric state with explicit transformation support.
+///
+/// Unlike regular Behavior which hides the geometric algebra,
+/// GeometricState exposes it for animation, physics, and advanced use cases.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// // Create a position
+/// const pos = GeometricState.fromVector(1, 0, 0);
+///
+/// // Apply transformations
+/// const rot = Rotor.xy(Math.PI / 2);
+/// const rotated = pos.applyRotor(rot);
+///
+/// // Get the result
+/// const [x, y, z] = rotated.asVector();
+/// console.log(x, y, z); // ~0, ~1, ~0
+///
+/// // Subscribe to changes
+/// pos.subscribe(mv => console.log('State changed'));
+/// ```
+#[wasm_bindgen]
+pub struct GeometricState {
+    inner: CoreGeometricState,
+}
+
+#[wasm_bindgen]
+impl GeometricState {
+    /// Create a geometric state from a scalar value.
+    #[wasm_bindgen(js_name = fromScalar)]
+    pub fn from_scalar(value: f64) -> GeometricState {
+        GeometricState {
+            inner: CoreGeometricState::from_scalar(value),
+        }
+    }
+
+    /// Create a geometric state from a 3D vector.
+    #[wasm_bindgen(js_name = fromVector)]
+    pub fn from_vector(x: f64, y: f64, z: f64) -> GeometricState {
+        GeometricState {
+            inner: CoreGeometricState::from_vector(x, y, z),
+        }
+    }
+
+    /// Create the zero state.
+    #[wasm_bindgen]
+    pub fn zero() -> GeometricState {
+        GeometricState {
+            inner: CoreGeometricState::zero(),
+        }
+    }
+
+    /// Get the scalar component.
+    #[wasm_bindgen]
+    pub fn scalar(&self) -> f64 {
+        self.inner.scalar()
+    }
+
+    /// Get the vector components as an array [x, y, z].
+    #[wasm_bindgen(js_name = asVector)]
+    pub fn as_vector(&self) -> Vec<f64> {
+        let (x, y, z) = self.inner.as_vector();
+        vec![x, y, z]
+    }
+
+    /// Get the magnitude (length) of the state.
+    #[wasm_bindgen]
+    pub fn magnitude(&self) -> f64 {
+        self.inner.magnitude()
+    }
+
+    /// Set the state to a scalar value.
+    #[wasm_bindgen(js_name = setScalar)]
+    pub fn set_scalar(&self, value: f64) {
+        self.inner.set_scalar(value);
+    }
+
+    /// Set the state to a vector value.
+    #[wasm_bindgen(js_name = setVector)]
+    pub fn set_vector(&self, x: f64, y: f64, z: f64) {
+        self.inner.set_vector(x, y, z);
+    }
+
+    /// Apply a rotor transformation (returns new state).
+    #[wasm_bindgen(js_name = applyRotor)]
+    pub fn apply_rotor(&self, rotor: &Rotor) -> GeometricState {
+        GeometricState {
+            inner: self.inner.apply_rotor(&rotor.inner),
+        }
+    }
+
+    /// Apply a translation (returns new state).
+    #[wasm_bindgen(js_name = applyTranslation)]
+    pub fn apply_translation(&self, translation: &Translation) -> GeometricState {
+        GeometricState {
+            inner: self.inner.apply_translation(&translation.inner),
+        }
+    }
+
+    /// Apply a transform (returns new state).
+    #[wasm_bindgen(js_name = applyTransform)]
+    pub fn apply_transform(&self, transform: &Transform) -> GeometricState {
+        GeometricState {
+            inner: self.inner.apply_transform(&transform.inner),
+        }
+    }
+
+    /// Scale the state by a factor (returns new state).
+    #[wasm_bindgen]
+    pub fn scale(&self, factor: f64) -> GeometricState {
+        GeometricState {
+            inner: self.inner.scale(factor),
+        }
+    }
+
+    /// Normalize to unit magnitude (returns new state).
+    #[wasm_bindgen]
+    pub fn normalize(&self) -> Option<GeometricState> {
+        self.inner.normalize().map(|inner| GeometricState { inner })
+    }
+
+    /// Linear interpolation to another state.
+    #[wasm_bindgen]
+    pub fn lerp(&self, other: &GeometricState, t: f64) -> GeometricState {
+        GeometricState {
+            inner: self.inner.lerp(&other.inner, t),
+        }
+    }
+
+    /// Spherical linear interpolation (for rotor-like states).
+    #[wasm_bindgen]
+    pub fn slerp(&self, other: &GeometricState, t: f64) -> GeometricState {
+        GeometricState {
+            inner: self.inner.slerp(&other.inner, t),
+        }
+    }
+
+    /// Get state as coefficients array for JS interop.
+    ///
+    /// Returns a Float64Array with 8 coefficients representing the multivector.
+    #[wasm_bindgen(js_name = toArray)]
+    pub fn to_array(&self) -> js_sys::Float64Array {
+        let mv = self.inner.multivector();
+        let coeffs: Vec<f64> = (0..8).map(|i| mv.get(i)).collect();
+        js_sys::Float64Array::from(coeffs.as_slice())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     // WASM tests go in tests/wasm_tests.rs
