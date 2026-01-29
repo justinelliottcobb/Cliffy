@@ -6,9 +6,10 @@ use rand::Rng;
 use std::time::Duration;
 
 /// Network topology for simulation
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub enum NetworkTopology {
     /// Every peer connected to every other peer
+    #[default]
     FullMesh,
 
     /// Star topology with central coordinator
@@ -33,12 +34,6 @@ pub enum NetworkTopology {
 
     /// Ring topology (each node connects to next)
     Ring,
-}
-
-impl Default for NetworkTopology {
-    fn default() -> Self {
-        Self::FullMesh
-    }
 }
 
 impl NetworkTopology {
@@ -104,7 +99,7 @@ impl NetworkTopology {
         match self {
             Self::FullMesh => 1,
             Self::Star { .. } => 2,
-            Self::Hierarchical { fanout, levels } => levels * 2,
+            Self::Hierarchical { fanout: _, levels } => levels * 2,
             Self::Random { edge_probability } => {
                 // Approximate: log_fanout(n) where fanout = edge_probability * n
                 let avg_fanout = (*edge_probability * total_nodes as f64).max(1.0);
