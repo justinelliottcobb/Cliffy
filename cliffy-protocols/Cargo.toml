@@ -1,0 +1,15 @@
+[package]
+name = "cliffy-protocols"
+version = "0.1.0"
+edition = "2021"
+description = "Distributed consensus protocols using geometric algebra"
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+amari-core = { workspace = true }
+tokio = { workspace = true }
+serde = { workspace = true }
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
