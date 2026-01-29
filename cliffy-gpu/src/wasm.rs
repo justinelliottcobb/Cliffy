@@ -21,8 +21,6 @@
 //! const result = ctx.geometric_product(a, b);
 //! ```
 
-#![cfg(feature = "wasm")]
-
 use js_sys::Float32Array;
 use wasm_bindgen::prelude::*;
 
@@ -187,9 +185,7 @@ impl WasmMultivector {
     /// Clone the multivector.
     #[wasm_bindgen(js_name = "clone")]
     pub fn clone_mv(&self) -> WasmMultivector {
-        WasmMultivector {
-            inner: self.inner.clone(),
-        }
+        WasmMultivector { inner: self.inner }
     }
 }
 
