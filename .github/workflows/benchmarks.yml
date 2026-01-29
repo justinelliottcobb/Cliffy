@@ -1,0 +1,162 @@
+name: Benchmarks
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  benchmark:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bench-
+
+      - name: Run Criterion benchmarks
+        run: cargo bench --workspace -- --noplot 2>&1 | tee benchmark-results.txt
+
+      - name: Extract benchmark results
+        run: |
+          mkdir -p benchmark-output
+          grep -E "(time:|thrpt:)" benchmark-results.txt > benchmark-output/summary.txt || true
+          cp benchmark-results.txt benchmark-output/
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-results
+          path: benchmark-output/
+          retention-days: 30
+
+  benchmark-comparison:
+    name: Benchmark Comparison
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bench-
+
+      - name: Benchmark PR branch
+        run: |
+          cargo bench --workspace -- --noplot --save-baseline pr 2>&1 | tee pr-bench.txt
+
+      - name: Checkout base branch
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git checkout "$BASE_REF"
+
+      - name: Benchmark base branch
+        run: |
+          cargo bench --workspace -- --noplot --save-baseline base 2>&1 | tee base-bench.txt
+
+      - name: Compare benchmarks
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: |
+          echo "## Benchmark Comparison" > comparison.md
+          echo "" >> comparison.md
+          echo "Comparing PR branch against base branch" >> comparison.md
+          echo "" >> comparison.md
+          echo "### PR Branch Results" >> comparison.md
+          echo '```' >> comparison.md
+          head -100 pr-bench.txt >> comparison.md
+          echo '```' >> comparison.md
+          echo "" >> comparison.md
+          echo "### Base Branch Results" >> comparison.md
+          echo '```' >> comparison.md
+          head -100 base-bench.txt >> comparison.md
+          echo '```' >> comparison.md
+
+      - name: Upload comparison
+        uses: actions/upload-artifact@v6
+        with:
+          name: benchmark-comparison
+          path: comparison.md
+          retention-days: 7
+
+  gpu-cpu-comparison:
+    name: GPU vs CPU Comparison
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-bench-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bench-
+
+      - name: Run CPU benchmarks
+        run: |
+          cargo bench -p cliffy-gpu --bench gpu_benchmarks -- --noplot cpu 2>&1 | tee cpu-bench.txt || true
+
+      - name: Run GPU/SIMD benchmarks
+        run: |
+          cargo bench -p cliffy-gpu --bench gpu_benchmarks -- --noplot simd 2>&1 | tee simd-bench.txt || true
+
+      - name: Generate comparison report
+        run: |
+          mkdir -p gpu-comparison
+          echo "# CPU vs GPU/SIMD Benchmark Comparison" > gpu-comparison/report.md
+          echo "" >> gpu-comparison/report.md
+          date -u >> gpu-comparison/report.md
+          echo "" >> gpu-comparison/report.md
+          echo "## CPU Results" >> gpu-comparison/report.md
+          echo '```' >> gpu-comparison/report.md
+          cat cpu-bench.txt >> gpu-comparison/report.md || echo "No CPU benchmarks found" >> gpu-comparison/report.md
+          echo '```' >> gpu-comparison/report.md
+          echo "" >> gpu-comparison/report.md
+          echo "## SIMD Results" >> gpu-comparison/report.md
+          echo '```' >> gpu-comparison/report.md
+          cat simd-bench.txt >> gpu-comparison/report.md || echo "No SIMD benchmarks found" >> gpu-comparison/report.md
+          echo '```' >> gpu-comparison/report.md
+
+      - name: Upload GPU comparison
+        uses: actions/upload-artifact@v6
+        with:
+          name: gpu-cpu-comparison
+          path: gpu-comparison/
+          retention-days: 30

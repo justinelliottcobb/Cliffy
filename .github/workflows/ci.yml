@@ -100,3 +100,83 @@ jobs:
           path: cliffy-wasm/pkg/
           if-no-files-found: ignore
         if: success()
+
+  examples-build:
+    name: Examples Build
+    runs-on: ubuntu-latest
+    needs: [wasm-build]
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: examples/package-lock.json
+
+      - name: Download WASM artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: wasm-build
+          path: cliffy-wasm/pkg/
+
+      - name: Install dependencies
+        working-directory: examples
+        run: npm ci
+
+      - name: Type check
+        working-directory: examples
+        run: npm run typecheck --if-present
+
+      - name: Build all examples
+        working-directory: examples
+        run: npm run build:all --if-present || npm run build -ws --if-present
+
+      - name: Upload example builds
+        uses: actions/upload-artifact@v6
+        with:
+          name: examples-build
+          path: |
+            examples/whiteboard/dist/
+            examples/multiplayer-game/dist/
+            examples/document-editor/dist/
+            examples/design-tool/dist/
+          if-no-files-found: ignore
+
+  scale-tests:
+    name: Scale Tests
+    runs-on: ubuntu-latest
+    needs: [rust-tests]
+    if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/develop'
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache dependencies
+        uses: actions/cache@v5
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-cargo-
+
+      - name: Run scale tests
+        run: cargo test -p cliffy-loadtest --release -- --nocapture
+        env:
+          RUST_LOG: info
+
+      - name: Run 100-user scenario
+        run: |
+          cargo test -p cliffy-loadtest --release scale_100 -- --nocapture --ignored || true
+        continue-on-error: true
+
+      - name: Run 1000-user scenario
+        run: |
+          cargo test -p cliffy-loadtest --release scale_1000 -- --nocapture --ignored || true
+        continue-on-error: true
