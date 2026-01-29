@@ -1,0 +1,16 @@
+{
+  "name": "{{projectName}}",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "spago build",
+    "bundle": "spago bundle-app --to dist/app.js",
+    "dev": "spago build --watch",
+    "test": "spago test"
+  },
+  "devDependencies": {
+    "purescript": "^0.15.10",
+    "spago": "^0.21.0"
+  }
+}

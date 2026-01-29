@@ -1,0 +1,10 @@
+# Bun configuration for {{projectName}}
+# See: https://bun.sh/docs/runtime/bunfig
+
+[install]
+# Use exact versions for reproducibility
+exact = true
+
+[run]
+# Enable source maps for better debugging
+smol = false

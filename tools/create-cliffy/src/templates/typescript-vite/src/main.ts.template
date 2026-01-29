@@ -1,0 +1,70 @@
+/**
+ * {{projectName}} - A Cliffy reactive application
+ *
+ * This example demonstrates the core FRP primitives:
+ * - Behavior: A time-varying value (the counter)
+ * - Event: Discrete occurrences (button clicks)
+ * - Combinators: Transforming and combining reactive values
+ */
+
+import init, { Behavior, Event, behavior, event, combine } from '@cliffy/core';
+
+// Initialize WASM module
+async function main() {
+  const statusEl = document.getElementById('status')!;
+  const countEl = document.getElementById('count')!;
+  const incrementBtn = document.getElementById('increment')!;
+  const decrementBtn = document.getElementById('decrement')!;
+
+  try {
+    // Initialize the Cliffy WASM module
+    await init();
+
+    // Create a Behavior to hold the count
+    // Behavior<number> represents a time-varying numeric value
+    const count = new Behavior(0);
+
+    // Subscribe to count changes to update the DOM
+    count.subscribe((value: number) => {
+      countEl.textContent = String(value);
+    });
+
+    // Create Events for button clicks
+    const incrementClicks = new Event<void>();
+    const decrementClicks = new Event<void>();
+
+    // Wire up DOM events to Cliffy Events
+    incrementBtn.addEventListener('click', () => incrementClicks.emit(undefined));
+    decrementBtn.addEventListener('click', () => decrementClicks.emit(undefined));
+
+    // Update the count when buttons are clicked
+    incrementClicks.subscribe(() => {
+      count.update((n: number) => n + 1);
+    });
+
+    decrementClicks.subscribe(() => {
+      count.update((n: number) => n - 1);
+    });
+
+    // Update status
+    statusEl.textContent = 'Cliffy WASM loaded!';
+    statusEl.classList.add('ready');
+
+    console.log('Cliffy initialized successfully!');
+    console.log('Try these in the console:');
+    console.log('  count.sample() - Get current value');
+    console.log('  count.set(42) - Set to specific value');
+    console.log('  count.update(n => n * 2) - Double the count');
+
+    // Expose to window for debugging
+    (window as any).count = count;
+    (window as any).Behavior = Behavior;
+    (window as any).Event = Event;
+
+  } catch (error) {
+    console.error('Failed to initialize Cliffy:', error);
+    statusEl.textContent = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+  }
+}
+
+main();
