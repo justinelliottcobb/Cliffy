@@ -985,7 +985,242 @@ const result = await cluster.compute(
 
 ---
 
-## Phase 7: Native Mobile (Fek'lhr)
+## Phase 7: Comprehensive Documentation
+
+**Goal**: Production-quality documentation that makes Cliffy accessible to developers at all levels.
+
+### 7.1 API Reference Documentation
+
+Complete rustdoc coverage for all public APIs:
+
+```rust
+/// Comprehensive doc coverage with examples
+/// - Every public type documented
+/// - Every public function with usage examples
+/// - Error conditions documented
+/// - Performance characteristics noted
+```
+
+**Tasks**:
+- [ ] Full rustdoc coverage for cliffy-core
+- [ ] Full rustdoc coverage for cliffy-wasm
+- [ ] Full rustdoc coverage for cliffy-protocols
+- [ ] Full rustdoc coverage for cliffy-test
+- [ ] Generate and publish docs to docs.rs or custom site
+
+### 7.2 Conceptual Guides
+
+| Guide | Audience | Content |
+|-------|----------|---------|
+| Getting Started | New users | Installation, first app, basic concepts |
+| Geometric Algebra Primer | Curious developers | Intuition for GA without heavy math |
+| FRP with Cliffy | React/Vue developers | Behaviors, Events, and reactive patterns |
+| Distributed State | Backend developers | CRDTs, synchronization, convergence |
+| Algebraic TSX | Frontend developers | Components, dataflow graphs, DOM projection |
+| Testing with cliffy-test | All developers | Geometric invariants, probabilistic tests |
+
+**Tasks**:
+- [ ] Write "Getting Started" guide with step-by-step tutorial
+- [ ] Write "Geometric Algebra Primer" with visual explanations
+- [ ] Write "FRP with Cliffy" migration guide from React hooks
+- [ ] Write "Distributed State" guide with convergence proofs
+- [ ] Write "Algebraic TSX" component authoring guide
+- [ ] Write "Testing" guide with invariant examples
+
+### 7.3 Interactive Tutorials
+
+Browser-based learning experiences:
+
+```
+Tutorial 1: Build a Counter
+─────────────────────────────
+Step 1: Create a Behavior
+Step 2: Add transformations
+Step 3: Project to DOM
+Step 4: Add event handling
+[Interactive code editor with live preview]
+```
+
+**Tasks**:
+- [ ] Create tutorial infrastructure (embedded WASM playground)
+- [ ] Write "Counter" tutorial (fundamental concepts)
+- [ ] Write "Todo List" tutorial (lists, composition)
+- [ ] Write "Collaborative Whiteboard" tutorial (distributed state)
+- [ ] Write "Animation" tutorial (geometric interpolation)
+
+### 7.4 Architecture Documentation
+
+Deep dives into Cliffy's design:
+
+- **Why Geometric Algebra?** - Mathematical foundations and benefits
+- **Dataflow vs Virtual DOM** - Performance and correctness tradeoffs
+- **CRDT Design** - How geometric mean enables coordination-free merging
+- **WASM Architecture** - Rust/JS boundary design decisions
+
+**Tasks**:
+- [ ] Write architecture decision records (ADRs)
+- [ ] Create system diagrams with Mermaid
+- [ ] Document performance characteristics
+- [ ] Write troubleshooting guide
+
+### 7.5 Developer Tools Documentation
+
+- State inspector usage
+- Dataflow graph visualizer
+- Performance profiler
+- Debug logging configuration
+
+**Tasks**:
+- [ ] Document devtools installation
+- [ ] Write devtools usage guide
+- [ ] Create video walkthroughs
+
+---
+
+## Phase 8: Multi-Language Demo Examples
+
+**Goal**: Showcase Cliffy across TypeScript, JavaScript, PureScript, and CoffeeScript to demonstrate language flexibility.
+
+### 8.1 TypeScript Examples
+
+Modern TypeScript with full type safety:
+
+```typescript
+// examples/ts-counter/src/main.ts
+import { behavior, GeometricState, Rotor } from '@cliffy/core';
+
+const count = behavior<number>(0);
+const doubled = count.map(n => n * 2);
+
+count.subscribe(n => {
+    document.getElementById('count')!.textContent = String(n);
+});
+
+document.getElementById('increment')!.onclick = () => {
+    count.update(n => n + 1);
+};
+```
+
+**Examples**:
+- [ ] `ts-counter` - Basic counter with type-safe behaviors
+- [ ] `ts-todo` - TodoMVC with full typing
+- [ ] `ts-collaborative` - Real-time collaboration demo
+- [ ] `ts-animation` - Geometric interpolation showcase
+- [ ] `ts-forms` - Form validation with algebraic constraints
+
+### 8.2 JavaScript Examples
+
+Vanilla JavaScript for maximum accessibility:
+
+```javascript
+// examples/js-counter/src/main.js
+import { behavior } from '@cliffy/core';
+
+const count = behavior(0);
+
+count.subscribe(n => {
+    document.getElementById('count').textContent = n;
+});
+
+document.getElementById('increment').onclick = () => {
+    count.update(n => n + 1);
+};
+```
+
+**Examples**:
+- [ ] `js-counter` - Minimal counter
+- [ ] `js-todo` - TodoMVC without build step
+- [ ] `js-widget` - Embeddable widget pattern
+- [ ] `js-cdn` - CDN-only usage (no bundler)
+
+### 8.3 PureScript Examples
+
+Functional programming with algebraic precision:
+
+```purescript
+-- examples/ps-counter/src/Main.purs
+module Main where
+
+import Cliffy.Core (behavior, subscribe, update)
+import Effect (Effect)
+
+main :: Effect Unit
+main = do
+  count <- behavior 0
+
+  subscribe count \n ->
+    setTextContent "count" (show n)
+
+  onClick "increment" do
+    update count (_ + 1)
+```
+
+**Examples**:
+- [ ] `ps-counter` - Counter with pure functional style
+- [ ] `ps-todo` - TodoMVC with ADTs for state
+- [ ] `ps-frp` - Advanced FRP patterns (applicative, monadic)
+- [ ] `ps-validation` - Type-safe form validation
+
+### 8.4 CoffeeScript Examples
+
+Concise syntax for rapid prototyping:
+
+```coffeescript
+# examples/coffee-counter/src/main.coffee
+{behavior} = require '@cliffy/core'
+
+count = behavior 0
+
+count.subscribe (n) ->
+  document.getElementById('count').textContent = n
+
+document.getElementById('increment').onclick = ->
+  count.update (n) -> n + 1
+```
+
+**Examples**:
+- [ ] `coffee-counter` - Counter with CoffeeScript elegance
+- [ ] `coffee-todo` - TodoMVC in CoffeeScript
+- [ ] `coffee-prototype` - Rapid prototyping workflow
+
+### 8.5 Cross-Language Comparison
+
+Side-by-side comparisons showing the same app in all four languages:
+
+| Feature | TypeScript | JavaScript | PureScript | CoffeeScript |
+|---------|------------|------------|------------|--------------|
+| Type Safety | Full | Runtime | Full + ADTs | Runtime |
+| Bundle Size | Medium | Small | Medium | Small |
+| Learning Curve | Low | Lowest | Higher | Low |
+| IDE Support | Excellent | Good | Good | Fair |
+
+**Tasks**:
+- [ ] Create unified example structure
+- [ ] Write cross-language comparison guide
+- [ ] Add language-specific best practices
+- [ ] Create "Choose Your Language" guide
+
+### 8.6 Build Infrastructure
+
+Each example should be self-contained and runnable:
+
+```bash
+# All examples follow same pattern
+cd examples/ts-counter
+npm install
+npm run dev    # Development server
+npm run build  # Production build
+```
+
+**Tasks**:
+- [ ] Create example template generator
+- [ ] Add CI testing for all examples
+- [ ] Ensure examples work with latest Cliffy
+- [ ] Add example showcases to documentation site
+
+---
+
+## Phase 9: Native Mobile (Trebek)
 
 **Goal**: Algebraic UI middleware for React Native and Lynx—pure functional state machines with zero hooks.
 
@@ -1000,11 +1235,11 @@ React Native and ByteDance's Lynx framework represent the two major approaches t
 | Elements | `<View>`, `<Text>` (imported) | `<view>`, `<text>` (intrinsic) |
 | Animation | Animated/Reanimated | CSS transitions + main thread |
 
-A shared component library that tries to hide these differences behind adapters inevitably leaks. Fek'lhr takes a different approach: **parallel implementations with shared algebraic middleware**.
+A shared component library that tries to hide these differences behind adapters inevitably leaks. Trebek takes a different approach: **parallel implementations with shared algebraic middleware**.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     Fek'lhr Middleware                          │
+│                     Trebek Middleware                          │
 │  (State machines, Behaviors, Events, geometric embedding)       │
 │              100% shared, zero platform awareness               │
 └───────────────────────────┬─────────────────────────────────────┘
@@ -1029,11 +1264,11 @@ Hooks are antithetical to algebraic FRP:
 - Closure capture creates implicit state
 - Rules-of-hooks are runtime constraints, not type-level guarantees
 
-Fek'lhr uses Cliffy's `Behavior<T>` and `Event<T>` primitives directly. State lives in machines. Machines are pure data.
+Trebek uses Cliffy's `Behavior<T>` and `Event<T>` primitives directly. State lives in machines. Machines are pure data.
 
-### 7.1 FRP Primitives (from cliffy-core)
+### 9.1 FRP Primitives (from cliffy-core)
 
-Fek'lhr reuses Cliffy's FRP foundation:
+Trebek reuses Cliffy's FRP foundation:
 
 ```rust
 // Behavior<A> ≅ Time → A (continuous, always has current value)
@@ -1056,7 +1291,7 @@ impl<A> Event<A> {
 }
 ```
 
-### 7.2 State Machines as Coalgebras
+### 9.2 State Machines as Coalgebras
 
 ```rust
 /// A state machine is a coalgebra for F(X) = A × (E → X)
@@ -1086,7 +1321,7 @@ fn parallel<M1, M2>(m1: M1, m2: M2) -> ParallelMachine<M1, M2>;
 fn sequence<M1, M2>(m1: M1, m2: M2) -> SequenceMachine<M1, M2>;
 ```
 
-### 7.3 Geometric Embedding (8D UI Space)
+### 9.3 Geometric Embedding (8D UI Space)
 
 UI state embeds in an 8-dimensional Clifford algebra:
 
@@ -1127,7 +1362,7 @@ fn animate(from: GA8, to: GA8, duration: Duration) -> Behavior<GA8> {
 }
 ```
 
-### 7.4 Platform Adapters
+### 9.4 Platform Adapters
 
 ```rust
 /// Abstract interface both platforms implement
@@ -1169,7 +1404,7 @@ impl PlatformAdapter for LynxAdapter {
 }
 ```
 
-### 7.5 Component Definition
+### 9.5 Component Definition
 
 ```rust
 /// Platform-agnostic component specification
@@ -1190,7 +1425,7 @@ const COUNTER: Component<CounterProps, CounterState, CounterEvents> = Component 
 };
 ```
 
-### 7.6 View Specification
+### 9.6 View Specification
 
 ```rust
 /// Platform-agnostic view tree
@@ -1229,39 +1464,39 @@ pub enum PropValue<T> {
 
 ### Tasks
 
-**7.1 Core Middleware**
-- [ ] Create `feklhr-core` crate
+**9.1 Core Middleware**
+- [ ] Create `trebek-core` crate
 - [ ] Port `Behavior<T>` and `Event<T>` from cliffy-core (or re-export)
 - [ ] Implement `Machine` trait with coalgebraic semantics
 - [ ] Add machine composition (parallel, sequence)
 - [ ] Implement 8D geometric embedding
 
-**7.2 Platform Adapters**
+**9.2 Platform Adapters**
 - [ ] Define `PlatformAdapter` trait
 - [ ] Implement React Native adapter (TurboModules integration)
 - [ ] Implement Lynx adapter (dual-thread aware)
 - [ ] Add animation frame synchronization
 - [ ] Implement geometric interpolation per platform
 
-**7.3 View System**
+**9.3 View System**
 - [ ] Define `ViewSpec` and `ViewProps` types
 - [ ] Implement reactive prop binding
 - [ ] Add event connection system
 - [ ] Create view diffing for dynamic children (non-VDOM, structural)
 
-**7.4 TypeScript API**
+**9.4 TypeScript API**
 - [ ] Generate TypeScript types from Rust
 - [ ] Create idiomatic TS API for component definition
 - [ ] Add TSX support via build plugin (optional, not required)
 - [ ] Export platform adapters for RN and Lynx
 
-**7.5 Testing**
+**9.5 Testing**
 - [ ] Port `cliffy-test` patterns for component testing
 - [ ] Add machine property tests (transition determinism, output consistency)
 - [ ] Create geometric invariant tests for animations
 - [ ] Implement cross-platform snapshot testing
 
-**7.6 Example Components**
+**9.6 Example Components**
 - [ ] Counter (minimal state machine)
 - [ ] Toggle with animation (geometric interpolation)
 - [ ] Form with validation (composed machines)
@@ -1321,6 +1556,22 @@ pub enum PropValue<T> {
 - [ ] Example applications functional
 
 ### Phase 7
+- [ ] Full rustdoc coverage for all crates
+- [ ] Getting Started guide complete
+- [ ] Conceptual guides written for all major topics
+- [ ] Interactive tutorials functional
+- [ ] Architecture documentation with ADRs
+- [ ] Developer tools documented
+
+### Phase 8
+- [ ] TypeScript examples complete and tested
+- [ ] JavaScript examples work without bundler
+- [ ] PureScript examples demonstrate FP patterns
+- [ ] CoffeeScript examples provide concise alternatives
+- [ ] Cross-language comparison guide written
+- [ ] All examples have CI testing
+
+### Phase 9
 - [ ] Same middleware code runs on both RN and Lynx
 - [ ] Zero hooks in application code
 - [ ] State machines compose algebraically
@@ -1342,7 +1593,7 @@ pub enum PropValue<T> {
         │                                           │
         ▼                                           ▼
 ┌───────────────────────────────┐     ┌───────────────────────────────┐
-│        Algebraic TSX          │     │      Fek'lhr (Mobile)         │
+│        Algebraic TSX          │     │      Trebek (Mobile)         │
 │  (Web: dataflow → DOM)        │     │  (RN/Lynx: machines → native) │
 └───────────────────────────────┘     └───────────────────────────────┘
                               │
