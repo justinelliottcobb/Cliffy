@@ -61,6 +61,8 @@
 
 pub mod behavior;
 pub mod combinators;
+pub mod component;
+pub mod dataflow;
 pub mod event;
 pub mod geometric;
 pub mod projection;
@@ -81,6 +83,18 @@ pub use projection::{
 };
 pub use state::{GeometricState, GeometricSubscription};
 pub use transforms::{Rotor, Transform, Translation, Versor};
+
+// Re-export component types
+pub use component::{
+    component, compose, Component, ComposedComponent, Element, ElementKind, FnComponent, PropValue,
+    Props, StateSplit,
+};
+
+// Re-export dataflow types
+pub use dataflow::{
+    CombinerType, DataflowGraph, GraphBuilder, Node, NodeId, NodeKind, ProjectionSpec,
+    RotationPlane, SinkSpec, TransformType,
+};
 
 // Re-export Amari types for advanced users
 pub use amari_core::Multivector;

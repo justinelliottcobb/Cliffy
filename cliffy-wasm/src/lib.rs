@@ -16,6 +16,8 @@
 //! count.update(n => n + 1);  // Logs: Count: 1
 //! ```
 
+pub mod dom;
+
 use js_sys::Function;
 use std::cell::RefCell;
 use std::rc::Rc;
