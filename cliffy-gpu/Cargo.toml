@@ -1,0 +1,34 @@
+[package]
+name = "cliffy-gpu"
+version = "0.1.0"
+edition = "2021"
+description = "WebGPU compute shaders for geometric algebra operations"
+license = "MIT"
+
+[dependencies]
+cliffy-core = { path = "../cliffy-core" }
+amari-core = { workspace = true }
+wgpu = { version = "24.0", default-features = false, features = ["wgsl"] }
+bytemuck = { version = "1.21", features = ["derive"] }
+pollster = "0.4"
+thiserror = "2.0"
+log = "0.4"
+wide = "0.7"
+
+# WASM dependencies (optional)
+wasm-bindgen = { workspace = true, optional = true }
+wasm-bindgen-futures = { version = "0.4", optional = true }
+web-sys = { workspace = true, optional = true, features = ["Window"] }
+js-sys = { workspace = true, optional = true }
+
+[features]
+default = []
+wasm = ["wgpu/webgl", "web-sys", "wasm-bindgen", "wasm-bindgen-futures", "js-sys"]
+
+[dev-dependencies]
+criterion = { version = "0.5", features = ["html_reports"] }
+tokio = { version = "1", features = ["rt", "macros"] }
+
+[[bench]]
+name = "gpu_benchmarks"
+harness = false
