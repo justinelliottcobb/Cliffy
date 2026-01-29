@@ -1,55 +1,56 @@
 # Cliffy Examples
 
-## Status
+Production-ready examples demonstrating Cliffy's FRP + Geometric Algebra approach.
 
-All examples are currently archived pending the completion of the WASM-first architecture rebuild.
-
-The core framework (cliffy-core, cliffy-wasm) is functional, but the TypeScript integration layer has been archived for reconsideration.
-
-## Archived Examples
-
-Previous examples have been moved to `archive/`. See `archive/MIGRATION.md` for details.
+## Examples
 
 | Example | Description | Status |
 |---------|-------------|--------|
-| counter-101 | Foundation rebuild reference | Archived (depends on cliffy-typescript) |
-| basic-counter | Simple counter | Archived |
-| form-validation | Multi-field validation | Archived |
-| todo-app | TodoMVC implementation | Archived |
-| geometric-animations | Animation showcase | Archived |
-| algebraic-tsx-test | Vite plugin testing | Archived |
-| dashboard | Dashboard UI | Archived |
-| collaborative-editor | Real-time CRDT editor | Archived |
-| geometric-visualization | 3D Three.js demos | Archived |
+| **whiteboard** | Collaborative drawing with geometric strokes | In Development |
+| **multiplayer-game** | High-frequency state sync, physics via rotors | Planned |
+| **document-editor** | CRDT text operations, presence indicators | Planned |
+| **design-tool** | Shapes as GA primitives, undo/redo via versors | Planned |
 
-## Using the WASM Directly
-
-The cliffy-wasm package can be used directly with wasm-bindgen generated bindings:
+## Quick Start
 
 ```bash
-# Build WASM
-wasm-pack build cliffy-wasm --target web --out-dir pkg
+# Build WASM first
+npm run build:wasm
 
-# The pkg/ directory contains:
-# - cliffy_wasm.js      (JS bindings)
-# - cliffy_wasm.d.ts    (TypeScript types)
-# - cliffy_wasm_bg.wasm (WASM binary)
+# Install dependencies
+npm install
+
+# Run whiteboard example
+npm run dev:whiteboard
 ```
 
-```javascript
-import init, { behavior, when, combine } from './pkg/cliffy_wasm.js';
+## Shared Infrastructure
 
-await init();
+The `shared/` package provides reusable components:
 
-const count = behavior(0);
-count.subscribe(n => console.log('Count:', n));
-count.update(n => n + 1);
+- **Benchmark UI**: `BenchmarkPanel`, `MetricCard` - CPU vs GPU comparison
+- **Debug Tools**: `StateInspector`, `OperationLog` - Geometric state visualization
+- **Network Simulation**: `SimulatedPeer`, `NetworkSimulator` - Multi-user testing
+
+### BenchmarkPanel Usage
+
+```typescript
+import { BenchmarkPanel } from '@cliffy/shared';
+
+const benchmark = new BenchmarkPanel({
+  showToggle: true,        // CPU/GPU toggle
+  stressTestEnabled: true, // Stress test button
+  exportEnabled: true,     // Export results
+  onBackendChange: (useGpu) => {
+    console.log('Backend:', useGpu ? 'GPU' : 'CPU');
+  },
+});
+
+benchmark.addMetric('ops', 'Operations', 'ops/s');
+benchmark.updateMetric('ops', cpuOps, gpuOps);
+benchmark.mount(document.body);
 ```
 
-## Future Direction
+## Archived Examples
 
-New examples will be created once the architecture stabilizes. The current focus is on:
-
-1. Completing the Rust FRP core (cliffy-core)
-2. Stabilizing WASM bindings (cliffy-wasm)
-3. Determining the best approach for JavaScript/TypeScript integration
+Previous examples are in `archive/` for reference. See `archive/MIGRATION.md`.

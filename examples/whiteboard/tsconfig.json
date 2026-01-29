@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": ".",
+    "paths": {
+      "@cliffy/shared/*": ["../shared/src/*"],
+      "@cliffy/core": ["../../cliffy-wasm/pkg"],
+      "@cliffy/core/*": ["../../cliffy-wasm/pkg/*"]
+    }
+  },
+  "include": ["src/**/*", "../shared/src/**/*"]
+}
