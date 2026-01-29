@@ -112,8 +112,6 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
-          cache-dependency-path: examples/package-lock.json
 
       - name: Download WASM artifacts
         uses: actions/download-artifact@v4
@@ -123,7 +121,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: examples
-        run: npm ci
+        run: npm install
 
       - name: Type check
         working-directory: examples
