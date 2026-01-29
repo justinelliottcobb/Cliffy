@@ -1513,6 +1513,433 @@ pub enum PropValue<T> {
 
 ---
 
+## Phase 10: Living UI Revival (cliffy-alive)
+
+**Goal**: Resurrect the Living UI system where components are living cells that evolve based on user interaction, integrated with the new architecture.
+
+### Background
+
+The archived `cliffy-alive` crate implements a revolutionary paradigm: UI components as living cells in 8-dimensional geometric space. Each cell has:
+- **DNA**: Genetic traits governing behavior (energy efficiency, cooperation, mutation rate)
+- **Energy**: Metabolic system with consumption, diffusion, and death thresholds
+- **Physics**: Spatial forces, collision detection, and geometric movement
+- **Nervous System**: Signal propagation and inter-cell communication
+- **Evolution**: Selection, crossover, and mutation based on fitness
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                     Living UI Field                              │
+│                                                                 │
+│   ┌────┐  ┌────┐       ┌────┐                                   │
+│   │Cell│──│Cell│ ···   │Cell│   Cells interact via:             │
+│   │ A  │  │ B  │       │ N  │   • Energy diffusion              │
+│   └────┘  └────┘       └────┘   • Genetic affinity forces       │
+│      ↓       ↓            ↓     • Neural signaling              │
+│   ┌─────────────────────────┐   • Spatial physics               │
+│   │   Evolution Engine       │                                   │
+│   │ (Selection + Mutation)   │                                   │
+│   └─────────────────────────┘                                   │
+│              ↓                                                  │
+│   ┌─────────────────────────┐                                   │
+│   │   User Fitness Feedback  │   Interactions provide fitness   │
+│   │   (clicks, hovers, etc)  │   signals for natural selection  │
+│   └─────────────────────────┘                                   │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### 10.1 Migration to New Architecture
+
+Update `cliffy-alive` to use the refactored `cliffy-core` types:
+
+```rust
+// Before (archived): Used ReactiveMultivector<GA3>
+pub trait LivingComponent: Send + Sync {
+    fn geometric_state(&self) -> &ReactiveMultivector<GA3>;
+    // ...
+}
+
+// After: Use Phase 1's GeometricState and Phase 4's Component
+pub trait LivingComponent: Component + Send + Sync {
+    fn geometric_state(&self) -> &GeometricState;
+    fn energy_level(&self) -> f64;
+    fn step(&mut self, dt: f64);
+    fn is_alive(&self) -> bool;
+    fn dna(&self) -> &CellDNA;
+}
+```
+
+**Tasks**:
+- [ ] Move `cliffy-alive` from archive to workspace
+- [ ] Update imports to use new `cliffy-core` API
+- [ ] Replace `ReactiveMultivector` with `GeometricState`
+- [ ] Implement `Component` trait for `UICell`
+- [ ] Update tests for new API
+- [ ] Ensure 66 existing tests pass
+
+### 10.2 Integration with Component Model
+
+Living cells should compose with Phase 4's algebraic components:
+
+```rust
+/// A UICell is both a Component and a LivingComponent
+impl Component for UICell {
+    fn render(&self, state: &GA3) -> Element {
+        // Project cell's 8D state to DOM element
+        let pos = self.geometric_state().position();
+        let visual = self.geometric_state().visual_properties();
+
+        Element::tag("div")
+            .style("transform", format!("translate({}px, {}px)", pos.x, pos.y))
+            .style("opacity", visual.opacity)
+            .style("z-index", visual.z_index)
+            .children(self.render_content())
+    }
+}
+
+/// Compose living cells into organisms
+fn create_organism() -> ComposedComponent<UIOrganismField, Vec<UICell>> {
+    let field = UIOrganismField::new(config);
+    let cells = (0..100).map(|_| UICell::random()).collect();
+    compose(field, cells)
+}
+```
+
+**Tasks**:
+- [ ] Implement `Component` for `UICell`
+- [ ] Implement `Component` for `UIOrganismField`
+- [ ] Add composition with standard components
+- [ ] Create hybrid examples (living + static components)
+
+### 10.3 8D Geometric Embedding
+
+The 8-dimensional state space maps directly to CSS properties:
+
+| Dimension | Basis | CSS Property | Range |
+|-----------|-------|--------------|-------|
+| 1 | e₁ | `left` / `translateX` | pixels |
+| 2 | e₂ | `top` / `translateY` | pixels |
+| 3 | e₃ | `width` | pixels |
+| 4 | e₄ | `height` | pixels |
+| 5 | e₅ | `z-index` | integer |
+| 6 | e₆ | `opacity` | [0, 1] |
+| 7 | e₇ | `rotate` | degrees |
+| 8 | e₈ | `scale` | factor |
+
+```rust
+/// Project 8D state to CSS
+impl UICell {
+    pub fn to_css(&self) -> CSSProperties {
+        let mv = self.geometric_state().multivector();
+        CSSProperties {
+            transform: format!(
+                "translate({}px, {}px) rotate({}deg) scale({})",
+                mv.component(1), mv.component(2),
+                mv.component(7), mv.component(8)
+            ),
+            width: format!("{}px", mv.component(3)),
+            height: format!("{}px", mv.component(4)),
+            z_index: mv.component(5) as i32,
+            opacity: mv.component(6).clamp(0.0, 1.0),
+        }
+    }
+}
+```
+
+**Tasks**:
+- [ ] Define GA8 type alias in cliffy-core
+- [ ] Implement 8D → CSS projection
+- [ ] Add geometric interpolation for smooth animations
+- [ ] Create SLERP-based cell movement
+
+### 10.4 Evolution Engine Refinement
+
+Enhance the genetic algorithm with geometric fitness:
+
+```rust
+/// Fitness is a geometric distance in behavior space
+pub struct FitnessFunction {
+    /// Target behavior manifold
+    target_manifold: Manifold<GA8>,
+    /// Weight different aspects
+    weights: FitnessWeights,
+}
+
+impl FitnessFunction {
+    pub fn evaluate(&self, cell: &UICell, interactions: &[UserInteraction]) -> f64 {
+        // Geometric distance from ideal behavior
+        let behavior_state = cell.encode_behavior();
+        let manifold_distance = self.target_manifold.distance_to(&behavior_state);
+
+        // User interaction fitness
+        let interaction_fitness = interactions.iter()
+            .filter(|i| i.target == cell.id())
+            .map(|i| i.fitness_contribution())
+            .sum::<f64>();
+
+        // Combined fitness (lower distance = higher fitness)
+        self.weights.manifold * (1.0 / (1.0 + manifold_distance))
+            + self.weights.interaction * interaction_fitness
+    }
+}
+```
+
+**Tasks**:
+- [ ] Implement geometric fitness functions
+- [ ] Add manifold-based selection pressure
+- [ ] Create fitness visualization tools
+- [ ] Benchmark evolution performance
+
+### 10.5 WASM Bindings
+
+Expose Living UI to JavaScript:
+
+```typescript
+// JavaScript API
+import { UIOrganismField, UICell, EvolutionConfig } from '@cliffy/alive';
+
+const field = new UIOrganismField({
+    dimensions: [800, 600],
+    initialCells: 50,
+    evolution: {
+        mutationRate: 0.01,
+        selectionPressure: 0.5,
+    }
+});
+
+// Mount to DOM
+field.mount(document.getElementById('container'));
+
+// Start the living simulation
+field.start();
+
+// Provide fitness feedback
+document.addEventListener('click', (e) => {
+    const cell = field.cellAt(e.clientX, e.clientY);
+    if (cell) {
+        cell.addFitness(1.0); // Reward clicked cells
+    }
+});
+```
+
+**Tasks**:
+- [ ] Add `#[wasm_bindgen]` to core types
+- [ ] Create `UIOrganismField` JavaScript API
+- [ ] Add DOM mounting and unmounting
+- [ ] Implement fitness feedback API
+- [ ] Create TypeScript type definitions
+
+### 10.6 Living UI Examples
+
+Demonstrate the paradigm with compelling examples:
+
+| Example | Description |
+|---------|-------------|
+| `alive-garden` | Cells grow and evolve like plants, user attention is sunlight |
+| `alive-dashboard` | Dashboard widgets that reorganize based on usage patterns |
+| `alive-navigation` | Menu items that evolve prominence based on click frequency |
+| `alive-forms` | Form fields that adapt layout to user behavior |
+
+**Tasks**:
+- [ ] Create `examples/alive-garden`
+- [ ] Create `examples/alive-dashboard`
+- [ ] Create `examples/alive-navigation`
+- [ ] Create `examples/alive-forms`
+- [ ] Add interactive playground
+
+---
+
+## Phase 11: Component Library (cliffy-components)
+
+**Goal**: A standard library of geometric components built on Phase 4's foundation, optionally integrating with Living UI.
+
+### 11.1 Core Components
+
+Standard UI primitives with geometric state:
+
+```rust
+/// Button with geometric state for animations
+pub struct Button {
+    label: Behavior<String>,
+    disabled: Behavior<bool>,
+    // 8D state: position, size, opacity, scale for hover/press
+    state: GeometricState,
+}
+
+impl Component for Button {
+    fn render(&self, state: &GA3) -> Element {
+        Element::tag("button")
+            .class("cliffy-button")
+            .class_if("disabled", self.disabled.sample())
+            .style("transform", self.state.to_transform())
+            .text(&self.label.sample())
+            .on("click", self.on_click.clone())
+    }
+}
+```
+
+**Components**:
+- [ ] `Button` - Click target with press/hover states
+- [ ] `Input` - Text input with validation state
+- [ ] `Select` - Dropdown with geometric transitions
+- [ ] `Checkbox` / `Radio` - Toggle controls
+- [ ] `Slider` - Range input with geometric thumb
+- [ ] `Modal` - Overlay with geometric entry/exit
+- [ ] `Tooltip` - Positioned overlay
+- [ ] `Tabs` - Tab navigation with transitions
+
+### 11.2 Layout Components
+
+Geometric layout primitives:
+
+```rust
+/// Flexbox-like layout with geometric spacing
+pub struct Stack {
+    direction: Behavior<Direction>,
+    spacing: Behavior<f64>,
+    children: Vec<Element>,
+}
+
+/// Grid layout with geometric cell sizing
+pub struct Grid {
+    columns: Behavior<usize>,
+    gap: Behavior<f64>,
+    children: Vec<Element>,
+}
+
+/// Absolute positioning in geometric space
+pub struct Canvas {
+    children: Vec<(GeometricState, Element)>,
+}
+```
+
+**Components**:
+- [ ] `Stack` - Vertical/horizontal stacking
+- [ ] `Grid` - Grid layout
+- [ ] `Canvas` - Absolute positioning
+- [ ] `Scroll` - Scrollable container
+- [ ] `Split` - Resizable split panes
+
+### 11.3 Data Display Components
+
+Components for displaying data:
+
+```rust
+/// Table with geometric row animations
+pub struct Table<T> {
+    data: Behavior<Vec<T>>,
+    columns: Vec<Column<T>>,
+    row_key: fn(&T) -> String,
+}
+
+/// List with geometric item transitions
+pub struct List<T> {
+    items: Behavior<Vec<T>>,
+    render_item: fn(&Behavior<T>) -> Element,
+    item_key: fn(&T) -> String,
+}
+```
+
+**Components**:
+- [ ] `Table` - Tabular data with sorting
+- [ ] `List` - Dynamic lists with transitions
+- [ ] `Tree` - Hierarchical data
+- [ ] `Chart` - Basic charts (bar, line, pie)
+- [ ] `Badge` - Status indicators
+
+### 11.4 Form Components
+
+Form handling with geometric validation:
+
+```rust
+/// Form with geometric validation feedback
+pub struct Form {
+    fields: Vec<FormField>,
+    validation: ValidationState,
+    on_submit: Event<FormData>,
+}
+
+/// Validation state as geometric distance from valid manifold
+pub struct ValidationState {
+    /// 0 = valid, >0 = distance from validity
+    error_distance: Behavior<f64>,
+    /// Error messages projected from validation manifold
+    errors: Behavior<Vec<ValidationError>>,
+}
+```
+
+**Components**:
+- [ ] `Form` - Form container with validation
+- [ ] `FormField` - Labeled input wrapper
+- [ ] `ValidationMessage` - Error display
+- [ ] `FormActions` - Submit/cancel buttons
+
+### 11.5 Living Component Variants
+
+Optional living versions of standard components:
+
+```rust
+/// A button that evolves based on user interaction
+pub struct LivingButton {
+    base: Button,
+    cell: UICell,
+}
+
+impl LivingComponent for LivingButton {
+    fn step(&mut self, dt: f64) {
+        self.cell.step(dt);
+        // Cell state influences button appearance
+        let energy = self.cell.energy_level();
+        self.base.state.set_scale(1.0 + energy * 0.1);
+    }
+}
+```
+
+**Components**:
+- [ ] `LivingButton` - Evolving button
+- [ ] `LivingList` - Items compete for space
+- [ ] `LivingNavigation` - Adaptive menu
+- [ ] `LivingDashboard` - Self-organizing widgets
+
+### 11.6 Theming System
+
+Geometric theming with smooth transitions:
+
+```rust
+/// Theme as a point in color/spacing geometric space
+pub struct Theme {
+    /// Color palette as points in color space
+    colors: ColorPalette,
+    /// Spacing scale
+    spacing: SpacingScale,
+    /// Typography scale
+    typography: TypographyScale,
+    /// Animation curves as geometric paths
+    animations: AnimationCurves,
+}
+
+/// Switch themes via geometric interpolation
+pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavior<Theme> {
+    // SLERP through theme space for smooth transition
+}
+```
+
+**Tasks**:
+- [ ] Define theme structure
+- [ ] Implement theme context
+- [ ] Add geometric theme transitions
+- [ ] Create default light/dark themes
+- [ ] Add theme customization API
+
+### Dependencies
+
+| Crate | Purpose |
+|-------|---------|
+| `cliffy-core` | FRP primitives, Component trait |
+| `cliffy-wasm` | DOM projection |
+| `cliffy-alive` | Living component variants (optional) |
+
+---
+
 ## Success Criteria
 
 ### Phase 0
@@ -1579,6 +2006,22 @@ pub enum PropValue<T> {
 - [ ] TypeScript API feels idiomatic
 - [ ] Performance matches or exceeds hooks-based equivalent
 
+### Phase 10
+- [ ] cliffy-alive migrated to new architecture
+- [ ] All 66 existing tests pass
+- [ ] UICell implements Component trait
+- [ ] 8D geometric embedding working
+- [ ] WASM bindings functional
+- [ ] Living UI examples demonstrate paradigm
+
+### Phase 11
+- [ ] Core component set implemented
+- [ ] Layout components working
+- [ ] Form components with validation
+- [ ] Living component variants available
+- [ ] Theming system with geometric transitions
+- [ ] Component documentation complete
+
 ---
 
 ## Architecture Summary
@@ -1589,13 +2032,20 @@ pub enum PropValue<T> {
 │  (Collaborative Docs, Games, Design Tools, Whiteboards)         │
 └─────────────────────────────────────────────────────────────────┘
                               │
-        ┌─────────────────────┴─────────────────────┐
-        │                                           │
-        ▼                                           ▼
-┌───────────────────────────────┐     ┌───────────────────────────────┐
-│        Algebraic TSX          │     │      Trebek (Mobile)         │
-│  (Web: dataflow → DOM)        │     │  (RN/Lynx: machines → native) │
-└───────────────────────────────┘     └───────────────────────────────┘
+        ┌─────────────────────┼─────────────────────┐
+        │                     │                     │
+        ▼                     ▼                     ▼
+┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+│  Algebraic TSX  │   │   Living UI     │   │ Trebek (Mobile) │
+│  (dataflow→DOM) │   │ (cells→evolve)  │   │ (machines→nat.) │
+└─────────────────┘   └─────────────────┘   └─────────────────┘
+        │                     │                     │
+        └─────────────────────┼─────────────────────┘
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                    Component Library                             │
+│  (Button, Input, List, Table, Form, Layout, Living variants)    │
+└─────────────────────────────────────────────────────────────────┘
                               │
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Synchronization Layer                         │
