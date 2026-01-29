@@ -21,6 +21,30 @@ All state transformations are geometric operations in Clifford algebra:
 - Resolution = geometric mean (closed-form, always converges)
 - Composition = geometric product (associative)
 
+## Release Milestones
+
+| Version | Phase | Milestone | Description |
+|---------|-------|-----------|-------------|
+| **0.1.0** | Phase 8 | First Public Release | Core framework with documentation and multi-language examples |
+| **0.2.0** | Phase 9 | Mobile Support | Trebek middleware for React Native and Lynx |
+| **0.3.0** | Phase 10 | Living UI | Evolutionary UI with cliffy-alive integration |
+| **0.4.0** | Phase 11 | Component Library | Standard component set with living variants |
+
+### Pre-release Phases (0.0.x)
+
+Phases 0-7 are internal development milestones leading to the first public release:
+
+| Phase | Focus |
+|-------|-------|
+| Phase 0 | Algebraic Testing Framework |
+| Phase 1 | Geometric State Foundation |
+| Phase 2 | Distributed State (CRDT) |
+| Phase 3 | Synchronization Layer |
+| Phase 4 | Algebraic TSX Components |
+| Phase 5 | Edge Computing (WebGPU) |
+| Phase 6 | Production Readiness |
+| Phase 7 | Comprehensive Documentation |
+
 ## Current State
 
 ### Working Crates
@@ -1077,9 +1101,11 @@ Deep dives into Cliffy's design:
 
 ---
 
-## Phase 8: Multi-Language Demo Examples
+## Phase 8: Multi-Language Demo Examples → v0.1.0
 
 **Goal**: Showcase Cliffy across TypeScript, JavaScript, PureScript, and CoffeeScript to demonstrate language flexibility.
+
+**🎯 Milestone: First Public Release (v0.1.0)**
 
 ### 8.1 TypeScript Examples
 
@@ -1220,9 +1246,11 @@ npm run build  # Production build
 
 ---
 
-## Phase 9: Native Mobile (Trebek)
+## Phase 9: Native Mobile (Trebek) → v0.2.0
 
 **Goal**: Algebraic UI middleware for React Native and Lynx—pure functional state machines with zero hooks.
+
+**🎯 Milestone: Mobile Support (v0.2.0)**
 
 ### Motivation
 
@@ -1513,9 +1541,11 @@ pub enum PropValue<T> {
 
 ---
 
-## Phase 10: Living UI Revival (cliffy-alive)
+## Phase 10: Living UI Revival (cliffy-alive) → v0.3.0
 
 **Goal**: Resurrect the Living UI system where components are living cells that evolve based on user interaction, integrated with the new architecture.
+
+**🎯 Milestone: Living UI (v0.3.0)**
 
 ### Background
 
@@ -1748,9 +1778,11 @@ Demonstrate the paradigm with compelling examples:
 
 ---
 
-## Phase 11: Component Library (cliffy-components)
+## Phase 11: Component Library (cliffy-components) → v0.4.0
 
 **Goal**: A standard library of geometric components built on Phase 4's foundation, optionally integrating with Living UI.
+
+**🎯 Milestone: Component Library (v0.4.0)**
 
 ### 11.1 Core Components
 
@@ -1990,37 +2022,41 @@ pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavio
 - [ ] Architecture documentation with ADRs
 - [ ] Developer tools documented
 
-### Phase 8
+### Phase 8 → v0.1.0 (First Public Release)
 - [ ] TypeScript examples complete and tested
 - [ ] JavaScript examples work without bundler
 - [ ] PureScript examples demonstrate FP patterns
 - [ ] CoffeeScript examples provide concise alternatives
 - [ ] Cross-language comparison guide written
 - [ ] All examples have CI testing
+- [ ] **Release**: Publish `@cliffy/core` v0.1.0 to npm
 
-### Phase 9
+### Phase 9 → v0.2.0 (Mobile Support)
 - [ ] Same middleware code runs on both RN and Lynx
 - [ ] Zero hooks in application code
 - [ ] State machines compose algebraically
 - [ ] Animations use geometric interpolation
 - [ ] TypeScript API feels idiomatic
 - [ ] Performance matches or exceeds hooks-based equivalent
+- [ ] **Release**: Publish `@cliffy/trebek` v0.2.0 to npm
 
-### Phase 10
+### Phase 10 → v0.3.0 (Living UI)
 - [ ] cliffy-alive migrated to new architecture
 - [ ] All 66 existing tests pass
 - [ ] UICell implements Component trait
 - [ ] 8D geometric embedding working
 - [ ] WASM bindings functional
 - [ ] Living UI examples demonstrate paradigm
+- [ ] **Release**: Publish `@cliffy/alive` v0.3.0 to npm
 
-### Phase 11
+### Phase 11 → v0.4.0 (Component Library)
 - [ ] Core component set implemented
 - [ ] Layout components working
 - [ ] Form components with validation
 - [ ] Living component variants available
 - [ ] Theming system with geometric transitions
 - [ ] Component documentation complete
+- [ ] **Release**: Publish `@cliffy/components` v0.4.0 to npm
 
 ---
 
