@@ -269,6 +269,7 @@ dependencies = [
  "bytemuck",
  "cliffy-core",
  "criterion",
+ "js-sys",
  "log",
  "pollster",
  "thiserror 2.0.18",
@@ -277,6 +278,7 @@ dependencies = [
  "wasm-bindgen-futures",
  "web-sys",
  "wgpu",
+ "wide",
 ]
 
 [[package]]

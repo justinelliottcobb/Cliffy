@@ -1,33 +1,40 @@
 //! # Cliffy GPU
 //!
-//! WebGPU compute shaders for geometric algebra operations.
+//! WebGPU compute shaders and SIMD-optimized CPU operations for geometric algebra.
 //!
-//! This crate provides GPU-accelerated geometric algebra operations using WebGPU,
-//! enabling massive parallel computation for UI state transformations.
+//! This crate provides hardware-accelerated geometric algebra operations using:
+//! - **WebGPU**: Massive parallel computation on GPU
+//! - **SIMD**: CPU-optimized operations using portable SIMD intrinsics
 //!
 //! ## Overview
 //!
 //! Every browser becomes a compute node with cliffy-gpu:
 //!
 //! ```ignore
-//! use cliffy_gpu::{GpuContext, GpuMultivector};
+//! use cliffy_gpu::{GpuContext, GpuMultivector, AutoDispatcher};
 //! use cliffy_core::GA3;
 //!
-//! // Initialize GPU context
-//! let ctx = GpuContext::new().await?;
+//! // Initialize auto dispatcher (chooses GPU or SIMD-CPU based on batch size)
+//! let dispatcher = AutoDispatcher::new().await;
 //!
-//! // Batch geometric products on GPU
+//! // Batch geometric products - automatically dispatched
 //! let a_batch: Vec<GA3> = vec![...];
 //! let b_batch: Vec<GA3> = vec![...];
-//! let results = ctx.batch_geometric_product(&a_batch, &b_batch).await?;
+//! let results = dispatcher.geometric_product(&a_batch, &b_batch).await?;
 //! ```
 //!
 //! ## Features
 //!
 //! - **Batch Operations**: Process thousands of multivectors in parallel
 //! - **Auto Dispatch**: Automatic CPU/GPU selection based on batch size
+//! - **SIMD Fallback**: Optimized CPU operations when GPU unavailable
 //! - **WASM Support**: Works in browsers with WebGPU
 //! - **Compute Shaders**: WGSL shaders for geometric product, sandwich, exp, slerp
+
+pub mod simd;
+
+#[cfg(feature = "wasm")]
+pub mod wasm;
 
 use bytemuck::{Pod, Zeroable};
 use std::borrow::Cow;
@@ -36,6 +43,10 @@ use thiserror::Error;
 use wgpu::util::DeviceExt;
 
 use cliffy_core::GA3;
+pub use simd::{addition_simd, geometric_product_simd, sandwich_simd, SimdBatch};
+
+#[cfg(feature = "wasm")]
+pub use wasm::*;
 
 /// Errors that can occur during GPU operations.
 #[derive(Error, Debug)]
@@ -521,7 +532,10 @@ impl GpuContext {
     }
 }
 
-/// Automatic dispatcher that chooses CPU or GPU based on batch size.
+/// Automatic dispatcher that chooses CPU (SIMD) or GPU based on batch size.
+///
+/// For small batches (< threshold), SIMD-optimized CPU operations are used.
+/// For large batches (>= threshold), GPU compute shaders are used.
 pub struct AutoDispatcher {
     gpu_ctx: Option<GpuContext>,
     threshold: usize,
@@ -543,12 +557,27 @@ impl AutoDispatcher {
         Self { gpu_ctx, threshold }
     }
 
+    /// Create a CPU-only dispatcher (no GPU).
+    pub fn cpu_only() -> Self {
+        Self {
+            gpu_ctx: None,
+            threshold: GPU_DISPATCH_THRESHOLD,
+        }
+    }
+
     /// Check if GPU is available.
     pub fn has_gpu(&self) -> bool {
         self.gpu_ctx.is_some()
     }
 
+    /// Get the current dispatch threshold.
+    pub fn threshold(&self) -> usize {
+        self.threshold
+    }
+
     /// Batch geometric product with automatic dispatch.
+    ///
+    /// Uses GPU for large batches, SIMD-optimized CPU for small batches.
     pub async fn geometric_product(&self, a: &[GA3], b: &[GA3]) -> Result<Vec<GA3>, GpuError> {
         if let Some(ref ctx) = self.gpu_ctx {
             if a.len() >= self.threshold {
@@ -556,7 +585,7 @@ impl AutoDispatcher {
             }
         }
 
-        // CPU fallback
+        // SIMD-optimized CPU fallback
         if a.len() != b.len() {
             return Err(GpuError::BufferSizeMismatch {
                 expected: a.len(),
@@ -564,13 +593,15 @@ impl AutoDispatcher {
             });
         }
 
-        Ok(a.iter()
-            .zip(b.iter())
-            .map(|(a, b)| a.geometric_product(b))
-            .collect())
+        let a_gpu = SimdBatch::from_ga3(a);
+        let b_gpu = SimdBatch::from_ga3(b);
+        let result = SimdBatch::geometric_product(&a_gpu, &b_gpu);
+        Ok(SimdBatch::to_ga3(&result))
     }
 
     /// Batch addition with automatic dispatch.
+    ///
+    /// Uses GPU for large batches, SIMD-optimized CPU for small batches.
     pub async fn addition(&self, a: &[GA3], b: &[GA3]) -> Result<Vec<GA3>, GpuError> {
         if let Some(ref ctx) = self.gpu_ctx {
             if a.len() >= self.threshold {
@@ -578,7 +609,7 @@ impl AutoDispatcher {
             }
         }
 
-        // CPU fallback
+        // SIMD-optimized CPU fallback
         if a.len() != b.len() {
             return Err(GpuError::BufferSizeMismatch {
                 expected: a.len(),
@@ -586,7 +617,74 @@ impl AutoDispatcher {
             });
         }
 
-        Ok(a.iter().zip(b.iter()).map(|(a, b)| a.add(b)).collect())
+        let a_gpu = SimdBatch::from_ga3(a);
+        let b_gpu = SimdBatch::from_ga3(b);
+        let result = SimdBatch::addition(&a_gpu, &b_gpu);
+        Ok(SimdBatch::to_ga3(&result))
+    }
+
+    /// Batch sandwich product with automatic dispatch.
+    ///
+    /// Uses GPU for large batches, SIMD-optimized CPU for small batches.
+    pub async fn sandwich(&self, rotors: &[GA3], vectors: &[GA3]) -> Result<Vec<GA3>, GpuError> {
+        if let Some(ref ctx) = self.gpu_ctx {
+            if rotors.len() >= self.threshold {
+                return ctx.batch_sandwich(rotors, vectors).await;
+            }
+        }
+
+        // SIMD-optimized CPU fallback
+        if rotors.len() != vectors.len() {
+            return Err(GpuError::BufferSizeMismatch {
+                expected: rotors.len(),
+                actual: vectors.len(),
+            });
+        }
+
+        let rotors_gpu = SimdBatch::from_ga3(rotors);
+        let vectors_gpu = SimdBatch::from_ga3(vectors);
+        let result = SimdBatch::sandwich(&rotors_gpu, &vectors_gpu);
+        Ok(SimdBatch::to_ga3(&result))
+    }
+
+    /// Batch exponential with automatic dispatch.
+    ///
+    /// Uses GPU for large batches, SIMD-optimized CPU for small batches.
+    pub async fn exp(&self, a: &[GA3]) -> Result<Vec<GA3>, GpuError> {
+        if let Some(ref ctx) = self.gpu_ctx {
+            if a.len() >= self.threshold {
+                return ctx.batch_exp(a).await;
+            }
+        }
+
+        // SIMD-optimized CPU fallback
+        let a_gpu = SimdBatch::from_ga3(a);
+        let result = SimdBatch::exp(&a_gpu);
+        Ok(SimdBatch::to_ga3(&result))
+    }
+
+    /// Batch rotor SLERP with automatic dispatch.
+    ///
+    /// Uses GPU for large batches, SIMD-optimized CPU for small batches.
+    pub async fn rotor_slerp(&self, a: &[GA3], b: &[GA3], t: f32) -> Result<Vec<GA3>, GpuError> {
+        if let Some(ref ctx) = self.gpu_ctx {
+            if a.len() >= self.threshold {
+                return ctx.batch_rotor_slerp(a, b, t).await;
+            }
+        }
+
+        // SIMD-optimized CPU fallback
+        if a.len() != b.len() {
+            return Err(GpuError::BufferSizeMismatch {
+                expected: a.len(),
+                actual: b.len(),
+            });
+        }
+
+        let a_gpu = SimdBatch::from_ga3(a);
+        let b_gpu = SimdBatch::from_ga3(b);
+        let result = SimdBatch::rotor_slerp(&a_gpu, &b_gpu, t);
+        Ok(SimdBatch::to_ga3(&result))
     }
 }
 
@@ -630,9 +728,10 @@ mod tests {
     }
 
     #[test]
-    fn test_should_use_gpu() {
-        // Can't test actual GPU without async runtime,
-        // but we can test the threshold logic
-        assert!(GPU_DISPATCH_THRESHOLD > 0);
+    fn test_dispatch_threshold() {
+        // Test AutoDispatcher CPU-only mode
+        let dispatcher = AutoDispatcher::cpu_only();
+        assert!(!dispatcher.has_gpu());
+        assert_eq!(dispatcher.threshold(), GPU_DISPATCH_THRESHOLD);
     }
 }
