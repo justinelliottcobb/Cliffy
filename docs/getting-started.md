@@ -320,8 +320,11 @@ let (x, y, z) = translated.as_vector();
 
 - Read the [FRP Guide](./frp-guide.md) for reactive patterns
 - Explore the [Geometric Algebra Primer](./geometric-algebra-primer.md)
+- Learn the [Algebraic TSX Guide](./algebraic-tsx-guide.md) for component model
+- Understand [Distributed State](./distributed-state-guide.md) for CRDTs
+- Write tests with the [Testing Guide](./testing-guide.md)
 - Check out the [examples](../examples/) for complete applications
-- See the [API Reference](https://docs.rs/cliffy-core) for full documentation
+- See the [Architecture docs](./architecture/) for design decisions
 
 ## Key Differences from React/Redux
 
