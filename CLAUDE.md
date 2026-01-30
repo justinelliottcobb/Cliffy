@@ -17,14 +17,25 @@ All state transformations are geometric operations in Clifford algebra:
 ### What Developers See vs What Happens
 
 ```typescript
-// What developers write (familiar API):
+// What developers write (Algebraic TSX):
+import { behavior } from 'cliffy-wasm';
+import { html, mount } from 'cliffy-wasm/html';
+
 const count = behavior(0);
-count.subscribe(n => console.log('Count:', n));
-count.update(n => n + 1);
+
+const app = html`
+  <div class="counter">
+    <span>Count: ${count}</span>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+  </div>
+`;
+
+mount(app, '#app');
 
 // What actually happens (hidden from users):
 // - Value stored as GA3 multivector in Rust/WASM
 // - Updates are geometric transformations
+// - DOM updates via subscription (no virtual DOM)
 // - Conflicts resolve via geometric mean
 // - Distributed sync uses lattice join
 ```
@@ -77,12 +88,20 @@ count.update(n => n + 1);
 
 | Crate | Tests | Description |
 |-------|-------|-------------|
-| `cliffy-core` | 29 | FRP primitives (Behavior, Event) with GA3 internally |
-| `cliffy-wasm` | 0 | WASM bindings via wasm-bindgen |
+| `cliffy-core` | 79 | FRP primitives (Behavior, Event) with GA3 internally |
+| `cliffy-wasm` | - | WASM bindings + html.ts (Algebraic TSX) |
+| `cliffy-purescript` | - | PureScript bindings with type-safe Html DSL |
+| `cliffy-protocols` | 42 | Distributed state (CRDT, sync, storage) |
+| `cliffy-test` | 25 | Geometric testing framework |
+| `cliffy-gpu` | 18 | WebGPU acceleration (SIMD fallback) |
+| `cliffy-loadtest` | 15 | Scale testing simulator |
 
-### Archived (to be revived per roadmap)
+### Scaffolding
 
-- `cliffy-protocols` — CRDT + consensus (Phase 2)
+- `tools/create-cliffy` — CLI to scaffold new projects (`npx create-cliffy`)
+
+### Archived
+
 - `cliffy-alive` — Living UI / cellular automata
 - `cliffy-typescript` — Deprecated by WASM-first approach
 
@@ -140,17 +159,19 @@ pub fn parallel_geometric_mean(states: &[GA3]) -> GA3 {
 ## Build Commands
 
 ```bash
-# Build
-cargo build -p cliffy-core
-cargo build -p cliffy-wasm
-wasm-pack build cliffy-wasm --target web --out-dir pkg
+# Build WASM package (includes html.ts)
+npm run build                   # wasm-pack + post-build
+npm run build:release           # Optimized release build
 
 # Test
-cargo test --workspace          # 29 tests
-cargo test --doc                # 10 doctests
+cargo test --workspace          # 179 tests
+cargo test --doc                # 30 doctests
 
 # Development
 npm run dev                     # cargo watch + rebuild WASM
+
+# Scaffold new project
+npx create-cliffy my-app --template typescript-vite
 ```
 
 ## Classical FRP (Not React Hooks)
@@ -191,6 +212,58 @@ clicks.map(e => e.clientX);                  // Transform
 clicks.filter(e => e.button === 0);          // Filter
 clicks.fold(0, (acc, _) => acc + 1);         // Accumulate into Behavior
 ```
+
+## Algebraic TSX (Rendering)
+
+Cliffy uses **Algebraic TSX** for rendering - Behaviors in templates automatically update the DOM without virtual DOM diffing.
+
+### TypeScript: html`` Tagged Template
+
+```typescript
+import { behavior } from 'cliffy-wasm';
+import { html, mount } from 'cliffy-wasm/html';
+
+const count = behavior(0);
+const label = behavior('Clicks');
+
+// Behaviors in ${} automatically subscribe and update DOM
+const app = html`
+  <div class="counter">
+    <h1>${label}: ${count}</h1>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+    <button onclick=${() => count.update(n => n - 1)}>-</button>
+  </div>
+`;
+
+// Returns cleanup function
+const cleanup = mount(app, '#app');
+```
+
+### PureScript: Type-Safe Html DSL
+
+```purescript
+import Cliffy (behavior, update)
+import Cliffy.Html (div, h1_, button, text, behaviorText, mount)
+import Cliffy.Html.Attributes (className)
+import Cliffy.Html.Events (onClick)
+
+counter :: Effect Html
+counter = do
+  count <- behavior 0
+
+  pure $ div [ className "counter" ]
+    [ h1_ [ text "Clicks: ", behaviorText count ]
+    , button [ onClick \_ -> update (_ + 1) count ] [ text "+" ]
+    , button [ onClick \_ -> update (_ - 1) count ] [ text "-" ]
+    ]
+```
+
+### Key Principles
+
+- **No Virtual DOM**: Behaviors subscribe directly to DOM nodes
+- **Automatic Cleanup**: `mount()` returns cleanup function for subscriptions
+- **Composable**: Nest `html` templates or create component functions
+- **Type-Safe**: PureScript DSL catches attribute/event errors at compile time
 
 ## Roadmap
 
@@ -243,7 +316,12 @@ main (stable)
 | `cliffy-core/src/combinators.rs` | when, combine, if_else |
 | `cliffy-core/src/geometric.rs` | GA conversion (internal) |
 | `cliffy-wasm/src/lib.rs` | WASM exports |
+| `cliffy-wasm/src/html.ts` | Algebraic TSX tagged template |
+| `cliffy-purescript/src/Cliffy.purs` | PureScript FRP primitives |
+| `cliffy-purescript/src/Cliffy/Html.purs` | Type-safe Html DSL |
+| `tools/create-cliffy/` | Project scaffolding CLI |
 | `ROADMAP.md` | Full development roadmap |
+| `BACKLOG.md` | Technical debt and planned work |
 
 ## Remember
 
