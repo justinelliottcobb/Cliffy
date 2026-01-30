@@ -19,7 +19,7 @@ export default defineConfig(({ mode }) => {
 
     resolve: {
       alias: {
-        '@cliffy/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
+        '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
         '@cliffy/shared': resolve(__dirname, '../shared/src'),
       },
     },

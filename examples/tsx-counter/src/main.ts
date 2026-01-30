@@ -9,8 +9,8 @@
  * - Conditional CSS classes
  */
 
-import init, { behavior, combine } from '@cliffy/core';
-import { html, mount, initHtml } from '@cliffy/html';
+import init, { behavior, combine } from '@cliffy-ga/core';
+import { html, mount } from '@cliffy-ga/core/html';
 
 async function main() {
   // Initialize WASM module

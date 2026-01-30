@@ -10,8 +10,8 @@
  * - Conditional UI based on validation state
  */
 
-import init, { behavior, combine } from '@cliffy/core';
-import { html, mount } from '@cliffy/html';
+import init, { behavior, combine } from '@cliffy-ga/core';
+import { html, mount } from '@cliffy-ga/core/html';
 
 // Validation result type
 interface ValidationResult {
