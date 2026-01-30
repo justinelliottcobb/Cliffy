@@ -98,6 +98,10 @@ count.set(10);
 console.log(doubled.sample());  // 20 - Automatically updated!
 ```
 
+> **Note:** `Behavior.map()` is not the same as `Array.map()`. It's a functor operation that creates a new Behavior which stays synchronized with the source. The transform function is called whenever the source changes, not once over a collection. This follows classical FRP semantics where Behaviors are functors, and `map` lifts a pure function into the reactive context.
+>
+> This is also a target for future optimization—the reactive graph can potentially batch, memoize, or even compile chains of `map` operations.
+
 ### Combining Behaviors
 
 Combine multiple behaviors into one:
