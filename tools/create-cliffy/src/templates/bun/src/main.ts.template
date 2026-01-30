@@ -1,22 +1,20 @@
 /**
  * {{projectName}} - A Cliffy reactive application (Bun)
  *
- * This example demonstrates the core FRP primitives:
+ * This example demonstrates Algebraic TSX - Cliffy's declarative UI approach:
+ * - html`...` tagged template for reactive DOM creation
  * - Behavior: A time-varying value (the counter)
- * - Event: Discrete occurrences (button clicks)
- * - Combinators: Transforming and combining reactive values
+ * - Automatic DOM updates when Behaviors change
  *
  * Running with Bun provides faster startup and native TypeScript support.
  */
 
-import init, { Behavior, Event, behavior, event, combine } from '@cliffy/core';
+import init, { Behavior } from '@cliffy/core';
+import { html, mount } from './html';
 
-// Initialize WASM module
+// Initialize WASM module and render the app
 async function main() {
-  const statusEl = document.getElementById('status')!;
-  const countEl = document.getElementById('count')!;
-  const incrementBtn = document.getElementById('increment')!;
-  const decrementBtn = document.getElementById('decrement')!;
+  const errorEl = document.getElementById('error');
 
   try {
     // Initialize the Cliffy WASM module
@@ -26,31 +24,31 @@ async function main() {
     // Behavior<number> represents a time-varying numeric value
     const count = new Behavior(0);
 
-    // Subscribe to count changes to update the DOM
-    count.subscribe((value: number) => {
-      countEl.textContent = String(value);
-    });
+    // Create the UI using Algebraic TSX
+    // Behaviors in the template automatically update the DOM when they change
+    const app = html`
+      <div class="app">
+        <h1>{{projectName}}</h1>
+        <p>A Cliffy reactive application (Bun runtime)</p>
 
-    // Create Events for button clicks
-    const incrementClicks = new Event<void>();
-    const decrementClicks = new Event<void>();
+        <div class="counter">
+          <div class="count-display">${count}</div>
+          <div class="buttons">
+            <button class="btn-secondary" onclick=${() => count.update(n => n - 1)}>
+              -
+            </button>
+            <button class="btn-primary" onclick=${() => count.update(n => n + 1)}>
+              +
+            </button>
+          </div>
+        </div>
 
-    // Wire up DOM events to Cliffy Events
-    incrementBtn.addEventListener('click', () => incrementClicks.emit(undefined));
-    decrementBtn.addEventListener('click', () => decrementClicks.emit(undefined));
+        <div class="status ready">Cliffy WASM loaded (Bun runtime)!</div>
+      </div>
+    `;
 
-    // Update the count when buttons are clicked
-    incrementClicks.subscribe(() => {
-      count.update((n: number) => n + 1);
-    });
-
-    decrementClicks.subscribe(() => {
-      count.update((n: number) => n - 1);
-    });
-
-    // Update status
-    statusEl.textContent = 'Cliffy WASM loaded (Bun runtime)!';
-    statusEl.classList.add('ready');
+    // Mount the app to the DOM
+    const cleanup = mount(app, '#app');
 
     console.log('Cliffy initialized successfully with Bun!');
     console.log('Try these in the console:');
@@ -61,11 +59,14 @@ async function main() {
     // Expose to window for debugging
     (window as any).count = count;
     (window as any).Behavior = Behavior;
-    (window as any).Event = Event;
+    (window as any).cleanup = cleanup;
 
   } catch (error) {
     console.error('Failed to initialize Cliffy:', error);
-    statusEl.textContent = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+    if (errorEl) {
+      errorEl.textContent = `Error: ${error instanceof Error ? error.message : 'Unknown error'}`;
+      errorEl.style.display = 'block';
+    }
   }
 }
 
