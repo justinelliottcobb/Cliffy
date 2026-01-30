@@ -72,11 +72,11 @@ Items are categorized by:
   - Status: Added note in getting-started.md
   - Related: Phase 7
 
-- [ ] **Create Algebraic TSX migration guide**
+- [x] **Create Algebraic TSX migration guide** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 7
   - Issue: No guide for migrating from React/Vue to Algebraic TSX patterns
-  - Fix: Write dedicated migration guide
+  - Fix: Created docs/migration-guide.md with React/Vue comparison patterns
 
 ---
 
@@ -357,6 +357,7 @@ Examples that demonstrate specific phase capabilities:
 - [x] Add Algebraic TSX section to ROADMAP.md (Phase 7)
 - [x] Audit existing examples for Algebraic TSX (Phase 7)
 - [x] Document PureScript FFI patterns (Phase 7)
+- [x] Create Algebraic TSX migration guide (Phase 7)
 
 ### In Progress
 
