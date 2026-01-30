@@ -67,9 +67,9 @@ Items are categorized by:
 
 ### Documentation Gaps
 
-- [ ] **Document Behavior.map() vs Array.map() distinction**
+- [x] **Document Behavior.map() vs Array.map() distinction** ✅
   - Origin: Phase 7 (Documentation)
-  - Status: ✅ Added note in getting-started.md
+  - Status: Added note in getting-started.md
   - Related: Phase 7
 
 - [ ] **Create Algebraic TSX migration guide**
@@ -124,11 +124,15 @@ These tasks update existing documentation and code snippets to use the new Algeb
 
 ### Code Snippet Updates
 
-- [ ] **Audit existing examples for Algebraic TSX**
+- [x] **Audit existing examples for Algebraic TSX** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 6
   - Issue: Existing examples (whiteboard, etc.) may use older patterns
-  - Fix: Review and update to use `html` tagged templates where appropriate
+  - Decision: Whiteboard example is appropriate as-is because:
+    - Canvas rendering is inherently imperative (not declarative DOM)
+    - Example focuses on geometric strokes and GPU acceleration
+    - Toolbar interactions are minimal and work well with vanilla JS
+  - Future Algebraic TSX examples will be created separately (tsx-counter, tsx-todo)
 
 - [x] **Update README.md quick start** ✅
   - Origin: Phase 7 (Documentation)
@@ -150,11 +154,11 @@ These tasks update existing documentation and code snippets to use the new Algeb
   - Issue: No README explaining PureScript package usage
   - Fix: Created comprehensive README with module structure, examples, API comparison
 
-- [ ] **Document PureScript FFI patterns**
+- [x] **Document PureScript FFI patterns** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4
   - Issue: Foreign.js lacks documentation on how FFI bindings work
-  - Fix: Add JSDoc or separate design doc explaining the bridge
+  - Fix: Created docs/purescript-ffi-patterns.md explaining Effect thunks, currying, and implementation structure
 
 ---
 
@@ -351,6 +355,8 @@ Examples that demonstrate specific phase capabilities:
 - [x] Update getting-started.md with Algebraic TSX (Phase 7)
 - [x] Create API reference with rendering examples (Phase 7)
 - [x] Add Algebraic TSX section to ROADMAP.md (Phase 7)
+- [x] Audit existing examples for Algebraic TSX (Phase 7)
+- [x] Document PureScript FFI patterns (Phase 7)
 
 ### In Progress
 
