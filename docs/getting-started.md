@@ -17,10 +17,60 @@ npm install
 npm run dev
 ```
 
-Or add to an existing project:
+Available templates:
+- `typescript-vite` (default) - TypeScript + Vite
+- `bun` - Bun runtime
+- `purescript` - PureScript with type-safe Html DSL
 
-```bash
-npm install @cliffy/core
+## Quick Start with Algebraic TSX
+
+The fastest way to build reactive UIs is with the `html` tagged template:
+
+```typescript
+import { behavior } from 'cliffy-wasm';
+import { html, mount } from 'cliffy-wasm/html';
+
+// Create reactive state
+const count = behavior(0);
+
+// Build reactive UI - Behaviors automatically update the DOM
+const app = html`
+  <div class="counter">
+    <h1>Count: ${count}</h1>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+    <button onclick=${() => count.update(n => n - 1)}>-</button>
+  </div>
+`;
+
+// Mount to DOM, returns cleanup function
+const cleanup = mount(app, '#app');
+```
+
+Key features:
+- **No virtual DOM** - Behaviors subscribe directly to DOM nodes
+- **Automatic updates** - Values in `${}` update when Behaviors change
+- **Event handlers** - Use `onclick`, `onchange`, etc. directly
+- **Cleanup included** - `mount()` returns a cleanup function
+
+### PureScript Alternative
+
+For full type safety, use the PureScript DSL:
+
+```purescript
+import Cliffy (behavior, update)
+import Cliffy.Html (div, h1_, button, text, behaviorText, mount)
+import Cliffy.Html.Attributes (className)
+import Cliffy.Html.Events (onClick)
+
+counter :: Effect Html
+counter = do
+  count <- behavior 0
+
+  pure $ div [ className "counter" ]
+    [ h1_ [ text "Count: ", behaviorText count ]
+    , button [ onClick \_ -> update (_ + 1) count ] [ text "+" ]
+    , button [ onClick \_ -> update (_ - 1) count ] [ text "-" ]
+    ]
 ```
 
 ## Core Concepts
@@ -826,11 +876,13 @@ todoList.mount(document.getElementById('app')!);
 
 ## Next Steps
 
-- Read the [FRP Guide](./frp-guide.md) for reactive patterns
-- Explore the [Geometric Algebra Primer](./geometric-algebra-primer.md)
-- Learn the [DOM Projection Guide](./dom-projection-guide.md) for efficient rendering
-- Check out the [examples](../examples/) for complete applications
-- See the [Architecture docs](./architecture/) for design decisions
+- **Start simple**: Use `html` tagged templates for quick reactive UIs
+- **Go deeper**: Read the [FRP Guide](./frp-guide.md) for reactive patterns
+- **Advanced rendering**: Learn the [DOM Projection Guide](./dom-projection-guide.md) for fine-grained control
+- **Type safety**: Try the [PureScript template](../cliffy-purescript/README.md) for compile-time guarantees
+- **Understand the math**: Explore the [Geometric Algebra Primer](./geometric-algebra-primer.md)
+- **See examples**: Check out the [examples](../examples/) for complete applications
+- **Learn the design**: See the [Architecture docs](./architecture/) for design decisions
 
 ## Key Differences from React/Redux
 
