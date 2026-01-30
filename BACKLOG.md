@@ -21,11 +21,12 @@ Items are categorized by:
   - Issue: The `html` tagged template function exists in `cliffy-wasm/src/html.ts` but isn't bundled with the WASM package. Templates must include it locally.
   - Fix: Add html.ts to wasm-pack build output or create a separate `@cliffy/html` package
 
-- [ ] **Create main `Cliffy.purs` module**
+- [x] **Create main `Cliffy.purs` module** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4 (Algebraic TSX)
   - Issue: PureScript FFI files exist (`Cliffy.Html`, `Cliffy.Html.Attributes`, `Cliffy.Html.Events`) but there's no main `Cliffy` module that re-exports `behavior`, `event`, `update`, `subscribe`, etc.
-  - Fix: Create `cliffy-purescript/src/Cliffy.purs` with FRP primitive re-exports
+  - Fix: Created `cliffy-purescript/src/Cliffy.purs` with FRP primitive re-exports
+  - Status: Completed - Added Behavior/Event types and FFI bindings
 
 - [ ] **Wire up PureScript package dependencies**
   - Origin: Phase 7 (Documentation)
@@ -279,6 +280,7 @@ Examples that demonstrate specific phase capabilities:
 - [x] Create html`` tagged template implementation (Phase 7)
 - [x] Create PureScript Html DSL (Phase 7)
 - [x] Update scaffolding templates to use Algebraic TSX (Phase 7)
+- [x] Create main Cliffy.purs module with FRP primitives (Phase 7)
 
 ### In Progress
 
@@ -286,7 +288,7 @@ Examples that demonstrate specific phase capabilities:
 
 ### Blocked
 
-- PureScript examples blocked on Cliffy.purs module creation
+- PureScript examples blocked on package dependencies (spago.dhall/packages.dhall configuration)
 - Distributed examples blocked on cliffy-protocols revival (Phase 2)
 - GPU examples blocked on WebGPU integration (Phase 5)
 
