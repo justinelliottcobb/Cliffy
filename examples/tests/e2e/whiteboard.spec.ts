@@ -115,8 +115,10 @@ test.describe('Whiteboard Example', () => {
     let strokeCount = await page.locator('#strokeCount').textContent();
     expect(strokeCount).toBe('Strokes: 1');
 
-    // Click clear button (use force to bypass overlay)
-    await page.locator('#clearBtn').click({ force: true });
+    // Click clear button via JavaScript to bypass benchmark panel overlay
+    await page.evaluate(() => {
+      (document.getElementById('clearBtn') as HTMLButtonElement)?.click();
+    });
 
     await page.waitForTimeout(200);
 
@@ -139,8 +141,10 @@ test.describe('Whiteboard Example', () => {
     await expect(simulateBtn).toContainText('Simulate Peers');
     await expect(simulateBtn).not.toHaveClass(/toolbar__button--active/);
 
-    // Click to start simulation (use force to bypass overlay)
-    await simulateBtn.click({ force: true });
+    // Click to start simulation via JavaScript to bypass benchmark panel overlay
+    await page.evaluate(() => {
+      (document.getElementById('simulatePeersBtn') as HTMLButtonElement)?.click();
+    });
     await expect(simulateBtn).toContainText('Stop Simulation');
     await expect(simulateBtn).toHaveClass(/toolbar__button--active/);
 
@@ -151,8 +155,10 @@ test.describe('Whiteboard Example', () => {
     const peerCount = await page.locator('#peerCount').textContent();
     expect(peerCount).not.toBe('Peers: 1');
 
-    // Click to stop simulation
-    await simulateBtn.click({ force: true });
+    // Click to stop simulation via JavaScript
+    await page.evaluate(() => {
+      (document.getElementById('simulatePeersBtn') as HTMLButtonElement)?.click();
+    });
     await expect(simulateBtn).toContainText('Simulate Peers');
     await expect(simulateBtn).not.toHaveClass(/toolbar__button--active/);
   });

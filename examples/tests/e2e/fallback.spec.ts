@@ -147,8 +147,10 @@ test.describe('Error Recovery', () => {
 
     await page.waitForTimeout(200);
 
-    // Clear the canvas (use force to bypass overlay)
-    await page.locator('#clearBtn').click({ force: true });
+    // Clear the canvas via JavaScript to bypass benchmark panel overlay
+    await page.evaluate(() => {
+      (document.getElementById('clearBtn') as HTMLButtonElement)?.click();
+    });
 
     await page.waitForTimeout(200);
 
