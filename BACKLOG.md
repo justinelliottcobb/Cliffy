@@ -28,11 +28,12 @@ Items are categorized by:
   - Fix: Created `cliffy-purescript/src/Cliffy.purs` with FRP primitive re-exports
   - Status: Completed - Added Behavior/Event types and FFI bindings
 
-- [ ] **Wire up PureScript package dependencies**
+- [x] **Wire up PureScript package dependencies** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4 (Algebraic TSX)
   - Issue: `spago.dhall` template doesn't reference `cliffy-purescript` package
-  - Fix: Either publish to package set or add as local/git dependency in `packages.dhall`
+  - Fix: Added git dependency with subdir to `packages.dhall.template`
+  - Status: Completed - Template now references cliffy-purescript from Cliffy monorepo
 
 ### API Completeness
 
@@ -93,6 +94,66 @@ Items are categorized by:
   - Related: Phase 4
   - Issue: Potential memory leaks if components unmount without proper cleanup
   - Fix: Add WeakRef-based cleanup or explicit disposal pattern
+
+---
+
+## Documentation Updates (Algebraic TSX)
+
+These tasks update existing documentation and code snippets to use the new Algebraic TSX patterns.
+
+### Core Documentation
+
+- [ ] **Update CLAUDE.md code examples**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 4 (Algebraic TSX)
+  - Issue: CLAUDE.md examples show raw `behavior`/`subscribe` usage without Algebraic TSX
+  - Fix: Add examples showing `html` tagged template and PureScript Html DSL usage
+
+- [ ] **Update getting-started.md with Algebraic TSX**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 7
+  - Issue: Getting started guide may not reflect new UI patterns
+  - Fix: Show both TypeScript `html` and PureScript DSL approaches
+
+- [ ] **Update API reference with rendering examples**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 7
+  - Issue: API docs show FRP primitives but not how to render them
+  - Fix: Add rendering sections showing Behavior → DOM projection
+
+### Code Snippet Updates
+
+- [ ] **Audit existing examples for Algebraic TSX**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 6
+  - Issue: Existing examples (whiteboard, etc.) may use older patterns
+  - Fix: Review and update to use `html` tagged templates where appropriate
+
+- [ ] **Update README.md quick start**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 7
+  - Issue: Root README may show outdated usage patterns
+  - Fix: Show `npx create-cliffy` with Algebraic TSX counter example
+
+- [ ] **Add Algebraic TSX section to ROADMAP.md**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 4, Phase 7
+  - Issue: ROADMAP mentions Algebraic TSX but details are sparse
+  - Fix: Document what was implemented and the design decisions made
+
+### PureScript-Specific
+
+- [ ] **Create cliffy-purescript README**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 4
+  - Issue: No README explaining PureScript package usage
+  - Fix: Document module structure, FFI patterns, and example usage
+
+- [ ] **Document PureScript FFI patterns**
+  - Origin: Phase 7 (Documentation)
+  - Related: Phase 4
+  - Issue: Foreign.js lacks documentation on how FFI bindings work
+  - Fix: Add JSDoc or separate design doc explaining the bridge
 
 ---
 
@@ -281,6 +342,7 @@ Examples that demonstrate specific phase capabilities:
 - [x] Create PureScript Html DSL (Phase 7)
 - [x] Update scaffolding templates to use Algebraic TSX (Phase 7)
 - [x] Create main Cliffy.purs module with FRP primitives (Phase 7)
+- [x] Wire up PureScript package dependencies (Phase 7)
 
 ### In Progress
 
@@ -288,7 +350,6 @@ Examples that demonstrate specific phase capabilities:
 
 ### Blocked
 
-- PureScript examples blocked on package dependencies (spago.dhall/packages.dhall configuration)
 - Distributed examples blocked on cliffy-protocols revival (Phase 2)
 - GPU examples blocked on WebGPU integration (Phase 5)
 
