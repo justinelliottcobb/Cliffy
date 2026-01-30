@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliffy PureScript Counter</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+    }
+
+    #app {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+      text-align: center;
+    }
+
+    .counter {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 24px;
+    }
+
+    h1.title {
+      font-size: 1.2rem;
+      color: #666;
+      font-weight: 500;
+    }
+
+    .count {
+      font-size: 4rem;
+      color: #333;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+    }
+
+    button {
+      font-size: 1.5rem;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.1s;
+      font-weight: 600;
+    }
+
+    button:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    button:active {
+      transform: translateY(0);
+    }
+
+    .increment {
+      background: #4CAF50;
+      color: white;
+    }
+
+    .decrement {
+      background: #f44336;
+      color: white;
+    }
+
+    .reset {
+      background: #9e9e9e;
+      color: white;
+    }
+
+    .info {
+      color: #666;
+      font-size: 0.9rem;
+    }
+
+    .doubled {
+      font-weight: 600;
+    }
+
+    .positive { color: #4CAF50; }
+    .negative { color: #f44336; }
+    .zero { color: #9e9e9e; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="counter">
+      <h1 class="title">PureScript + Cliffy</h1>
+      <div id="count" class="count">0</div>
+      <div class="controls">
+        <button id="decrement" class="decrement">−</button>
+        <button id="reset" class="reset">Reset</button>
+        <button id="increment" class="increment">+</button>
+      </div>
+      <p class="info">
+        Doubled: <span id="doubled" class="doubled zero">0</span>
+      </p>
+    </div>
+  </div>
+  <script type="module" src="./dist/main.js"></script>
+</body>
+</html>
