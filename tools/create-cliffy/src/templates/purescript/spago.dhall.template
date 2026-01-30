@@ -5,10 +5,20 @@ You can edit this file as you like.
 To learn more about Spago, see:
 https://github.com/purescript/spago
 -}
+{-
+{{projectName}} - A Cliffy PureScript Application
+
+This project uses cliffy-purescript for FRP primitives (Behavior, Event)
+and the type-safe Html DSL for Algebraic TSX.
+
+To learn more about Spago, see:
+https://github.com/purescript/spago
+-}
 { name = "{{projectName}}"
 , dependencies =
   [ "aff"
   , "arrays"
+  , "cliffy-purescript"
   , "console"
   , "effect"
   , "foldable-traversable"

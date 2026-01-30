@@ -2,14 +2,70 @@
 
 A WASM-first reactive framework with classical FRP semantics, powered by geometric algebra.
 
-## Status
+## Quick Start
 
-Cliffy is in active development. The core Rust implementation is functional, with WASM bindings available via wasm-bindgen.
+```bash
+# Create a new Cliffy project
+npx create-cliffy my-app
+
+# Or specify a template
+npx create-cliffy my-app --template typescript-vite  # TypeScript + Vite (default)
+npx create-cliffy my-app --template bun              # Bun runtime
+npx create-cliffy my-app --template purescript       # PureScript + type-safe DSL
+
+cd my-app
+npm install
+npm run dev
+```
+
+## Algebraic TSX
+
+Cliffy uses **Algebraic TSX** for rendering - a declarative approach where Behaviors automatically update the DOM:
+
+### TypeScript (html tagged template)
+
+```typescript
+import { behavior } from 'cliffy-wasm';
+import { html, mount } from 'cliffy-wasm/html';
+
+// Create reactive state
+const count = behavior(0);
+
+// Behaviors in templates automatically update the DOM
+const app = html`
+  <div class="counter">
+    <h1>Count: ${count}</h1>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+    <button onclick=${() => count.update(n => n - 1)}>-</button>
+  </div>
+`;
+
+mount(app, '#app');
+```
+
+### PureScript (type-safe Html DSL)
+
+```purescript
+import Cliffy (behavior, update)
+import Cliffy.Html (div, h1_, button, text, behaviorText, mount)
+import Cliffy.Html.Attributes (className)
+import Cliffy.Html.Events (onClick)
+
+counter :: Effect Html
+counter = do
+  count <- behavior 0
+
+  pure $ div [ className "counter" ]
+    [ h1_ [ text "Count: ", behaviorText count ]
+    , button [ onClick \_ -> update (_ + 1) count ] [ text "+" ]
+    , button [ onClick \_ -> update (_ - 1) count ] [ text "-" ]
+    ]
+```
 
 ## Architecture
 
 ```
-cliffy-wasm (WASM bindings)
+cliffy-wasm (WASM bindings + Algebraic TSX)
     ↓
 cliffy-core (Rust FRP + GA)
     ↓
@@ -22,82 +78,75 @@ The geometric algebra is an implementation detail. The public API exposes famili
 
 ### Behaviors (Time-Varying Values)
 
-```rust
-use cliffy_core::{behavior, Behavior};
+A `Behavior<T>` represents a value that changes over time - like a spreadsheet cell that updates automatically.
 
-// Create reactive state
+```typescript
+// TypeScript
+const count = behavior(0);
+count.sample();              // Get current value: 0
+count.update(n => n + 1);    // Transform the value
+count.subscribe(n => console.log(n));  // React to changes
+
+// Derived behaviors update automatically
+const doubled = count.map(n => n * 2);
+```
+
+```rust
+// Rust
 let count = behavior(0);
 assert_eq!(count.sample(), 0);
-
-// Update via transformation
 count.update(|n| n + 1);
-assert_eq!(count.sample(), 1);
-
-// Derive computed values
 let doubled = count.map(|n| n * 2);
-assert_eq!(doubled.sample(), 2);
 ```
 
 ### Events (Discrete Occurrences)
 
-```rust
-use cliffy_core::{event, Event};
+An `Event<T>` represents discrete occurrences over time - like button clicks or network responses.
 
-let clicks = event::<()>();
+```typescript
+// TypeScript
+const clicks = event<MouseEvent>();
+clicks.subscribe(e => console.log('Clicked at', e.clientX));
+clicks.emit(mouseEvent);
 
-clicks.subscribe(|_| {
-    println!("Clicked!");
-});
-
-clicks.emit(());
+// Fold events into a behavior
+const clickCount = clicks.fold(0, (count, _) => count + 1);
 ```
 
 ### Combinators
 
-```rust
-use cliffy_core::{behavior, when, combine};
+```typescript
+// Combine multiple behaviors
+const width = behavior(10);
+const height = behavior(5);
+const area = combine(width, height, (w, h) => w * h);
 
-let show = behavior(true);
-let message = when(&show, || "Visible!");
-
-let width = behavior(10);
-let height = behavior(5);
-let area = combine(&width, &height, |w, h| w * h);
+// Conditional rendering
+const show = behavior(true);
+const message = when(show, () => 'Visible!');
 ```
 
-## Building
+## Building from Source
 
 ### Prerequisites
 
 - Rust (stable)
 - wasm-pack (`cargo install wasm-pack`)
+- Node.js 18+
 
-### Build WASM
-
-```bash
-# Development build
-wasm-pack build cliffy-wasm --target web --out-dir pkg
-
-# Release build (optimized)
-wasm-pack build cliffy-wasm --target web --release --out-dir pkg
-```
-
-### Run Tests
+### Build
 
 ```bash
-cargo test --workspace
+npm run build          # Build WASM + post-process
+npm run build:release  # Optimized release build
+npm run dev            # Watch mode for development
 ```
 
-## Using from JavaScript
+### Test
 
-```javascript
-import init, { behavior, when, combine } from './cliffy-wasm/pkg/cliffy_wasm.js';
-
-await init();
-
-const count = behavior(0);
-count.subscribe(n => console.log('Count:', n));
-count.update(n => n + 1);
+```bash
+cargo test --workspace  # 179 tests
+npm test               # Run all tests
 ```
 
 ## Project Structure
@@ -108,11 +157,25 @@ cliffy/
 │   └── src/
 │       ├── behavior.rs    # Behavior<T>
 │       ├── event.rs       # Event<T>
-│       ├── combinators.rs # when, ifElse, combine
+│       ├── combinators.rs # when, if_else, combine
 │       └── geometric.rs   # GA conversion traits
-├── cliffy-wasm/           # WASM bindings (wasm-bindgen)
-├── examples/              # Examples (currently archived)
-└── archive/               # Previous implementations
+├── cliffy-wasm/           # WASM bindings + html.ts
+│   ├── src/
+│   │   ├── lib.rs         # WASM exports
+│   │   └── html.ts        # Algebraic TSX tagged template
+│   └── pkg/               # Built package (after npm run build)
+├── cliffy-purescript/     # PureScript bindings
+│   └── src/
+│       ├── Cliffy.purs    # FRP primitives (Behavior, Event)
+│       └── Cliffy/
+│           ├── Html.purs  # Type-safe Html DSL
+│           └── Foreign.js # FFI bridge
+├── cliffy-protocols/      # Distributed state (CRDT, sync)
+├── cliffy-test/           # Geometric testing framework
+├── tools/
+│   └── create-cliffy/     # Project scaffolding CLI
+└── examples/
+    └── whiteboard/        # Collaborative drawing demo
 ```
 
 ## Why Geometric Algebra?
@@ -121,9 +184,16 @@ Cliffy uses [Clifford Algebra](https://en.wikipedia.org/wiki/Clifford_algebra) (
 
 - **Unified representation**: Scalars, vectors, and higher-grade elements in one structure
 - **Natural transformations**: Rotations, translations, scaling as algebraic operations
-- **Mathematical elegance**: Clean composition of transformations
+- **Distributed convergence**: Geometric mean for conflict-free merging
 
-However, **you never need to know this**. The GA is purely an implementation detail.
+However, **you never need to know this**. The GA is purely an implementation detail - you work with familiar `Behavior` and `Event` types.
+
+## Documentation
+
+- [Getting Started](./docs/getting-started.md)
+- [API Reference](./docs/api-reference.md)
+- [ROADMAP](./ROADMAP.md) - Development phases
+- [CLAUDE.md](./CLAUDE.md) - Architecture and standards
 
 ## License
 

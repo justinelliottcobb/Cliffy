@@ -35,17 +35,6 @@
       background-clip: text;
     }
 
-    .runtime-badge {
-      display: inline-block;
-      background: #f4a15d;
-      color: #1a1a2e;
-      padding: 0.25rem 0.75rem;
-      border-radius: 1rem;
-      font-size: 0.875rem;
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-
     .counter {
       margin: 2rem 0;
     }
@@ -103,24 +92,23 @@
     .status.ready {
       color: #67d5b5;
     }
+
+    #error {
+      display: none;
+      color: #ff6b6b;
+      margin-top: 1rem;
+    }
+
+    .loading {
+      color: rgba(255, 255, 255, 0.6);
+    }
   </style>
 </head>
 <body>
   <div id="app">
-    <span class="runtime-badge">Bun Runtime</span>
-    <h1>{{projectName}}</h1>
-    <p>A Cliffy reactive application</p>
-
-    <div class="counter">
-      <div class="count-display" id="count">0</div>
-      <div class="buttons">
-        <button class="btn-secondary" id="decrement">-</button>
-        <button class="btn-primary" id="increment">+</button>
-      </div>
-    </div>
-
-    <div class="status" id="status">Loading WASM...</div>
+    <div class="loading">Loading WASM...</div>
   </div>
+  <div id="error"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>
 </html>

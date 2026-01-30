@@ -111,3 +111,143 @@ export const getPerformanceMetrics = () => {
     memory: performance.memory ? performance.memory.usedJSHeapSize : 0
   };
 };
+
+// ============================================================================
+// FRP Primitives - User-friendly Behavior<a> type
+// ============================================================================
+
+// Create a new Behavior with an initial value
+export const createBehaviorImpl = (initial) => () => {
+  const subscribers = [];
+  let currentValue = initial;
+
+  return {
+    _value: () => currentValue,
+    _subscribers: subscribers,
+    sample: () => currentValue,
+    set: (newValue) => {
+      currentValue = newValue;
+      for (const sub of subscribers) {
+        sub(newValue);
+      }
+    },
+    update: (fn) => {
+      currentValue = fn(currentValue);
+      for (const sub of subscribers) {
+        sub(currentValue);
+      }
+    },
+    subscribe: (callback) => {
+      subscribers.push(callback);
+      // Call immediately with current value
+      callback(currentValue);
+      // Return unsubscribe function
+      return () => {
+        const index = subscribers.indexOf(callback);
+        if (index > -1) {
+          subscribers.splice(index, 1);
+        }
+      };
+    },
+    map: (fn) => {
+      // Create a derived behavior
+      const derived = createBehaviorImpl(fn(currentValue))();
+      // Subscribe to source changes
+      subscribers.push((val) => {
+        derived.set(fn(val));
+      });
+      return derived;
+    }
+  };
+};
+
+// Sample the current value of a Behavior
+export const sampleImpl = (behavior) => () => {
+  return behavior.sample();
+};
+
+// Set a new value on a Behavior
+export const setImpl = (behavior) => (value) => () => {
+  behavior.set(value);
+};
+
+// Update a Behavior with a function
+export const updateImpl = (fn) => (behavior) => () => {
+  behavior.update(fn);
+};
+
+// Subscribe to a Behavior's changes
+export const subscribeImpl = (callback) => (behavior) => () => {
+  const unsub = behavior.subscribe((val) => callback(val)());
+  // Return Effect Unit for unsubscribe
+  return () => unsub();
+};
+
+// Map over a Behavior
+export const mapBehaviorImpl = (fn) => (behavior) => () => {
+  return behavior.map(fn);
+};
+
+// ============================================================================
+// Event Primitives
+// ============================================================================
+
+// Create a new Event
+export const createEventImpl = () => {
+  const subscribers = [];
+
+  return {
+    _subscribers: subscribers,
+    emit: (value) => {
+      for (const sub of subscribers) {
+        sub(value);
+      }
+    },
+    subscribe: (callback) => {
+      subscribers.push(callback);
+      return () => {
+        const index = subscribers.indexOf(callback);
+        if (index > -1) {
+          subscribers.splice(index, 1);
+        }
+      };
+    },
+    map: (fn) => {
+      const mapped = createEventImpl();
+      subscribers.push((val) => {
+        mapped.emit(fn(val));
+      });
+      return mapped;
+    },
+    filter: (pred) => {
+      const filtered = createEventImpl();
+      subscribers.push((val) => {
+        if (pred(val)) {
+          filtered.emit(val);
+        }
+      });
+      return filtered;
+    }
+  };
+};
+
+// Emit a value on an Event
+export const emitImpl = (event) => (value) => () => {
+  event.emit(value);
+};
+
+// Subscribe to an Event
+export const subscribeEventImpl = (callback) => (event) => () => {
+  const unsub = event.subscribe((val) => callback(val)());
+  return () => unsub();
+};
+
+// Fold an Event into a Behavior
+export const foldImpl = (initial) => (fn) => (event) => () => {
+  const behavior = createBehaviorImpl(initial)();
+  event.subscribe((val) => {
+    const current = behavior.sample();
+    behavior.set(fn(current)(val));
+  });
+  return behavior;
+};
