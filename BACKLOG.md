@@ -15,11 +15,12 @@ Items are categorized by:
 
 ### Export/Packaging Issues
 
-- [ ] **Export `html.ts` from `@cliffy/core` package**
+- [x] **Export `html.ts` from `cliffy-wasm` package** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4 (Algebraic TSX)
   - Issue: The `html` tagged template function exists in `cliffy-wasm/src/html.ts` but isn't bundled with the WASM package. Templates must include it locally.
-  - Fix: Add html.ts to wasm-pack build output or create a separate `@cliffy/html` package
+  - Fix: Created post-build script that copies html.ts to pkg/ and updates package.json exports
+  - Status: Completed - Import via `import { html, mount } from 'cliffy-wasm/html'`
 
 - [x] **Create main `Cliffy.purs` module** ✅
   - Origin: Phase 7 (Documentation)
@@ -343,6 +344,7 @@ Examples that demonstrate specific phase capabilities:
 - [x] Update scaffolding templates to use Algebraic TSX (Phase 7)
 - [x] Create main Cliffy.purs module with FRP primitives (Phase 7)
 - [x] Wire up PureScript package dependencies (Phase 7)
+- [x] Export html.ts from cliffy-wasm package (Phase 7)
 
 ### In Progress
 
