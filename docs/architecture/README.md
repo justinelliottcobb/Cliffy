@@ -167,8 +167,9 @@ The current implementation is single-threaded (typical for browser WASM). Future
 
 - [Getting Started Guide](../getting-started.md) - Installation and first app
 - [FRP Guide](../frp-guide.md) - Behavior, Event, and reactive patterns
+- [DOM Projection Guide](../dom-projection-guide.md) - Efficient DOM rendering without virtual DOM
 - [Geometric Algebra Primer](../geometric-algebra-primer.md) - GA concepts for developers
-- [Algebraic TSX Guide](../algebraic-tsx-guide.md) - Component model and dataflow
-- [Distributed State Guide](../distributed-state-guide.md) - CRDT and synchronization
-- [Testing Guide](../testing-guide.md) - Geometric invariant testing
+- [Algebraic TSX Architecture](../algebraic-tsx-guide.md) - Internal component model and dataflow
+- [Distributed State (Roadmap)](../distributed-state-guide.md) - CRDT and synchronization (future)
+- [Testing (Roadmap)](../testing-guide.md) - Geometric invariant testing (future)
 - [ROADMAP.md](../../ROADMAP.md) - Development roadmap

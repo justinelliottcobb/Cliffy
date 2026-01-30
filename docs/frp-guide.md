@@ -437,6 +437,7 @@ Cliffy's FRP approach means:
 ## Next Steps
 
 - [Getting Started Guide](./getting-started.md) — Build your first app
+- [DOM Projection Guide](./dom-projection-guide.md) — Efficient DOM rendering
 - [Geometric Algebra Primer](./geometric-algebra-primer.md) — The math behind the scenes
 - [Examples](../examples/) — See full applications
 

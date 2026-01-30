@@ -4,22 +4,9 @@ Cliffy is a reactive UI framework built on geometric algebra. This guide will ge
 
 ## Prerequisites
 
-- Rust 1.70+ with the `wasm32-unknown-unknown` target
 - Node.js 18+ (for web development)
-- wasm-pack (`cargo install wasm-pack`)
 
 ## Installation
-
-### Rust Project
-
-Add Cliffy to your `Cargo.toml`:
-
-```toml
-[dependencies]
-cliffy-core = { path = "../cliffy-core" }  # or version when published
-```
-
-### Web Project (TypeScript/JavaScript)
 
 Use the scaffolding tool to create a new project:
 
@@ -42,139 +29,101 @@ Cliffy uses **Functional Reactive Programming (FRP)** with two fundamental primi
 
 ### Behavior: Time-Varying Values
 
-A `Behavior<T>` represents a value that changes over time. Think of it as a cell in a spreadsheet that can update.
+A `Behavior` represents a value that changes over time. Think of it as a cell in a spreadsheet that can update.
 
-```rust
-use cliffy_core::{behavior, Behavior};
+```typescript
+import { Behavior } from '@cliffy/core';
 
 // Create a behavior with initial value
-let count = behavior(0);
+const count = new Behavior(0);
 
 // Read the current value
-assert_eq!(count.sample(), 0);
+console.log(count.sample());  // 0
 
-// Update the value
-count.update(|n| n + 1);
-assert_eq!(count.sample(), 1);
+// Update the value with a transform function
+count.update(n => n + 1);
+console.log(count.sample());  // 1
 
 // Set directly
 count.set(100);
-assert_eq!(count.sample(), 100);
+console.log(count.sample());  // 100
 ```
 
 ### Event: Discrete Occurrences
 
-An `Event<T>` represents discrete happenings like clicks or key presses.
+An `Event` represents discrete happenings like clicks or key presses.
 
-```rust
-use cliffy_core::{event, Event};
+```typescript
+import { Event } from '@cliffy/core';
 
 // Create an event stream
-let clicks = event::<()>();
+const clicks = new Event();
 
 // Subscribe to events
-clicks.subscribe(|_| {
-    println!("Clicked!");
+clicks.subscribe(value => {
+    console.log('Clicked!', value);
 });
 
 // Emit an event
-clicks.emit(());
+clicks.emit({ x: 100, y: 200 });
 ```
 
 ### Reactive Subscriptions
 
 Behaviors notify subscribers when they change:
 
-```rust
-let count = behavior(0);
+```typescript
+const count = new Behavior(0);
 
 // Subscribe to changes
-count.subscribe(|value| {
-    println!("Count is now: {}", value);
+count.subscribe(value => {
+    console.log('Count is now:', value);
 });
 
-count.set(1);  // Prints: "Count is now: 1"
-count.set(2);  // Prints: "Count is now: 2"
+count.set(1);  // Logs: "Count is now: 1"
+count.set(2);  // Logs: "Count is now: 2"
 ```
 
 ### Derived Behaviors with `map`
 
 Create new behaviors that automatically update:
 
-```rust
-let count = behavior(5);
-let doubled = count.map(|n| n * 2);
+```typescript
+const count = new Behavior(5);
+const doubled = count.map(n => n * 2);
 
-assert_eq!(doubled.sample(), 10);
+console.log(doubled.sample());  // 10
 
 count.set(10);
-assert_eq!(doubled.sample(), 20);  // Automatically updated!
+console.log(doubled.sample());  // 20 - Automatically updated!
 ```
 
 ### Combining Behaviors
 
 Combine multiple behaviors into one:
 
-```rust
-use cliffy_core::{behavior, combine};
+```typescript
+import { Behavior, combine } from '@cliffy/core';
 
-let width = behavior(10);
-let height = behavior(20);
-let area = combine(&width, &height, |w, h| w * h);
+const width = new Behavior(10);
+const height = new Behavior(20);
+const area = combine(width, height, (w, h) => w * h);
 
-assert_eq!(area.sample(), 200);
+console.log(area.sample());  // 200
 
 width.set(15);
-assert_eq!(area.sample(), 300);  // Automatically recalculated!
+console.log(area.sample());  // 300 - Automatically recalculated!
 ```
 
 ## Your First App: Counter
 
 Here's a complete counter example:
 
-### Rust (Native)
-
-```rust
-use cliffy_core::{behavior, event};
-
-fn main() {
-    // State
-    let count = behavior(0i32);
-
-    // Events
-    let increment = event::<()>();
-    let decrement = event::<()>();
-
-    // Wire events to state
-    let count_inc = count.clone();
-    increment.subscribe(move |_| {
-        count_inc.update(|n| n + 1);
-    });
-
-    let count_dec = count.clone();
-    decrement.subscribe(move |_| {
-        count_dec.update(|n| n - 1);
-    });
-
-    // React to state changes
-    count.subscribe(|value| {
-        println!("Count: {}", value);
-    });
-
-    // Simulate button clicks
-    increment.emit(());  // Count: 1
-    increment.emit(());  // Count: 2
-    decrement.emit(());  // Count: 1
-}
-```
-
-### TypeScript (Browser)
-
 ```typescript
-import { behavior, event } from '@cliffy/core';
+import { Behavior, Event } from '@cliffy/core';
 
 // State
-const count = behavior(0);
+const count = new Behavior(0);
 
 // Derived state
 const displayText = count.map(n => `Count: ${n}`);
@@ -185,8 +134,8 @@ displayText.subscribe(text => {
 });
 
 // Events
-const increment = event<void>();
-const decrement = event<void>();
+const increment = new Event<void>();
+const decrement = new Event<void>();
 
 // Wire events to state
 increment.subscribe(() => count.update(n => n + 1));
@@ -209,120 +158,145 @@ Cliffy provides combinators for common patterns:
 
 ### `when` - Conditional Values
 
-```rust
-use cliffy_core::{behavior, when};
+```typescript
+import { Behavior, when } from '@cliffy/core';
 
-let show_message = behavior(true);
-let message = when(&show_message, || "Hello!".to_string());
+const showMessage = new Behavior(true);
+const message = when(showMessage, () => "Hello!");
 
-assert_eq!(message.sample(), Some("Hello!".to_string()));
+console.log(message.sample());  // "Hello!"
 
-show_message.set(false);
-assert_eq!(message.sample(), None);
+showMessage.set(false);
+console.log(message.sample());  // null
 ```
 
-### `if_else` - Conditional Selection
+### `ifElse` - Conditional Selection
 
-```rust
-use cliffy_core::{behavior, combinators::if_else};
+```typescript
+import { Behavior, ifElse } from '@cliffy/core';
 
-let is_dark_mode = behavior(false);
-let theme = if_else(
-    &is_dark_mode,
-    || "dark".to_string(),
-    || "light".to_string(),
-);
+const isDarkMode = new Behavior(false);
+const theme = ifElse(isDarkMode, () => "dark", () => "light");
 
-assert_eq!(theme.sample(), "light");
+console.log(theme.sample());  // "light"
 
-is_dark_mode.set(true);
-assert_eq!(theme.sample(), "dark");
+isDarkMode.set(true);
+console.log(theme.sample());  // "dark"
 ```
 
 ### `fold` - Accumulate Events
 
-```rust
-use cliffy_core::event;
+```typescript
+import { Event } from '@cliffy/core';
 
-let clicks = event::<()>();
-let click_count = clicks.fold(0i32, |n, _| n + 1);
+const clicks = new Event<void>();
+const clickCount = clicks.fold(0, (n, _) => n + 1);
 
-assert_eq!(click_count.sample(), 0);
+console.log(clickCount.sample());  // 0
 
-clicks.emit(());
-clicks.emit(());
-assert_eq!(click_count.sample(), 2);
+clicks.emit();
+clicks.emit();
+console.log(clickCount.sample());  // 2
 ```
 
 ## Event Transformations
 
 ### `map` - Transform Event Values
 
-```rust
-let numbers = event::<i32>();
-let doubled = numbers.map(|n| n * 2);
+```typescript
+const numbers = new Event<number>();
+const doubled = numbers.map(n => n * 2);
 
-doubled.subscribe(|n| println!("Got: {}", n));
+doubled.subscribe(n => console.log('Got:', n));
 
-numbers.emit(5);  // Prints: "Got: 10"
+numbers.emit(5);  // Logs: "Got: 10"
 ```
 
 ### `filter` - Select Events
 
-```rust
-let numbers = event::<i32>();
-let evens = numbers.filter(|n| n % 2 == 0);
+```typescript
+const numbers = new Event<number>();
+const evens = numbers.filter(n => n % 2 === 0);
 
-evens.subscribe(|n| println!("Even: {}", n));
+evens.subscribe(n => console.log('Even:', n));
 
 numbers.emit(1);  // Nothing
-numbers.emit(2);  // Prints: "Even: 2"
+numbers.emit(2);  // Logs: "Even: 2"
 numbers.emit(3);  // Nothing
-numbers.emit(4);  // Prints: "Even: 4"
+numbers.emit(4);  // Logs: "Even: 4"
 ```
 
 ### `merge` - Combine Event Streams
 
-```rust
-let clicks = event::<&str>();
-let keys = event::<&str>();
-let inputs = clicks.merge(&keys);
+```typescript
+const clicks = new Event<string>();
+const keys = new Event<string>();
+const inputs = clicks.merge(keys);
 
-inputs.subscribe(|s| println!("Input: {}", s));
+inputs.subscribe(s => console.log('Input:', s));
 
-clicks.emit("click");  // Prints: "Input: click"
-keys.emit("key");      // Prints: "Input: key"
+clicks.emit('click');  // Logs: "Input: click"
+keys.emit('key');      // Logs: "Input: key"
 ```
 
 ## Geometric State (Advanced)
 
-For explicit geometric control, use `GeometricState`:
+For animations, physics, and explicit geometric control, use `GeometricState`:
 
-```rust
-use cliffy_core::{GeometricState, Rotor, Translation};
-use std::f64::consts::PI;
+```typescript
+import { GeometricState, Rotor, Translation } from '@cliffy/core';
 
 // Create state from a 3D position
-let pos = GeometricState::from_vector(1.0, 0.0, 0.0);
+const pos = GeometricState.fromVector(1, 0, 0);
 
-// Apply a 90-degree rotation in the XY plane
-let rotated = pos.apply_rotor(&Rotor::xy(PI / 2.0));
+// Apply a 90-degree rotation in the XY plane (around Z axis)
+const rot = Rotor.xy(Math.PI / 2);
+const rotated = pos.applyRotor(rot);
 
 // Apply a translation
-let translated = rotated.apply_translation(&Translation::new(1.0, 0.0, 0.0));
+const trans = new Translation(1, 0, 0);
+const translated = rotated.applyTranslation(trans);
 
 // Read the result
-let (x, y, z) = translated.as_vector();
-// x ≈ 1.0, y ≈ 1.0, z ≈ 0.0
+const [x, y, z] = translated.asVector();
+console.log(x, y, z);  // ~1, ~1, ~0
+```
+
+## DOM Projections
+
+For efficient DOM updates without virtual DOM, use `DOMProjection`:
+
+```typescript
+import { Behavior, DOMProjection, ProjectionScheduler } from '@cliffy/core';
+
+const count = new Behavior(0);
+const display = document.getElementById('display')!;
+
+// Create projections for different DOM properties
+const textProj = DOMProjection.text(display, state => `Count: ${state}`);
+const styleProj = DOMProjection.style(display, 'color', state =>
+    state > 10 ? 'green' : 'black'
+);
+
+// Subscribe to update DOM when state changes
+count.subscribe(value => {
+    textProj.update(String(value));
+    styleProj.update(value > 10 ? 'green' : 'black');
+});
+
+// Or use a scheduler for batched updates
+const scheduler = new ProjectionScheduler();
+count.subscribe(value => {
+    scheduler.schedule(textProj, `Count: ${value}`);
+    scheduler.schedule(styleProj, value > 10 ? 'green' : 'black');
+});
 ```
 
 ## Next Steps
 
 - Read the [FRP Guide](./frp-guide.md) for reactive patterns
 - Explore the [Geometric Algebra Primer](./geometric-algebra-primer.md)
-- Learn the [Algebraic TSX Guide](./algebraic-tsx-guide.md) for component model
-- Understand [Distributed State](./distributed-state-guide.md) for CRDTs
-- Write tests with the [Testing Guide](./testing-guide.md)
+- Learn the [DOM Projection Guide](./dom-projection-guide.md) for efficient rendering
 - Check out the [examples](../examples/) for complete applications
 - See the [Architecture docs](./architecture/) for design decisions
 
@@ -330,10 +304,11 @@ let (x, y, z) = translated.as_vector();
 
 | Concept | React/Redux | Cliffy |
 |---------|------------|--------|
-| State | `useState`, Redux store | `Behavior<T>` |
+| State | `useState`, Redux store | `Behavior` |
 | Derived state | `useMemo`, selectors | `behavior.map()` |
-| Events | Callbacks, actions | `Event<T>` |
+| Events | Callbacks, actions | `Event` |
 | Side effects | `useEffect` | `subscribe()` |
 | Combining state | Multiple hooks | `combine()` |
+| DOM updates | Virtual DOM diffing | Direct `DOMProjection` |
 
-Cliffy's approach is more declarative: you describe the relationships between values, and updates propagate automatically.
+Cliffy's approach is more declarative: you describe the relationships between values, and updates propagate automatically. DOM updates happen directly without virtual DOM reconciliation.
