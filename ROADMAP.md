@@ -1282,6 +1282,52 @@ Deep dives into Cliffy's design:
 - [ ] Write devtools usage guide
 - [ ] Create video walkthroughs
 
+### 7.6 IDE and Editor Support
+
+Provide first-class IDE support for Algebraic TSX (`html` tagged templates):
+
+**Supported Editors:**
+
+| Editor | Approach | Features |
+|--------|----------|----------|
+| VSCode | Extension or lit-plugin | Syntax highlighting, completion, type checking |
+| Neovim | Treesitter + LSP | HTML injection in template strings |
+| Zed | Tree-sitter grammar | Native syntax highlighting |
+
+**VSCode Support:**
+```json
+// .vscode/settings.json
+{
+  "lit-plugin.templateTags": ["html"],
+  "html.customData": ["./cliffy-html.json"]
+}
+```
+
+The good news is ATSX uses the same `html` tagged template syntax as lit-html, so existing tooling can be leveraged:
+- **lit-plugin** VSCode extension recognizes `html` template tags
+- **nvim-treesitter** with lit grammar provides HTML injection
+- **tree-sitter-typescript** can be extended for template string injection
+
+**Custom ATSX Language Server (future):**
+```typescript
+// Features to provide:
+// - Completion for HTML elements and attributes
+// - Type checking for ${behavior} interpolations
+// - Validation that Behavior<T> types match attribute expectations
+// - Go-to-definition for event handlers
+// - Hover info showing Behavior types
+```
+
+**Tasks**:
+- [ ] Test lit-plugin with ATSX templates (may work out of box)
+- [ ] Document VSCode setup with lit-plugin
+- [ ] Document Neovim setup with nvim-treesitter
+- [ ] Document Zed configuration
+- [ ] Create `cliffy-vscode` extension if lit-plugin insufficient
+- [ ] Add ATSX-specific TypeScript language service plugin (for type-aware completion)
+- [ ] Create custom tree-sitter grammar for ATSX (if needed)
+- [ ] Document IDE setup in getting-started guide
+
 ---
 
 ## Phase 8: Multi-Language Demo Examples → v0.1.0

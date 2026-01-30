@@ -1,0 +1,13 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "paths": {
+      "@cliffy-ga/core": ["../../cliffy-wasm/pkg"],
+      "@cliffy-ga/core/html": ["../../cliffy-wasm/pkg/html.ts"]
+    }
+  },
+  "include": ["src/**/*.ts"],
+  "exclude": ["node_modules", "dist"]
+}

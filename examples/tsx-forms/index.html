@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliffy TSX Forms</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    #app {
+      background: white;
+      border-radius: 16px;
+      padding: 40px;
+      box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+      width: 100%;
+      max-width: 500px;
+    }
+
+    .form-app {
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    h1 {
+      font-size: 1.75rem;
+      color: #333;
+      text-align: center;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #555;
+    }
+
+    input, select, textarea {
+      padding: 12px 16px;
+      border: 2px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 1rem;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      border-color: #f093fb;
+      box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.2);
+    }
+
+    input.invalid, select.invalid, textarea.invalid {
+      border-color: #f5576c;
+    }
+
+    input.valid, select.valid, textarea.valid {
+      border-color: #4CAF50;
+    }
+
+    textarea {
+      min-height: 100px;
+      resize: vertical;
+    }
+
+    .error-message {
+      font-size: 0.75rem;
+      color: #f5576c;
+      min-height: 1.2em;
+    }
+
+    .submit-btn {
+      padding: 14px 24px;
+      background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 0.1s, box-shadow 0.2s, opacity 0.2s;
+    }
+
+    .submit-btn:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+    }
+
+    .submit-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .form-status {
+      text-align: center;
+      padding: 16px;
+      border-radius: 8px;
+      font-weight: 500;
+    }
+
+    .form-status.success {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+
+    .form-status.error {
+      background: #ffebee;
+      color: #c62828;
+    }
+
+    .field-info {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.75rem;
+      color: #999;
+    }
+
+    .char-count {
+      font-variant-numeric: tabular-nums;
+    }
+
+    .password-strength {
+      height: 4px;
+      border-radius: 2px;
+      background: #e0e0e0;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+
+    .password-strength-bar {
+      height: 100%;
+      transition: width 0.2s, background 0.2s;
+    }
+
+    .strength-weak { background: #f5576c; width: 33%; }
+    .strength-medium { background: #ff9800; width: 66%; }
+    .strength-strong { background: #4CAF50; width: 100%; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <p>Loading Cliffy...</p>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

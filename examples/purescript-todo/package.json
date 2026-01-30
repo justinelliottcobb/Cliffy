@@ -1,0 +1,15 @@
+{
+  "name": "@cliffy/purescript-todo-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:ps": "spago build",
+    "bundle": "spago bundle --module Main --outfile dist/main.js",
+    "dev": "npm run build:ps && npm run bundle && npx serve .",
+    "clean": "rm -rf output .spago dist"
+  },
+  "devDependencies": {
+    "serve": "^14.2.0"
+  }
+}
