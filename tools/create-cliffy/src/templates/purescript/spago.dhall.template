@@ -1,0 +1,23 @@
+{-
+Welcome to a Spago project!
+You can edit this file as you like.
+
+To learn more about Spago, see:
+https://github.com/purescript/spago
+-}
+{ name = "{{projectName}}"
+, dependencies =
+  [ "aff"
+  , "arrays"
+  , "console"
+  , "effect"
+  , "foldable-traversable"
+  , "maybe"
+  , "prelude"
+  , "web-dom"
+  , "web-events"
+  , "web-html"
+  ]
+, packages = ./packages.dhall
+, sources = [ "src/**/*.purs" ]
+}

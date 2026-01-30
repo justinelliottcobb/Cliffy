@@ -1,0 +1,109 @@
+-- | {{projectName}} - A Cliffy PureScript Application
+-- |
+-- | This example demonstrates FRP patterns in PureScript:
+-- | - Behavior: A time-varying value (the counter)
+-- | - Pure functions for state updates
+-- | - Effect handling for DOM interaction
+module Main where
+
+import Prelude
+
+import Data.Maybe (Maybe(..))
+import Effect (Effect)
+import Effect.Console (log)
+import Effect.Ref as Ref
+import Web.DOM.Document (toNonElementParentNode)
+import Web.DOM.Element (toEventTarget, setTextContent)
+import Web.DOM.NonElementParentNode (getElementById)
+import Web.Event.Event (EventType(..))
+import Web.Event.EventTarget (addEventListener, eventListener)
+import Web.HTML (window)
+import Web.HTML.HTMLDocument (toDocument)
+import Web.HTML.Window (document)
+
+-- | A simple Behavior implementation in PureScript
+-- | In a real app, this would use the cliffy-purescript bindings
+newtype Behavior a = Behavior
+  { value :: Ref.Ref a
+  , subscribers :: Ref.Ref (Array (a -> Effect Unit))
+  }
+
+-- | Create a new Behavior with an initial value
+behavior :: forall a. a -> Effect (Behavior a)
+behavior initial = do
+  value <- Ref.new initial
+  subscribers <- Ref.new []
+  pure $ Behavior { value, subscribers }
+
+-- | Get the current value
+sample :: forall a. Behavior a -> Effect a
+sample (Behavior b) = Ref.read b.value
+
+-- | Update the value with a function
+update :: forall a. (a -> a) -> Behavior a -> Effect Unit
+update f (Behavior b) = do
+  current <- Ref.read b.value
+  let newValue = f current
+  Ref.write newValue b.value
+  subs <- Ref.read b.subscribers
+  for_ subs \sub -> sub newValue
+  where
+    for_ :: forall m a. Applicative m => Array a -> (a -> m Unit) -> m Unit
+    for_ [] _ = pure unit
+    for_ arr fn = go arr
+      where
+        go [] = pure unit
+        go [x] = fn x
+        go (x : xs) = fn x *> go xs
+
+-- | Subscribe to value changes
+subscribe :: forall a. (a -> Effect Unit) -> Behavior a -> Effect Unit
+subscribe callback (Behavior b) = do
+  subs <- Ref.read b.subscribers
+  Ref.write (subs <> [callback]) b.subscribers
+  -- Call with current value
+  current <- Ref.read b.value
+  callback current
+
+-- | Main entry point
+main :: Effect Unit
+main = do
+  log "{{projectName}} starting..."
+
+  -- Get DOM elements
+  win <- window
+  doc <- document win
+  let docNode = toNonElementParentNode $ toDocument doc
+
+  mCountEl <- getElementById "count" docNode
+  mIncrementBtn <- getElementById "increment" docNode
+  mDecrementBtn <- getElementById "decrement" docNode
+  mStatusEl <- getElementById "status" docNode
+
+  case mCountEl, mIncrementBtn, mDecrementBtn, mStatusEl of
+    Just countEl, Just incrementBtn, Just decrementBtn, Just statusEl -> do
+      -- Create the counter behavior
+      count <- behavior 0
+
+      -- Subscribe to update the display
+      subscribe (\n -> setTextContent (show n) countEl) count
+
+      -- Set up button handlers
+      incrementListener <- eventListener \_ -> do
+        update (_ + 1) count
+        log "Incremented"
+
+      decrementListener <- eventListener \_ -> do
+        update (_ - 1) count
+        log "Decremented"
+
+      addEventListener (EventType "click") incrementListener false (toEventTarget incrementBtn)
+      addEventListener (EventType "click") decrementListener false (toEventTarget decrementBtn)
+
+      -- Update status
+      setTextContent "PureScript ready!" statusEl
+
+      log "{{projectName}} initialized!"
+
+    _, _, _, _ -> do
+      log "Error: Could not find required DOM elements"

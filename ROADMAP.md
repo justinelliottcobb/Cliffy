@@ -970,6 +970,51 @@ const result = await cluster.compute(
 - [ ] Create performance regression tests
 - [ ] Target: 60fps with 1000+ active behaviors
 
+### 5.4 Benchmark Suite
+
+Create comprehensive benchmarks to demonstrate GPU acceleration benefits:
+
+```rust
+/// Benchmark framework for comparing compute backends
+pub struct BenchmarkSuite {
+    scenarios: Vec<BenchmarkScenario>,
+    backends: Vec<ComputeBackend>,
+}
+
+pub enum ComputeBackend {
+    CpuSingleThread,
+    CpuSimd,          // SIMD-optimized CPU
+    CpuParallel,      // Rayon parallel
+    WebGpu,           // GPU compute shaders
+    Distributed,      // Multi-peer distributed
+}
+
+pub struct BenchmarkScenario {
+    name: String,
+    operation_count: usize,
+    state_complexity: StateComplexity,
+}
+```
+
+**Benchmark Scenarios**:
+
+| Scenario | Description | Key Metric |
+|----------|-------------|------------|
+| Geometric Product Batch | 10K-1M multivector products | ops/sec |
+| CRDT Merge Storm | 1K concurrent operations from 100 peers | convergence time |
+| State Sync Flood | High-frequency updates to 10K behaviors | latency p50/p99 |
+| Distributed Compute | Geometric mean across 50 peers | speedup factor |
+| Animation Frame | 1000 interpolating objects at 60fps | frame budget % |
+
+**Tasks**:
+- [ ] Create `cliffy-bench` crate with benchmark harness
+- [ ] Implement CPU baseline benchmarks (single-thread, SIMD, parallel)
+- [ ] Add WebGPU benchmarks with automatic fallback detection
+- [ ] Create distributed compute benchmarks
+- [ ] Generate comparison reports (tables, charts)
+- [ ] Add CI integration for performance regression tracking
+- [ ] Document when GPU acceleration provides benefit (batch size thresholds)
+
 ---
 
 ## Phase 6: Production Readiness
@@ -1006,6 +1051,57 @@ const result = await cluster.compute(
 - [ ] Build multiplayer game example
 - [ ] Build document editor example
 - [ ] Build design tool example
+
+### 6.4 Performance Benchmark Demos
+
+Each example application should include visible performance comparisons showing GPU/edge computing benefits:
+
+**Benchmark Display Component**:
+```typescript
+// Embedded benchmark UI showing real-time performance
+<BenchmarkPanel>
+  <MetricCard
+    label="Geometric Operations"
+    cpu={cpuOpsPerSec}
+    gpu={gpuOpsPerSec}
+    speedup={gpuOpsPerSec / cpuOpsPerSec}
+  />
+  <MetricCard
+    label="CRDT Merge Time"
+    cpu={cpuMergeMs}
+    gpu={gpuMergeMs}
+  />
+  <MetricCard
+    label="Sync Latency (p99)"
+    local={localLatency}
+    distributed={distributedLatency}
+  />
+</BenchmarkPanel>
+```
+
+**Per-Application Benchmarks**:
+
+| Application | Key Benchmarks |
+|-------------|----------------|
+| Collaborative Whiteboard | Stroke rendering (CPU vs GPU), multi-user sync latency |
+| Multiplayer Game | Physics updates/sec, state interpolation frame time |
+| Document Editor | CRDT merge throughput, conflict resolution time |
+| Design Tool | Transform batch operations, undo stack geometric diff |
+
+**Benchmark Demo Features**:
+- Toggle between CPU/GPU backends at runtime
+- Real-time metrics overlay
+- "Stress test" mode to push operation counts
+- Export benchmark results as JSON/CSV
+
+**Tasks**:
+- [ ] Create `BenchmarkPanel` component for embedding in examples
+- [ ] Add CPU/GPU toggle with live switching
+- [ ] Implement real-time metrics collection and display
+- [ ] Add stress test mode to each example
+- [ ] Create benchmark comparison visualizations (bar charts, speedup graphs)
+- [ ] Document observed speedups in different scenarios
+- [ ] Add "Why is GPU faster?" explanatory tooltips
 
 ---
 
@@ -2008,11 +2104,17 @@ pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavio
 - [ ] WebGPU acceleration functional
 - [ ] Distributed compute across peers
 - [ ] 60fps with complex state
+- [ ] Benchmark suite covers CPU vs GPU vs distributed backends
+- [ ] Performance regression tests integrated with CI
+- [ ] Documented batch size thresholds for GPU benefit
 
 ### Phase 6
 - [ ] 10,000 concurrent users tested
 - [ ] Documentation complete
 - [ ] Example applications functional
+- [ ] Each example includes embedded performance benchmarks
+- [ ] CPU/GPU comparison demos show measurable speedups
+- [ ] Benchmark results exportable and reproducible
 
 ### Phase 7
 - [ ] Full rustdoc coverage for all crates

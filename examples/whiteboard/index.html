@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliffy Whiteboard - Collaborative Drawing</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #fff;
+      overflow: hidden;
+    }
+
+    #app {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+
+    .toolbar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .toolbar__title {
+      font-weight: 600;
+      margin-right: auto;
+    }
+
+    .toolbar__button {
+      padding: 8px 16px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 6px;
+      background: transparent;
+      color: #fff;
+      cursor: pointer;
+      transition: all 0.15s ease;
+    }
+
+    .toolbar__button:hover {
+      background: rgba(255, 255, 255, 0.1);
+    }
+
+    .toolbar__button--active {
+      background: rgba(74, 144, 226, 0.3);
+      border-color: rgba(74, 144, 226, 0.5);
+    }
+
+    .toolbar__color {
+      width: 32px;
+      height: 32px;
+      border: 2px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .toolbar__color--selected {
+      border-color: #fff;
+      box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.5);
+    }
+
+    .canvas-container {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      touch-action: none;
+    }
+
+    .presence-indicator {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      pointer-events: none;
+      transition: transform 0.1s ease;
+    }
+
+    .presence-indicator::after {
+      content: attr(data-name);
+      position: absolute;
+      left: 16px;
+      top: -4px;
+      font-size: 11px;
+      white-space: nowrap;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 2px 6px;
+      border-radius: 3px;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 8px 16px;
+      background: rgba(255, 255, 255, 0.03);
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.6);
+    }
+
+    .status-bar__item {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <div class="toolbar">
+      <span class="toolbar__title">Cliffy Whiteboard</span>
+      <button class="toolbar__button toolbar__button--active" data-tool="pen">Pen</button>
+      <button class="toolbar__button" data-tool="eraser">Eraser</button>
+      <div class="toolbar__color" style="background: #fff" data-color="#ffffff"></div>
+      <div class="toolbar__color" style="background: #4a90e2" data-color="#4a90e2"></div>
+      <div class="toolbar__color" style="background: #e24a4a" data-color="#e24a4a"></div>
+      <div class="toolbar__color" style="background: #4ae250" data-color="#4ae250"></div>
+      <button class="toolbar__button" id="clearBtn">Clear</button>
+      <button class="toolbar__button" id="simulatePeersBtn">Simulate Peers</button>
+    </div>
+    <div class="canvas-container">
+      <canvas id="canvas"></canvas>
+    </div>
+    <div class="status-bar">
+      <span class="status-bar__item" id="strokeCount">Strokes: 0</span>
+      <span class="status-bar__item" id="pointCount">Points: 0</span>
+      <span class="status-bar__item" id="peerCount">Peers: 1</span>
+    </div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

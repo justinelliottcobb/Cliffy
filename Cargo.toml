@@ -2,6 +2,7 @@
 members = [
     "cliffy-core",
     "cliffy-gpu",
+    "cliffy-loadtest",
     "cliffy-protocols",
     "cliffy-test",
     "cliffy-wasm",

@@ -9,18 +9,14 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
-    "jsx": "preserve",
-    "jsxFactory": "jsx",
-    "jsxFragmentFactory": "Fragment",
     "strict": true,
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@cliffy/core": ["../cliffy-wasm/pkg"],
-      "@cliffy/core/*": ["../cliffy-wasm/pkg/*"],
-      "@cliffy/shared": ["./shared/src"],
-      "@cliffy/shared/*": ["./shared/src/*"]
+      "@cliffy/core": ["./node_modules/@cliffy/core"],
+      "@cliffy/core/*": ["./node_modules/@cliffy/core/*"]
     }
-  }
+  },
+  "include": ["src/**/*"]
 }
