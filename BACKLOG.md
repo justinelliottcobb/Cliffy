@@ -104,11 +104,11 @@ These tasks update existing documentation and code snippets to use the new Algeb
 
 ### Core Documentation
 
-- [ ] **Update CLAUDE.md code examples**
+- [x] **Update CLAUDE.md code examples** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4 (Algebraic TSX)
   - Issue: CLAUDE.md examples show raw `behavior`/`subscribe` usage without Algebraic TSX
-  - Fix: Add examples showing `html` tagged template and PureScript Html DSL usage
+  - Fix: Added Algebraic TSX section with TypeScript and PureScript examples
 
 - [ ] **Update getting-started.md with Algebraic TSX**
   - Origin: Phase 7 (Documentation)
@@ -130,11 +130,11 @@ These tasks update existing documentation and code snippets to use the new Algeb
   - Issue: Existing examples (whiteboard, etc.) may use older patterns
   - Fix: Review and update to use `html` tagged templates where appropriate
 
-- [ ] **Update README.md quick start**
+- [x] **Update README.md quick start** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 7
   - Issue: Root README may show outdated usage patterns
-  - Fix: Show `npx create-cliffy` with Algebraic TSX counter example
+  - Fix: Added Quick Start with `npx create-cliffy` and Algebraic TSX examples
 
 - [ ] **Add Algebraic TSX section to ROADMAP.md**
   - Origin: Phase 7 (Documentation)
@@ -144,11 +144,11 @@ These tasks update existing documentation and code snippets to use the new Algeb
 
 ### PureScript-Specific
 
-- [ ] **Create cliffy-purescript README**
+- [x] **Create cliffy-purescript README** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4
   - Issue: No README explaining PureScript package usage
-  - Fix: Document module structure, FFI patterns, and example usage
+  - Fix: Created comprehensive README with module structure, examples, API comparison
 
 - [ ] **Document PureScript FFI patterns**
   - Origin: Phase 7 (Documentation)
@@ -345,6 +345,9 @@ Examples that demonstrate specific phase capabilities:
 - [x] Create main Cliffy.purs module with FRP primitives (Phase 7)
 - [x] Wire up PureScript package dependencies (Phase 7)
 - [x] Export html.ts from cliffy-wasm package (Phase 7)
+- [x] Update README.md quick start with Algebraic TSX (Phase 7)
+- [x] Update CLAUDE.md code examples (Phase 7)
+- [x] Create cliffy-purescript README (Phase 7)
 
 ### In Progress
 
