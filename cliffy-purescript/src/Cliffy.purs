@@ -1,7 +1,33 @@
 -- | Main Cliffy module for PureScript bindings
--- | Provides functional geometric algebra operations
+-- |
+-- | This module provides both:
+-- | 1. User-friendly FRP primitives (Behavior, Event) - the primary API
+-- | 2. Geometric algebra operations (Multivector) - for advanced use
+-- |
+-- | ```purescript
+-- | main :: Effect Unit
+-- | main = do
+-- |     count <- behavior 0
+-- |     subscribe (\n -> log $ "Count: " <> show n) count
+-- |     update (_ + 1) count
+-- | ```
 module Cliffy
-  ( class GeometricAlgebra
+  ( -- * FRP Primitives (Primary API)
+    Behavior
+  , Event
+  , behavior
+  , sample
+  , set
+  , update
+  , subscribe
+  , mapBehavior
+  , event
+  , emit
+  , subscribeEvent
+  , fold
+
+    -- * Geometric Algebra (Advanced)
+  , class GeometricAlgebra
   , Multivector(..)
   , GeometricBehavior(..)
   , transform
@@ -14,7 +40,7 @@ module Cliffy
   , gradeProjection
   , createScalar
   , createE1
-  , createE2 
+  , createE2
   , createE3
   , createRotor
   , interpolateRotors
@@ -36,6 +62,149 @@ import Cliffy.Types (CliffySignature(..), Cl30, Cl41, Cl44)
 -- | Foreign data types for WASM bindings
 foreign import data MultivectorWasm :: Type
 foreign import data GeometricBehaviorWasm :: Type
+
+-- ============================================================================
+-- FRP Primitives - User-friendly API
+-- ============================================================================
+
+-- | A time-varying value. Behavior represents a value that changes over time
+-- | and can be observed by subscribers.
+-- |
+-- | ```purescript
+-- | count <- behavior 0
+-- | subscribe (\n -> log $ show n) count
+-- | update (_ + 1) count  -- logs "1"
+-- | ```
+foreign import data Behavior :: Type -> Type
+
+-- | Discrete events over time. Events fire occasionally with values.
+-- |
+-- | ```purescript
+-- | clicks <- event
+-- | subscribeEvent (\_ -> log "clicked!") clicks
+-- | emit unit clicks
+-- | ```
+foreign import data Event :: Type -> Type
+
+-- | Foreign imports for Behavior operations
+foreign import createBehaviorImpl :: forall a. a -> Effect (Behavior a)
+foreign import sampleImpl :: forall a. Behavior a -> Effect a
+foreign import setImpl :: forall a. Behavior a -> a -> Effect Unit
+foreign import updateImpl :: forall a. (a -> a) -> Behavior a -> Effect Unit
+foreign import subscribeImpl :: forall a. (a -> Effect Unit) -> Behavior a -> Effect (Effect Unit)
+foreign import mapBehaviorImpl :: forall a b. (a -> b) -> Behavior a -> Effect (Behavior b)
+
+-- | Foreign imports for Event operations
+foreign import createEventImpl :: forall a. Effect (Event a)
+foreign import emitImpl :: forall a. Event a -> a -> Effect Unit
+foreign import subscribeEventImpl :: forall a. (a -> Effect Unit) -> Event a -> Effect (Effect Unit)
+foreign import foldImpl :: forall a b. b -> (b -> a -> b) -> Event a -> Effect (Behavior b)
+
+-- | Create a new Behavior with an initial value.
+-- |
+-- | ```purescript
+-- | count <- behavior 0
+-- | name <- behavior "Alice"
+-- | ```
+behavior :: forall a. a -> Effect (Behavior a)
+behavior = createBehaviorImpl
+
+-- | Get the current value of a Behavior.
+-- |
+-- | ```purescript
+-- | count <- behavior 10
+-- | n <- sample count  -- n = 10
+-- | ```
+sample :: forall a. Behavior a -> Effect a
+sample = sampleImpl
+
+-- | Set the value of a Behavior directly.
+-- |
+-- | ```purescript
+-- | count <- behavior 0
+-- | set 42 count
+-- | ```
+set :: forall a. a -> Behavior a -> Effect Unit
+set value b = setImpl b value
+
+-- | Update a Behavior's value with a function.
+-- |
+-- | ```purescript
+-- | count <- behavior 0
+-- | update (_ + 1) count  -- count is now 1
+-- | update (_ * 2) count  -- count is now 2
+-- | ```
+update :: forall a. (a -> a) -> Behavior a -> Effect Unit
+update = updateImpl
+
+-- | Subscribe to changes in a Behavior. The callback is called immediately
+-- | with the current value, then again whenever the value changes.
+-- | Returns an unsubscribe function.
+-- |
+-- | ```purescript
+-- | count <- behavior 0
+-- | unsub <- subscribe (\n -> log $ "Count: " <> show n) count
+-- | update (_ + 1) count  -- logs "Count: 1"
+-- | unsub  -- stop receiving updates
+-- | ```
+subscribe :: forall a. (a -> Effect Unit) -> Behavior a -> Effect (Effect Unit)
+subscribe = subscribeImpl
+
+-- | Map a function over a Behavior, creating a derived Behavior that
+-- | automatically updates when the source changes.
+-- |
+-- | ```purescript
+-- | count <- behavior 1
+-- | doubled <- mapBehavior (_ * 2) count
+-- | n <- sample doubled  -- n = 2
+-- | update (_ + 1) count
+-- | m <- sample doubled  -- m = 4
+-- | ```
+mapBehavior :: forall a b. (a -> b) -> Behavior a -> Effect (Behavior b)
+mapBehavior = mapBehaviorImpl
+
+-- | Create a new Event stream.
+-- |
+-- | ```purescript
+-- | clicks <- event
+-- | ```
+event :: forall a. Effect (Event a)
+event = createEventImpl
+
+-- | Emit a value on an Event.
+-- |
+-- | ```purescript
+-- | clicks <- event
+-- | emit unit clicks
+-- | ```
+emit :: forall a. a -> Event a -> Effect Unit
+emit value e = emitImpl e value
+
+-- | Subscribe to an Event. The callback is called each time a value is emitted.
+-- | Returns an unsubscribe function.
+-- |
+-- | ```purescript
+-- | clicks <- event
+-- | unsub <- subscribeEvent (\_ -> log "clicked!") clicks
+-- | emit unit clicks  -- logs "clicked!"
+-- | ```
+subscribeEvent :: forall a. (a -> Effect Unit) -> Event a -> Effect (Effect Unit)
+subscribeEvent = subscribeEventImpl
+
+-- | Fold an Event into a Behavior, accumulating values over time.
+-- |
+-- | ```purescript
+-- | clicks <- event
+-- | count <- fold 0 (\n _ -> n + 1) clicks
+-- | emit unit clicks
+-- | n <- sample count  -- n = 1
+-- | ```
+fold :: forall a b. b -> (b -> a -> b) -> Event a -> Effect (Behavior b)
+fold = foldImpl
+
+-- ============================================================================
+-- Geometric Algebra (Advanced API)
+-- ============================================================================
 
 -- | Multivector representation in PureScript
 newtype Multivector = Multivector
