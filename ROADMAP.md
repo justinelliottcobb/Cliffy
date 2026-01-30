@@ -1109,6 +1109,93 @@ Each example application should include visible performance comparisons showing 
 
 **Goal**: Production-quality documentation that makes Cliffy accessible to developers at all levels.
 
+### 7.0 Algebraic TSX Implementation (Completed)
+
+Phase 7 implemented a practical Algebraic TSX system for immediate use, providing a simpler path to reactive UI while the full Phase 4 dataflow graph system is developed.
+
+**What Was Built:**
+
+| Component | Description |
+|-----------|-------------|
+| `html.ts` | TypeScript tagged template for reactive DOM |
+| `Cliffy.Html` | PureScript type-safe Html DSL |
+| `create-cliffy` | CLI scaffolding tool with templates |
+
+**TypeScript: html Tagged Template**
+
+The `html` tagged template creates reactive DOM that automatically updates when Behaviors change:
+
+```typescript
+import { behavior } from 'cliffy-wasm';
+import { html, mount } from 'cliffy-wasm/html';
+
+const count = behavior(0);
+
+// Behaviors in templates automatically update the DOM
+const app = html`
+  <div class="counter">
+    <h1>Count: ${count}</h1>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+  </div>
+`;
+
+mount(app, '#app');
+```
+
+**Key Design Decisions:**
+
+1. **No virtual DOM** — Direct DOM manipulation via subscriptions
+2. **Behavior-aware interpolation** — `${behavior}` creates reactive text nodes
+3. **Event handlers as functions** — `onclick=${fn}` attaches native handlers
+4. **Minimal overhead** — Just 100 lines of TypeScript
+
+**PureScript: Type-Safe Html DSL**
+
+The `Cliffy.Html` module provides compile-time guarantees:
+
+```purescript
+import Cliffy (behavior, update)
+import Cliffy.Html (div, button, text, behaviorText, mount)
+import Cliffy.Html.Events (onClick)
+
+counter :: Effect Html
+counter = do
+  count <- behavior 0
+  pure $ div []
+    [ text "Count: "
+    , behaviorText count
+    , button [ onClick \_ -> update (_ + 1) count ] [ text "+" ]
+    ]
+```
+
+**Key Design Decisions:**
+
+1. **Curried API** — Behavior as last argument enables point-free style
+2. **Type-safe attributes** — Wrong attribute on wrong element won't compile
+3. **Effect-based events** — Event handlers return `Effect Unit`
+4. **FFI bridge** — Clean separation between PureScript types and JS runtime
+
+**Scaffolding Tool**
+
+`create-cliffy` provides project templates:
+
+```bash
+npx create-cliffy my-app                        # TypeScript + Vite (default)
+npx create-cliffy my-app --template bun         # Bun runtime
+npx create-cliffy my-app --template purescript  # PureScript + DSL
+```
+
+**Relationship to Phase 4:**
+
+| Current (Phase 7) | Future (Phase 4) |
+|-------------------|------------------|
+| Runtime template parsing | Compile-time graph generation |
+| DOM manipulation | Dataflow graph → DOM |
+| Manual subscriptions | Automatic dependency tracking |
+| Familiar HTML syntax | TSX macros in Rust |
+
+The Phase 7 implementation provides a usable API today. Phase 4 will add compile-time optimization and the full dataflow graph model.
+
 ### 7.1 API Reference Documentation
 
 Complete rustdoc coverage for all public APIs:

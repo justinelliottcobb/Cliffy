@@ -110,17 +110,17 @@ These tasks update existing documentation and code snippets to use the new Algeb
   - Issue: CLAUDE.md examples show raw `behavior`/`subscribe` usage without Algebraic TSX
   - Fix: Added Algebraic TSX section with TypeScript and PureScript examples
 
-- [ ] **Update getting-started.md with Algebraic TSX**
+- [x] **Update getting-started.md with Algebraic TSX** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 7
   - Issue: Getting started guide may not reflect new UI patterns
-  - Fix: Show both TypeScript `html` and PureScript DSL approaches
+  - Fix: Added Quick Start section with Algebraic TSX examples
 
-- [ ] **Update API reference with rendering examples**
+- [x] **Update API reference with rendering examples** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 7
   - Issue: API docs show FRP primitives but not how to render them
-  - Fix: Add rendering sections showing Behavior → DOM projection
+  - Fix: Created comprehensive API reference with FRP primitives and Algebraic TSX rendering
 
 ### Code Snippet Updates
 
@@ -136,11 +136,11 @@ These tasks update existing documentation and code snippets to use the new Algeb
   - Issue: Root README may show outdated usage patterns
   - Fix: Added Quick Start with `npx create-cliffy` and Algebraic TSX examples
 
-- [ ] **Add Algebraic TSX section to ROADMAP.md**
+- [x] **Add Algebraic TSX section to ROADMAP.md** ✅
   - Origin: Phase 7 (Documentation)
   - Related: Phase 4, Phase 7
   - Issue: ROADMAP mentions Algebraic TSX but details are sparse
-  - Fix: Document what was implemented and the design decisions made
+  - Fix: Added Phase 7.0 documenting implementation, design decisions, and relationship to Phase 4
 
 ### PureScript-Specific
 
@@ -348,6 +348,9 @@ Examples that demonstrate specific phase capabilities:
 - [x] Update README.md quick start with Algebraic TSX (Phase 7)
 - [x] Update CLAUDE.md code examples (Phase 7)
 - [x] Create cliffy-purescript README (Phase 7)
+- [x] Update getting-started.md with Algebraic TSX (Phase 7)
+- [x] Create API reference with rendering examples (Phase 7)
+- [x] Add Algebraic TSX section to ROADMAP.md (Phase 7)
 
 ### In Progress
 
