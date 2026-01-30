@@ -137,10 +137,14 @@ test.describe('Cross-Browser Rendering', () => {
 
     await page.waitForTimeout(200);
 
-    // Take a screenshot for visual comparison
-    await canvas.screenshot({
-      path: `test-results/canvas-${browserName}.png`,
-    });
+    // Take a screenshot for visual comparison (if test output dir exists)
+    try {
+      await canvas.screenshot({
+        path: `test-results/canvas-${browserName}.png`,
+      });
+    } catch {
+      // Ignore screenshot errors in CI
+    }
 
     // Verify the stroke was recorded
     const strokeCount = await page.locator('#strokeCount').textContent();

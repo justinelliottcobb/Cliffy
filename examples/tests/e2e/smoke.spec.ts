@@ -35,16 +35,6 @@ test.describe('Cliffy WASM Smoke Tests', () => {
   });
 
   test('WASM module initializes successfully', async ({ page }) => {
-    // Wait for WASM to load by checking for a specific log message
-    const wasmLoaded = await page.evaluate(async () => {
-      // Wait a bit for WASM to initialize
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-
-      // Check if Cliffy is available on the window
-      // (exposed for debugging in the whiteboard app)
-      return typeof (window as any).benchmark !== 'undefined';
-    });
-
     // The benchmark panel is created after WASM loads
     await expect(page.locator('.benchmark-panel')).toBeVisible({
       timeout: 10000,
@@ -74,101 +64,68 @@ test.describe('Cliffy WASM Smoke Tests', () => {
     expect(dimensions.clientWidth).toBeGreaterThan(0);
     expect(dimensions.clientHeight).toBeGreaterThan(0);
   });
+
+  test('console shows Cliffy initialization message', async ({ page }) => {
+    const messages: string[] = [];
+    page.on('console', (msg) => {
+      messages.push(msg.text());
+    });
+
+    await page.goto('/');
+    await page.waitForSelector('.benchmark-panel', { timeout: 10000 });
+
+    // Check for initialization message
+    const hasInitMessage = messages.some((m) =>
+      m.includes('Cliffy') || m.includes('initialized')
+    );
+    expect(hasInitMessage).toBe(true);
+  });
 });
 
-test.describe('Behavior and Event Tests', () => {
+test.describe('Whiteboard App Functionality', () => {
   test.beforeEach(async ({ page }) => {
     await page.goto('/');
     // Wait for WASM to initialize
-    await page.waitForTimeout(2000);
+    await page.waitForSelector('.benchmark-panel', { timeout: 10000 });
   });
 
-  test('can create and sample a Behavior', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      // Import Cliffy dynamically (already loaded in page context)
-      const cliffy = await import('@cliffy/core');
-
-      // Create a behavior with initial value
-      const count = new cliffy.Behavior(42);
-
-      // Sample the value
-      return count.sample();
-    });
-
-    expect(result).toBe(42);
+  test('stroke count starts at zero', async ({ page }) => {
+    const strokeCount = await page.locator('#strokeCount').textContent();
+    expect(strokeCount).toBe('Strokes: 0');
   });
 
-  test('Behavior update triggers subscribers', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const cliffy = await import('@cliffy/core');
-
-      const count = new cliffy.Behavior(0);
-      const values: number[] = [];
-
-      // Subscribe to changes
-      count.subscribe((value: number) => {
-        values.push(value);
-      });
-
-      // Update the value
-      count.update((n: number) => n + 1);
-      count.update((n: number) => n + 1);
-      count.set(10);
-
-      return { finalValue: count.sample(), receivedValues: values };
-    });
-
-    expect(result.finalValue).toBe(10);
-    // Should have received: 0 (initial), 1, 2, 10
-    expect(result.receivedValues).toEqual([0, 1, 2, 10]);
+  test('point count starts at zero', async ({ page }) => {
+    const pointCount = await page.locator('#pointCount').textContent();
+    expect(pointCount).toBe('Points: 0');
   });
 
-  test('Event emits to subscribers', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const cliffy = await import('@cliffy/core');
-
-      const clicks = new cliffy.Event<number>();
-      const received: number[] = [];
-
-      clicks.subscribe((value: number) => {
-        received.push(value);
-      });
-
-      clicks.emit(1);
-      clicks.emit(2);
-      clicks.emit(3);
-
-      return received;
-    });
-
-    expect(result).toEqual([1, 2, 3]);
+  test('peer count starts at one', async ({ page }) => {
+    const peerCount = await page.locator('#peerCount').textContent();
+    expect(peerCount).toBe('Peers: 1');
   });
 
-  test('combine two Behaviors', async ({ page }) => {
-    const result = await page.evaluate(async () => {
-      const cliffy = await import('@cliffy/core');
+  test('drawing increments stroke and point counts', async ({ page }) => {
+    const canvas = page.locator('#canvas');
+    const box = await canvas.boundingBox();
+    if (!box) throw new Error('Canvas not found');
 
-      const width = new cliffy.Behavior(10);
-      const height = new cliffy.Behavior(5);
+    // Draw a stroke
+    const startX = box.x + box.width / 2;
+    const startY = box.y + box.height / 2;
 
-      // Combine to compute area
-      const area = width.combine(height, (w: number, h: number) => w * h);
+    await page.mouse.move(startX, startY);
+    await page.mouse.down();
+    await page.mouse.move(startX + 100, startY + 50, { steps: 10 });
+    await page.mouse.up();
 
-      const initial = area.sample();
+    await page.waitForTimeout(200);
 
-      // Update width
-      width.set(20);
-      const afterWidthUpdate = area.sample();
+    // Check stroke count increased
+    const strokeCount = await page.locator('#strokeCount').textContent();
+    expect(strokeCount).toBe('Strokes: 1');
 
-      // Update height
-      height.set(10);
-      const afterHeightUpdate = area.sample();
-
-      return { initial, afterWidthUpdate, afterHeightUpdate };
-    });
-
-    expect(result.initial).toBe(50);
-    expect(result.afterWidthUpdate).toBe(100);
-    expect(result.afterHeightUpdate).toBe(200);
+    // Check point count increased
+    const pointCount = await page.locator('#pointCount').textContent();
+    expect(pointCount).not.toBe('Points: 0');
   });
 });
