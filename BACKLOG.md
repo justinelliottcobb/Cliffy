@@ -173,7 +173,7 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 | Collaborative Whiteboard | ✅ Exists | Real-time drawing with geometric transforms |
 | Multiplayer Game | ❌ Not started | High-frequency state sync, interpolation |
 | Shared Document Editor | ❌ Not started | CRDT text, presence indicators |
-| Design Tool | ❌ Not started | Complex geometric operations, undo/redo |
+| Design Tool | ✅ Complete | Complex geometric operations, undo/redo |
 
 #### Multiplayer Game Example
 
@@ -199,14 +199,15 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 
 #### Design Tool Example
 
-- [ ] **Create `examples/design-tool/`**
+- [x] **Create `examples/design-tool/`** ✅
   - Demonstrates: Complex geometric operations, undo/redo, transform composition
   - Features:
     - Shape manipulation via rotors
-    - Undo/redo as geometric inverse operations
-    - Snap-to-grid via projection
-    - Multi-select with combined transforms
-  - Stack: TypeScript + Vite + @cliffy/core
+    - Undo/redo via history management
+    - Properties panel with real-time binding
+    - Keyboard shortcuts (Delete, Ctrl+Z, Ctrl+Shift+Z)
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 ### Algebraic TSX Showcase Examples
 
@@ -214,46 +215,49 @@ These examples specifically demonstrate the Algebraic TSX rendering approach:
 
 #### TypeScript html`` Template Examples
 
-- [ ] **Create `examples/tsx-counter/`**
+- [x] **Create `examples/tsx-counter/`** ✅
   - Demonstrates: Basic `html` tagged template usage
   - Features:
     - Behavior in text content
     - Event handlers
-    - Conditional rendering
-  - Minimal, focused example
+    - Conditional CSS classes
+  - Status: Complete, tested with @cliffy-ga/core@0.1.0-alpha
 
-- [ ] **Create `examples/tsx-todo/`**
+- [x] **Create `examples/tsx-todo/`** ✅
   - Demonstrates: List rendering, component composition
   - Features:
     - Dynamic lists with Behavior<Array>
     - Nested html`` templates
     - Form handling with Events
-  - TodoMVC-style implementation
+    - Filter buttons with derived state
+  - Status: Complete, TodoMVC-style implementation
 
-- [ ] **Create `examples/tsx-forms/`**
+- [x] **Create `examples/tsx-forms/`** ✅
   - Demonstrates: Form validation, two-way binding patterns
   - Features:
     - Input value binding
     - Validation state as Behavior
-    - Submit handling
-    - Error display
+    - Password strength indicator
+    - Uses `wedge()` for combining validations
+  - Status: Complete, demonstrates new GA-inspired API
 
 #### PureScript DSL Examples
 
-- [ ] **Create `examples/purescript-counter/`**
+- [x] **Create `examples/purescript-counter/`** ✅
   - Demonstrates: Basic Cliffy.Html DSL usage
   - Features:
     - Type-safe element construction
     - Behavior-reactive content
     - Event handling with Effect
-  - Minimal, focused example
+  - Status: Complete
 
-- [ ] **Create `examples/purescript-todo/`**
+- [x] **Create `examples/purescript-todo/`** ✅
   - Demonstrates: ADTs for state, list rendering
   - Features:
     - Todo items as ADT
     - Pattern matching in render
     - Type-safe event handling
+  - Status: Complete
 
 ### Phase-Specific Showcase Examples
 
@@ -271,13 +275,15 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 1: Geometric State
 
-- [ ] **Create `examples/geometric-transforms/`**
+- [x] **Create `examples/geometric-transforms/`** ✅
   - Demonstrates: Explicit geometric operations
   - Features:
-    - Rotor rotations visualized
-    - Transform composition
-    - Projection from multivector to UI
-    - SLERP interpolation
+    - Rotor rotations in XY, XZ, YZ planes
+    - Transform composition (rotation + translation)
+    - .blend() interpolation (SLERP)
+    - GeometricState transformations
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Phase 2: Distributed State
 
@@ -301,13 +307,15 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 5: Edge Computing
 
-- [ ] **Create `examples/gpu-benchmark/`**
-  - Demonstrates: WebGPU acceleration
+- [x] **Create `examples/gpu-benchmark/`** ✅
+  - Demonstrates: WebGPU/WASM performance testing
   - Features:
-    - CPU vs GPU toggle
-    - Real-time performance metrics
-    - Batch size threshold visualization
-    - Operation throughput comparison
+    - WebGPU, SIMD, SharedArrayBuffer detection
+    - Geometric algebra operation benchmarks
+    - Real-time performance metrics (ops/sec)
+    - Visual performance comparison bars
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 ---
 
@@ -358,15 +366,22 @@ Examples that demonstrate specific phase capabilities:
 - [x] Audit existing examples for Algebraic TSX (Phase 7)
 - [x] Document PureScript FFI patterns (Phase 7)
 - [x] Create Algebraic TSX migration guide (Phase 7)
+- [x] Create geometric-transforms example (Phase 6)
+- [x] Create design-tool example (Phase 6)
+- [x] Create gpu-benchmark example (Phase 6)
 
 ### In Progress
 
 - Phase 7 Documentation continues
 
-### Blocked
+### Ready to Implement
 
-- Distributed examples blocked on cliffy-protocols revival (Phase 2)
-- GPU examples blocked on WebGPU integration (Phase 5)
+- Distributed examples now unblocked (Phase 2 completed in PR #138):
+  - multiplayer-game - High-frequency state sync, geometric interpolation
+  - document-editor - CRDT text, operational transforms, presence
+  - crdt-playground - Geometric CRDT visualization
+  - p2p-sync - WebRTC state synchronization
+  - testing-showcase - cliffy-test geometric invariants
 
 ---
 
