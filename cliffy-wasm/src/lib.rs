@@ -247,6 +247,137 @@ impl Behavior {
         Ok(combined)
     }
 
+    /// Project a value through this Behavior (used when this holds a boolean).
+    ///
+    /// When the condition is true, returns the value from value_fn.
+    /// When false, returns null.
+    ///
+    /// This is the GA-inspired projection operator: projecting a value
+    /// through a condition subspace.
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const showMessage = behavior(true);
+    /// const message = showMessage.project(() => "Hello!");
+    ///
+    /// console.log(message.sample()); // "Hello!"
+    ///
+    /// showMessage.set(false);
+    /// console.log(message.sample()); // null
+    /// ```
+    #[wasm_bindgen]
+    pub fn project(&self, value_fn: &Function) -> Result<Behavior, JsValue> {
+        let cond_value = self.value.borrow().clone();
+        let this_js = JsValue::null();
+
+        let initial = if cond_value.is_truthy() {
+            value_fn.call0(&this_js)?
+        } else {
+            JsValue::null()
+        };
+
+        let result = Behavior::new(initial);
+
+        let result_value = Rc::clone(&result.value);
+        let result_subscribers = Rc::clone(&result.subscribers);
+        let value_fn_clone = value_fn.clone();
+
+        let callback = Closure::wrap(Box::new(move |cond: JsValue| {
+            let this = JsValue::null();
+            let new_value = if cond.is_truthy() {
+                value_fn_clone.call0(&this).unwrap_or(JsValue::null())
+            } else {
+                JsValue::null()
+            };
+            *result_value.borrow_mut() = new_value;
+            for (_, cb) in result_subscribers.borrow().iter() {
+                let _ = cb.call1(&this, &result_value.borrow());
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        Ok(result)
+    }
+
+    /// Select between two values based on this Behavior (used when this holds a boolean).
+    ///
+    /// When the condition is true, returns the value from then_fn.
+    /// When false, returns the value from else_fn.
+    ///
+    /// This is the GA-inspired selection operator: selecting which subspace
+    /// to project onto based on a condition.
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const isDarkMode = behavior(false);
+    /// const theme = isDarkMode.select(() => "dark", () => "light");
+    ///
+    /// console.log(theme.sample()); // "light"
+    ///
+    /// isDarkMode.set(true);
+    /// console.log(theme.sample()); // "dark"
+    /// ```
+    #[wasm_bindgen]
+    pub fn select(&self, then_fn: &Function, else_fn: &Function) -> Result<Behavior, JsValue> {
+        let cond_value = self.value.borrow().clone();
+        let this_js = JsValue::null();
+
+        let initial = if cond_value.is_truthy() {
+            then_fn.call0(&this_js)?
+        } else {
+            else_fn.call0(&this_js)?
+        };
+
+        let result = Behavior::new(initial);
+
+        let result_value = Rc::clone(&result.value);
+        let result_subscribers = Rc::clone(&result.subscribers);
+        let then_fn_clone = then_fn.clone();
+        let else_fn_clone = else_fn.clone();
+
+        let callback = Closure::wrap(Box::new(move |cond: JsValue| {
+            let this = JsValue::null();
+            let new_value = if cond.is_truthy() {
+                then_fn_clone.call0(&this).unwrap_or(JsValue::null())
+            } else {
+                else_fn_clone.call0(&this).unwrap_or(JsValue::null())
+            };
+            *result_value.borrow_mut() = new_value;
+            for (_, cb) in result_subscribers.borrow().iter() {
+                let _ = cb.call1(&this, &result_value.borrow());
+            }
+        }) as Box<dyn Fn(JsValue)>);
+
+        let js_fn = callback.as_ref().unchecked_ref::<Function>().clone();
+        callback.forget();
+
+        self.subscribers.borrow_mut().push((
+            {
+                let mut next = self.next_id.borrow_mut();
+                let id = *next;
+                *next += 1;
+                id
+            },
+            js_fn,
+        ));
+
+        Ok(result)
+    }
+
     /// Notify all subscribers of the current value.
     fn notify_subscribers(&self) {
         let value = self.value.borrow().clone();
@@ -509,27 +640,18 @@ impl Default for Event {
 // Combinators
 // ============================================================================
 
+/// **Deprecated**: Use `condition.project(value_fn)` instead.
+///
 /// Create a Behavior that holds a value only when a condition is true.
-///
-/// # Arguments
-///
-/// * `condition` - A Behavior<boolean> that controls visibility
-/// * `then_fn` - A function that returns the value when condition is true
-///
-/// # Returns
-///
-/// A Behavior that holds the value when true, or null when false.
 ///
 /// # JavaScript Example
 ///
 /// ```javascript
-/// const showMessage = new Behavior(true);
+/// // Old style (deprecated):
 /// const message = when(showMessage, () => "Hello!");
 ///
-/// console.log(message.sample()); // "Hello!"
-///
-/// showMessage.set(false);
-/// console.log(message.sample()); // null
+/// // New style (preferred):
+/// const message = showMessage.project(() => "Hello!");
 /// ```
 #[wasm_bindgen]
 pub fn when(condition: &Behavior, then_fn: &Function) -> Result<Behavior, JsValue> {
@@ -578,24 +700,18 @@ pub fn when(condition: &Behavior, then_fn: &Function) -> Result<Behavior, JsValu
     Ok(result)
 }
 
+/// **Deprecated**: Use `condition.select(then_fn, else_fn)` instead.
+///
 /// Create a Behavior that selects between two values based on a condition.
-///
-/// # Arguments
-///
-/// * `condition` - A Behavior<boolean> that controls selection
-/// * `then_fn` - A function that returns the value when condition is true
-/// * `else_fn` - A function that returns the value when condition is false
 ///
 /// # JavaScript Example
 ///
 /// ```javascript
-/// const isDarkMode = new Behavior(false);
+/// // Old style (deprecated):
 /// const theme = ifElse(isDarkMode, () => "dark", () => "light");
 ///
-/// console.log(theme.sample()); // "light"
-///
-/// isDarkMode.set(true);
-/// console.log(theme.sample()); // "dark"
+/// // New style (preferred):
+/// const theme = isDarkMode.select(() => "dark", () => "light");
 /// ```
 #[wasm_bindgen(js_name = ifElse)]
 pub fn if_else(
@@ -685,18 +801,8 @@ pub fn combine(a: &Behavior, b: &Behavior, f: &Function) -> Result<Behavior, JsV
 //
 // This pattern elegantly mirrors GA: vectors ∧ to form blades, then project to scalars.
 
-/// Create a Behavior with a constant value.
-///
-/// # JavaScript Example
-///
-/// ```javascript
-/// const pi = constant(3.14159);
-/// console.log(pi.sample()); // 3.14159
-/// ```
-#[wasm_bindgen]
-pub fn constant(value: JsValue) -> Behavior {
-    Behavior::new(value)
-}
+// Note: `constant` was removed - use `behavior(value)` instead.
+// A "constant" is just a Behavior you don't update.
 
 /// Create a new Behavior (convenience function).
 ///
@@ -850,6 +956,28 @@ impl Rotor {
         Rotor {
             inner: self.inner.slerp_to(&other.inner, t),
         }
+    }
+
+    /// Blend (interpolate) to another rotor.
+    ///
+    /// This is the unified interpolation method for all geometric types.
+    /// For rotors, it uses spherical linear interpolation (slerp) to ensure
+    /// smooth rotation along the shortest path.
+    ///
+    /// # Arguments
+    /// * `other` - Target rotor
+    /// * `t` - Interpolation factor (0 = this, 1 = other)
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const start = Rotor.identity();
+    /// const end = Rotor.xy(Math.PI / 2);
+    /// const mid = start.blend(end, 0.5);  // 45-degree rotation
+    /// ```
+    #[wasm_bindgen]
+    pub fn blend(&self, other: &Rotor, t: f64) -> Rotor {
+        self.slerp_to(other, t)
     }
 }
 
@@ -1012,6 +1140,27 @@ impl Translation {
             inner: self.inner.lerp_to(&other.inner, t),
         }
     }
+
+    /// Blend (interpolate) to another translation.
+    ///
+    /// This is the unified interpolation method for all geometric types.
+    /// For translations, it uses linear interpolation.
+    ///
+    /// # Arguments
+    /// * `other` - Target translation
+    /// * `t` - Interpolation factor (0 = this, 1 = other)
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const start = new Translation(0, 0, 0);
+    /// const end = new Translation(10, 0, 0);
+    /// const mid = start.blend(end, 0.5);  // (5, 0, 0)
+    /// ```
+    #[wasm_bindgen]
+    pub fn blend(&self, other: &Translation, t: f64) -> Translation {
+        self.lerp_to(other, t)
+    }
 }
 
 /// A combined rotation and translation transform.
@@ -1095,6 +1244,27 @@ impl Transform {
         Transform {
             inner: self.inner.interpolate_to(&other.inner, t),
         }
+    }
+
+    /// Blend (interpolate) to another transform.
+    ///
+    /// This is the unified interpolation method for all geometric types.
+    /// For transforms, it uses slerp for rotation and lerp for translation.
+    ///
+    /// # Arguments
+    /// * `other` - Target transform
+    /// * `t` - Interpolation factor (0 = this, 1 = other)
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const start = Transform.identity();
+    /// const end = Transform.fromRotorAndTranslation(rot, trans);
+    /// const mid = start.blend(end, 0.5);
+    /// ```
+    #[wasm_bindgen]
+    pub fn blend(&self, other: &Transform, t: f64) -> Transform {
+        self.interpolate_to(other, t)
     }
 }
 
@@ -1234,6 +1404,28 @@ impl GeometricState {
         GeometricState {
             inner: self.inner.slerp(&other.inner, t),
         }
+    }
+
+    /// Blend (interpolate) to another geometric state.
+    ///
+    /// This is the unified interpolation method for all geometric types.
+    /// For GeometricState, it uses linear interpolation (lerp).
+    /// Use slerp() explicitly for rotor-like states that need spherical interpolation.
+    ///
+    /// # Arguments
+    /// * `other` - Target state
+    /// * `t` - Interpolation factor (0 = this, 1 = other)
+    ///
+    /// # JavaScript Example
+    ///
+    /// ```javascript
+    /// const start = GeometricState.fromVector(0, 0, 0);
+    /// const end = GeometricState.fromVector(10, 0, 0);
+    /// const mid = start.blend(end, 0.5);  // (5, 0, 0)
+    /// ```
+    #[wasm_bindgen]
+    pub fn blend(&self, other: &GeometricState, t: f64) -> GeometricState {
+        self.lerp(other, t)
     }
 
     /// Get state as coefficients array for JS interop.
