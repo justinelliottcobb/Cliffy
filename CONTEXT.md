@@ -17,13 +17,23 @@ The cliffy-protocols crate is fully functional with:
 - `vector_clock.rs` - Vector clocks
 - `storage.rs` - Persistence layer
 
-All 42 tests pass and the crate compiles successfully.
+All 47 tests pass (42 unit + 5 doc tests) and the crate compiles successfully.
+
+### New Example Created
+
+- **`examples/crdt-playground/`** (port 3007)
+  - TypeScript simulation of cliffy-protocols CRDT
+  - Multiple simulated peers with independent state
+  - Vector clocks for causal ordering
+  - Concurrent operations and merge visualization
+  - Convergence demonstration with geometric mean
+  - Uses safe DOM methods (no innerHTML)
 
 ### Documentation Updates
 
 - Updated BACKLOG.md to correct Phase 2 status
 - Changed "Blocked" section to "Ready to Implement"
-- Distributed examples (multiplayer-game, document-editor, crdt-playground, p2p-sync, testing-showcase) are now unblocked
+- Marked crdt-playground as complete
 
 ### Previously Completed (Earlier Sessions)
 
@@ -74,6 +84,7 @@ const blended = rotorA.blend(rotorB, t);
 | geometric-transforms | 3004 | Rotors, transforms, .blend() |
 | design-tool | 3005 | Shape manipulation, undo/redo |
 | gpu-benchmark | 3006 | WebGPU/SIMD benchmarks |
+| crdt-playground | 3007 | Geometric CRDT, vector clocks, merge |
 | purescript-counter | - | Type-safe Html DSL |
 | purescript-todo | - | ADTs, pattern matching |
 | whiteboard | - | Canvas, geometric strokes |
@@ -83,7 +94,6 @@ const blended = rotorA.blend(rotorB, t);
 |---------|--------------|
 | multiplayer-game | High-frequency state sync, interpolation |
 | document-editor | CRDT text, presence indicators |
-| crdt-playground | Geometric CRDT operations |
 | p2p-sync | WebRTC synchronization |
 | testing-showcase | cliffy-test invariants |
 
@@ -96,5 +106,6 @@ const blended = rotorA.blend(rotorB, t);
 
 ## Files Modified This Session
 
-- `BACKLOG.md` - Corrected Phase 2 status
+- `BACKLOG.md` - Corrected Phase 2 status, marked crdt-playground complete
 - `CONTEXT.md` - Updated session context
+- `examples/crdt-playground/` - New CRDT simulation example
