@@ -10,7 +10,7 @@
  * - Conditional UI based on validation state
  */
 
-import init, { behavior, combine, combine3, combine4 } from '@cliffy-ga/core';
+import init, { behavior, combine, wedge } from '@cliffy-ga/core';
 import { html, mount } from '@cliffy-ga/core/html';
 
 // Validation result type
@@ -131,28 +131,28 @@ async function main() {
 
   const bioCharCount = bio.map((text: string) => text.length);
 
-  const isFormValid = combine4(
+  // wedge() creates a Blade from multiple behaviors, .map() projects to a new Behavior
+  const isFormValid = wedge(
     nameValidation,
     emailValidation,
     passwordValidation,
-    bioValidation,
-    (n: ValidationResult, e: ValidationResult, p: ValidationResult, b: ValidationResult) =>
-      n.valid && e.valid && p.valid && b.valid
+    bioValidation
+  ).map((n: ValidationResult, e: ValidationResult, p: ValidationResult, b: ValidationResult) =>
+    n.valid && e.valid && p.valid && b.valid
   );
 
-  const allFieldsTouched = combine3(
+  const allFieldsTouched = wedge(
     nameTouched,
     emailTouched,
-    passwordTouched,
-    (n: boolean, e: boolean, p: boolean) => n && e && p
-  );
+    passwordTouched
+  ).map((n: boolean, e: boolean, p: boolean) => n && e && p);
 
-  const canSubmit = combine3(
+  const canSubmit = wedge(
     isFormValid,
     allFieldsTouched,
-    submitted,
-    (valid: boolean, touched: boolean, alreadySubmitted: boolean) =>
-      valid && touched && !alreadySubmitted
+    submitted
+  ).map((valid: boolean, touched: boolean, alreadySubmitted: boolean) =>
+    valid && touched && !alreadySubmitted
   );
 
   // Input class based on validation state
