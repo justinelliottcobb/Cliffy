@@ -9,8 +9,10 @@ Cliffy provides two layers:
 2. **Rendering** — Algebraic TSX for declarative UI
 
 ```typescript
-import { behavior, event } from 'cliffy-wasm';
-import { html, mount } from 'cliffy-wasm/html';
+import init, { behavior, event, combine, wedge } from '@cliffy-ga/core';
+import { html, mount } from '@cliffy-ga/core/html';
+
+await init(); // Initialize WASM module
 
 // State (FRP)
 const count = behavior(0);
@@ -85,24 +87,36 @@ const area = combine(width, height, (w, h) => w * h);
 // area updates when either width or height changes
 ```
 
-### when(condition, fn)
+### condition.project(fn)
 
-Conditional value based on a boolean behavior.
+Project a value through a boolean condition. Returns the value when true, null when false.
 
 ```typescript
 const isLoggedIn = behavior(false);
-const greeting = when(isLoggedIn, () => 'Welcome back!');
-// greeting is Some('Welcome back!') when logged in, None when not
+const greeting = isLoggedIn.project(() => 'Welcome back!');
+// greeting is 'Welcome back!' when logged in, null when not
 ```
 
-### if_else(condition, thenFn, elseFn)
+### condition.select(thenFn, elseFn)
 
-Conditional selection between two values.
+Select between two values based on a boolean condition.
 
 ```typescript
 const isDark = behavior(false);
-const theme = if_else(isDark, () => 'dark', () => 'light');
+const theme = isDark.select(() => 'dark', () => 'light');
 // theme is 'dark' or 'light' based on isDark
+```
+
+### wedge(...behaviors)
+
+Combine 3 or more behaviors using the GA-inspired wedge product.
+
+```typescript
+const width = behavior(10);
+const height = behavior(20);
+const depth = behavior(5);
+const volume = wedge(width, height, depth).map((w, h, d) => w * h * d);
+// volume updates when any dimension changes
 ```
 
 ---
@@ -114,8 +128,8 @@ Cliffy provides two approaches to reactive UI rendering.
 ### TypeScript: html Tagged Template
 
 ```typescript
-import { behavior } from 'cliffy-wasm';
-import { html, mount } from 'cliffy-wasm/html';
+import { behavior } from '@cliffy-ga/core';
+import { html, mount } from '@cliffy-ga/core/html';
 
 const count = behavior(0);
 
@@ -208,7 +222,7 @@ counter = do
 For lower-level control, use `DOMProjection` directly. See [DOM Projection Guide](./dom-projection-guide.md).
 
 ```typescript
-import { behavior, DOMProjection } from 'cliffy-wasm';
+import { behavior, DOMProjection } from '@cliffy-ga/core';
 
 const count = behavior(0);
 const display = document.getElementById('display')!;
@@ -301,7 +315,7 @@ const clickCount = clicks.fold(0, (n, _) => n + 1);
 ### Rendering (TypeScript)
 
 ```typescript
-import { html, mount } from 'cliffy-wasm/html';
+import { html, mount } from '@cliffy-ga/core/html';
 
 const app = html`
   <div>

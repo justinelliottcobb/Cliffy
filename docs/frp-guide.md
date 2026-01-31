@@ -21,7 +21,7 @@ Cliffy has just two core types:
 A `Behavior<T>` represents a value that exists at every point in time. Think of it as a cell in a spreadsheet—it always has a current value, and when dependencies change, it updates automatically.
 
 ```typescript
-import { behavior } from '@cliffy/core';
+import { behavior } from '@cliffy-ga/core';
 
 // Create a behavior with initial value
 const count = behavior(0);
@@ -49,7 +49,7 @@ count.subscribe(n => {
 An `Event<T>` represents things that happen at specific moments—clicks, key presses, network responses. Unlike Behaviors, Events don't have a "current value."
 
 ```typescript
-import { event } from '@cliffy/core';
+import { event } from '@cliffy-ga/core';
 
 // Create an event stream
 const clicks = event<MouseEvent>();
@@ -175,24 +175,77 @@ const fullName = combine(firstName, lastName, (f, l) => `${f} ${l}`);
 // Updates when either name changes
 ```
 
-### when: Conditional Values
+### project: Conditional Values (formerly `when`)
 
 ```typescript
 const isLoggedIn = behavior(false);
-const greeting = when(isLoggedIn, () => 'Welcome back!');
+const greeting = isLoggedIn.project(() => 'Welcome back!');
 // greeting is Some('Welcome back!') when logged in, None when not
 ```
 
-### if_else: Conditional Selection
+> **Note:** The standalone `when(condition, fn)` function still works for backwards compatibility, but the method-based `condition.project(fn)` is now preferred.
+>
+> ```typescript
+> // Deprecated (still works)
+> const greeting = when(isLoggedIn, () => 'Welcome back!');
+>
+> // Preferred
+> const greeting = isLoggedIn.project(() => 'Welcome back!');
+> ```
+
+### select: Conditional Selection (formerly `if_else`)
 
 ```typescript
 const isDarkMode = behavior(false);
-const theme = if_else(
-    isDarkMode,
+const theme = isDarkMode.select(
     () => 'dark',
     () => 'light'
 );
 ```
+
+> **Note:** The standalone `ifElse(condition, thenFn, elseFn)` function still works for backwards compatibility, but the method-based `condition.select(thenFn, elseFn)` is now preferred.
+>
+> ```typescript
+> // Deprecated (still works)
+> const theme = ifElse(isDarkMode, () => 'dark', () => 'light');
+>
+> // Preferred
+> const theme = isDarkMode.select(() => 'dark', () => 'light');
+> ```
+
+### wedge: Combining 3+ Behaviors
+
+When you need to combine three or more behaviors, use `wedge` for a cleaner API than nested `combine` calls:
+
+```typescript
+const x = behavior(1);
+const y = behavior(2);
+const z = behavior(3);
+
+// Instead of nested combine:
+// const sum = combine(x, combine(y, z, (b, c) => b + c), (a, bc) => a + bc);
+
+// Use wedge for cleaner syntax:
+const sum = wedge(x, y, z, (a, b, c) => a + b + c);
+// Updates automatically when any input changes
+```
+
+`wedge` supports up to 8 input behaviors and automatically tracks all dependencies:
+
+```typescript
+const firstName = behavior('John');
+const middleName = behavior('Q');
+const lastName = behavior('Doe');
+const suffix = behavior('Jr.');
+
+const fullName = wedge(
+    firstName, middleName, lastName, suffix,
+    (first, middle, last, suf) => `${first} ${middle} ${last}, ${suf}`
+);
+// "John Q Doe, Jr."
+```
+
+The name `wedge` comes from the geometric algebra "wedge product" (exterior product), which combines multiple elements while preserving their independence - just as `wedge` combines multiple behaviors while tracking each dependency separately.
 
 ## Event Transformations
 
@@ -229,7 +282,7 @@ const clickCount = clicks.fold(0, (count, _) => count + 1);
 ## Complete Example: Todo List
 
 ```typescript
-import { behavior, event, combine } from '@cliffy/core';
+import { behavior, event, combine } from '@cliffy-ga/core';
 
 interface Todo {
     id: number;
@@ -452,9 +505,12 @@ Cliffy's FRP approach means:
 | Update value | `behavior.update(fn)` |
 | Subscribe | `behavior.subscribe(fn)` or `event.subscribe(fn)` |
 | Transform | `behavior.map(fn)` or `event.map(fn)` |
-| Combine | `combine(a, b, fn)` |
+| Combine (2 inputs) | `combine(a, b, fn)` |
+| Combine (3+ inputs) | `wedge(a, b, c, ..., fn)` |
 | Filter events | `event.filter(predicate)` |
 | Merge events | `event1.merge(event2)` |
 | Accumulate | `event.fold(initial, fn)` |
-| Conditional | `when(condition, fn)` |
-| Conditional else | `if_else(condition, thenFn, elseFn)` |
+| Conditional | `condition.project(fn)` |
+| Conditional else | `condition.select(thenFn, elseFn)` |
+| ~~Conditional (deprecated)~~ | ~~`when(condition, fn)`~~ |
+| ~~Conditional else (deprecated)~~ | ~~`ifElse(condition, thenFn, elseFn)`~~ |
