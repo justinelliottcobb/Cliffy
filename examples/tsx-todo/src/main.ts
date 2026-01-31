@@ -102,7 +102,7 @@ async function main() {
     <li class="todo-item ${todo.completed ? 'completed' : ''}">
       <input
         type="checkbox"
-        ${todo.completed ? 'checked' : ''}
+        checked=${todo.completed}
         onchange=${() => toggleTodo(todo.id)}
       />
       <span>${todo.text}</span>

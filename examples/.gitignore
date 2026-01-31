@@ -1,0 +1,16 @@
+# Local environment files (contain host-specific config)
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+
+# Vite cache
+.vite/
+
+# Lock files (use workspace root)
+package-lock.json

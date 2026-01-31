@@ -671,6 +671,68 @@ pub fn combine(a: &Behavior, b: &Behavior, f: &Function) -> Result<Behavior, JsV
     a.combine(b, f)
 }
 
+/// Combine three Behaviors into one using a function.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const volume = combine3(width, height, depth, (w, h, d) => w * h * d);
+/// ```
+#[wasm_bindgen]
+pub fn combine3(
+    a: &Behavior,
+    b: &Behavior,
+    c: &Behavior,
+    f: &Function,
+) -> Result<Behavior, JsValue> {
+    // Create intermediate that combines a and b into an array
+    let pair_fn = Function::new_with_args("a, b", "return [a, b]");
+    let ab = a.combine(b, &pair_fn)?;
+
+    // Create final function that unpacks the pair and calls f
+    let unpack_fn = Function::new_with_args(
+        "ab, c",
+        &format!(
+            "return ({}).call(null, ab[0], ab[1], c)",
+            f.to_string().as_string().unwrap_or_default()
+        ),
+    );
+
+    ab.combine(c, &unpack_fn)
+}
+
+/// Combine four Behaviors into one using a function.
+///
+/// # JavaScript Example
+///
+/// ```javascript
+/// const isValid = combine4(a, b, c, d, (a, b, c, d) => a && b && c && d);
+/// ```
+#[wasm_bindgen]
+pub fn combine4(
+    a: &Behavior,
+    b: &Behavior,
+    c: &Behavior,
+    d: &Behavior,
+    f: &Function,
+) -> Result<Behavior, JsValue> {
+    // Create intermediates that combine pairs into arrays
+    let pair_fn = Function::new_with_args("a, b", "return [a, b]");
+    let ab = a.combine(b, &pair_fn)?;
+    let cd = c.combine(d, &pair_fn)?;
+
+    // Create final function that unpacks the pairs and calls f
+    let unpack_fn = Function::new_with_args(
+        "ab, cd",
+        &format!(
+            "return ({}).call(null, ab[0], ab[1], cd[0], cd[1])",
+            f.to_string().as_string().unwrap_or_default()
+        ),
+    );
+
+    ab.combine(&cd, &unpack_fn)
+}
+
 /// Create a Behavior with a constant value.
 ///
 /// # JavaScript Example

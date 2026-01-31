@@ -10,7 +10,7 @@
  * - Conditional UI based on validation state
  */
 
-import init, { behavior, combine } from '@cliffy-ga/core';
+import init, { behavior, combine, combine3, combine4 } from '@cliffy-ga/core';
 import { html, mount } from '@cliffy-ga/core/html';
 
 // Validation result type
@@ -131,7 +131,7 @@ async function main() {
 
   const bioCharCount = bio.map((text: string) => text.length);
 
-  const isFormValid = combine(
+  const isFormValid = combine4(
     nameValidation,
     emailValidation,
     passwordValidation,
@@ -140,14 +140,14 @@ async function main() {
       n.valid && e.valid && p.valid && b.valid
   );
 
-  const allFieldsTouched = combine(
+  const allFieldsTouched = combine3(
     nameTouched,
     emailTouched,
     passwordTouched,
     (n: boolean, e: boolean, p: boolean) => n && e && p
   );
 
-  const canSubmit = combine(
+  const canSubmit = combine3(
     isFormValid,
     allFieldsTouched,
     submitted,
