@@ -172,7 +172,7 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 |-------------|--------|--------------|
 | Collaborative Whiteboard | ✅ Exists | Real-time drawing with geometric transforms |
 | Multiplayer Game | ✅ Complete | High-frequency state sync, interpolation |
-| Shared Document Editor | ❌ Not started | CRDT text, presence indicators |
+| Shared Document Editor | ✅ Complete | CRDT text, presence indicators |
 | Design Tool | ✅ Complete | Complex geometric operations, undo/redo |
 
 #### Multiplayer Game Example
@@ -189,14 +189,16 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 
 #### Shared Document Editor Example
 
-- [ ] **Create `examples/document-editor/`**
+- [x] **Create `examples/document-editor/`** ✅
   - Demonstrates: CRDT text, operational transforms, presence
   - Features:
-    - Text as geometric state (character positions)
-    - Cursor positions as Behaviors
-    - User presence indicators
-    - Conflict-free concurrent editing
-  - Stack: TypeScript + Vite + @cliffy/core
+    - Text operations as GeometricCRDT entries
+    - Cursor positions as FRP Behaviors
+    - User presence indicators with typing status
+    - Conflict-free concurrent editing with simulated peers
+    - Real-time operation log visualization
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Design Tool Example
 

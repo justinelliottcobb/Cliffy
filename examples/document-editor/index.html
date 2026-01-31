@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliffy Document Editor</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0a0a1a;
+        --surface: #12122a;
+        --primary: #00ffaa;
+        --secondary: #0066ff;
+        --user1: #ff6b6b;
+        --user2: #4ecdc4;
+        --user3: #ffe66d;
+        --user4: #a855f7;
+        --text: #eee;
+        --text-dim: #888;
+        --border: #2a2a4e;
+        --editor-bg: #1a1a2e;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 5px;
+        color: var(--primary);
+        font-size: 1.8em;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-dim);
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .app-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 20px;
+      }
+
+      @media (max-width: 800px) {
+        .app-container {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .editor-area {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .toolbar {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 12px;
+        padding-bottom: 12px;
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+
+      .toolbar button {
+        background: var(--editor-bg);
+        color: var(--text);
+        border: 1px solid var(--border);
+        padding: 6px 12px;
+        border-radius: 4px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+      }
+
+      .toolbar button:hover {
+        background: var(--border);
+      }
+
+      .toolbar button.active {
+        background: var(--primary);
+        color: var(--bg);
+        border-color: var(--primary);
+      }
+
+      .editor-container {
+        position: relative;
+        background: var(--editor-bg);
+        border-radius: 8px;
+        min-height: 400px;
+        font-family: 'Monaco', 'Consolas', monospace;
+        font-size: 14px;
+        line-height: 1.6;
+      }
+
+      .editor {
+        width: 100%;
+        min-height: 400px;
+        background: transparent;
+        border: none;
+        color: var(--text);
+        padding: 16px;
+        resize: vertical;
+        outline: none;
+        font-family: inherit;
+        font-size: inherit;
+        line-height: inherit;
+      }
+
+      .cursor-layer {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+
+      .remote-cursor {
+        position: absolute;
+        width: 2px;
+        height: 20px;
+        animation: cursor-blink 1s ease-in-out infinite;
+      }
+
+      .remote-cursor::after {
+        content: attr(data-user);
+        position: absolute;
+        top: -20px;
+        left: 0;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 4px;
+        white-space: nowrap;
+        color: white;
+      }
+
+      @keyframes cursor-blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.3; }
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .panel h2 {
+        margin: 0 0 12px 0;
+        font-size: 1em;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .user-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .user-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      .user-avatar {
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        font-size: 0.9em;
+        color: white;
+      }
+
+      .user-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .user-name {
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+
+      .user-status {
+        font-size: 0.75em;
+        color: var(--text-dim);
+      }
+
+      .user-status.typing {
+        color: var(--primary);
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .stat-item {
+        background: var(--bg);
+        padding: 8px;
+        border-radius: 6px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: var(--primary);
+      }
+
+      .stat-label {
+        font-size: 0.7em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+      }
+
+      .operations-log {
+        max-height: 150px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.75em;
+      }
+
+      .operation-item {
+        padding: 4px 8px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        background: var(--bg);
+      }
+
+      .operation-item.insert {
+        border-left: 3px solid #4ecdc4;
+      }
+
+      .operation-item.delete {
+        border-left: 3px solid #ff6b6b;
+      }
+
+      .concept-box {
+        background: rgba(0, 255, 170, 0.1);
+        border: 1px solid rgba(0, 255, 170, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85em;
+      }
+
+      .concept-box h3 {
+        margin: 0 0 8px 0;
+        color: var(--primary);
+        font-size: 0.95em;
+      }
+
+      .concept-box p {
+        margin: 0;
+        color: var(--text-dim);
+        line-height: 1.5;
+      }
+
+      .char-span {
+        position: relative;
+      }
+
+      .char-span.highlight-user1 {
+        background: rgba(255, 107, 107, 0.2);
+      }
+
+      .char-span.highlight-user2 {
+        background: rgba(78, 205, 196, 0.2);
+      }
+
+      .char-span.highlight-user3 {
+        background: rgba(255, 230, 109, 0.2);
+      }
+
+      button {
+        background: var(--secondary);
+        color: var(--text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        filter: brightness(1.2);
+      }
+
+      button.primary {
+        background: var(--primary);
+        color: var(--bg);
+      }
+
+      .version-badge {
+        display: inline-block;
+        background: var(--border);
+        padding: 2px 8px;
+        border-radius: 10px;
+        font-size: 0.7em;
+        margin-left: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Collaborative Document Editor</h1>
+    <p class="subtitle">CRDT-based text editing with presence indicators</p>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
