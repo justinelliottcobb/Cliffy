@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliffy Testing Showcase</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0a0a1a;
+        --surface: #12122a;
+        --primary: #00ffaa;
+        --secondary: #0066ff;
+        --success: #44ff88;
+        --warning: #ffaa00;
+        --danger: #ff4444;
+        --text: #eee;
+        --text-dim: #888;
+        --border: #2a2a4e;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 5px;
+        color: var(--primary);
+        font-size: 1.8em;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-dim);
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .app-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .test-runner {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--border);
+        margin-bottom: 20px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 20px;
+        align-items: center;
+      }
+
+      button {
+        background: var(--secondary);
+        color: var(--text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        filter: brightness(1.2);
+      }
+
+      button.primary {
+        background: var(--primary);
+        color: var(--bg);
+      }
+
+      button.danger {
+        background: var(--danger);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .progress-bar {
+        flex: 1;
+        height: 8px;
+        background: var(--bg);
+        border-radius: 4px;
+        overflow: hidden;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: var(--primary);
+        transition: width 0.3s;
+      }
+
+      .progress-fill.running {
+        background: linear-gradient(90deg, var(--primary), var(--secondary), var(--primary));
+        background-size: 200% 100%;
+        animation: shimmer 1s linear infinite;
+      }
+
+      @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+
+      .status-text {
+        font-size: 0.85em;
+        color: var(--text-dim);
+        min-width: 100px;
+        text-align: right;
+      }
+
+      .panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 20px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .panel h2 {
+        margin: 0 0 12px 0;
+        font-size: 1em;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .test-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+      }
+
+      .test-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px;
+        background: var(--bg);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .test-item:hover {
+        background: var(--border);
+      }
+
+      .test-item.selected {
+        border: 1px solid var(--primary);
+      }
+
+      .test-status {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.8em;
+        flex-shrink: 0;
+      }
+
+      .test-status.pass {
+        background: var(--success);
+        color: var(--bg);
+      }
+
+      .test-status.fail {
+        background: var(--danger);
+        color: white;
+      }
+
+      .test-status.running {
+        background: var(--warning);
+        color: var(--bg);
+        animation: pulse 0.5s ease-in-out infinite;
+      }
+
+      .test-status.pending {
+        background: var(--border);
+        color: var(--text-dim);
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      .test-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .test-name {
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+
+      .test-type {
+        font-size: 0.75em;
+        color: var(--text-dim);
+        margin-top: 2px;
+      }
+
+      .test-type.invariant {
+        color: var(--primary);
+      }
+
+      .test-type.manifold {
+        color: var(--secondary);
+      }
+
+      .test-type.probabilistic {
+        color: var(--warning);
+      }
+
+      .test-duration {
+        font-size: 0.75em;
+        color: var(--text-dim);
+        font-family: monospace;
+      }
+
+      .detail-panel {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 15px;
+        font-family: monospace;
+        font-size: 0.85em;
+        line-height: 1.6;
+      }
+
+      .detail-section {
+        margin-bottom: 15px;
+      }
+
+      .detail-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .detail-title {
+        color: var(--primary);
+        font-weight: bold;
+        margin-bottom: 8px;
+      }
+
+      .detail-content {
+        color: var(--text-dim);
+      }
+
+      .code-block {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 10px;
+        border-radius: 4px;
+        overflow-x: auto;
+        white-space: pre;
+      }
+
+      .code-block .keyword {
+        color: #ff79c6;
+      }
+
+      .code-block .function {
+        color: #50fa7b;
+      }
+
+      .code-block .string {
+        color: #f1fa8c;
+      }
+
+      .code-block .number {
+        color: #bd93f9;
+      }
+
+      .code-block .comment {
+        color: #6272a4;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 10px;
+        margin-bottom: 15px;
+      }
+
+      .stat-item {
+        background: var(--bg);
+        padding: 12px;
+        border-radius: 8px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+
+      .stat-value.pass {
+        color: var(--success);
+      }
+
+      .stat-value.fail {
+        color: var(--danger);
+      }
+
+      .stat-value.running {
+        color: var(--warning);
+      }
+
+      .stat-label {
+        font-size: 0.7em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+        margin-top: 4px;
+      }
+
+      .visualization {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 15px;
+        height: 200px;
+        position: relative;
+      }
+
+      .viz-point {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.3s;
+      }
+
+      .viz-point.pass {
+        background: var(--success);
+      }
+
+      .viz-point.fail {
+        background: var(--danger);
+      }
+
+      .manifold-line {
+        position: absolute;
+        height: 2px;
+        background: var(--primary);
+        opacity: 0.5;
+      }
+
+      .concept-box {
+        background: rgba(0, 255, 170, 0.1);
+        border: 1px solid rgba(0, 255, 170, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85em;
+      }
+
+      .concept-box h3 {
+        margin: 0 0 8px 0;
+        color: var(--primary);
+        font-size: 0.95em;
+      }
+
+      .concept-box p {
+        margin: 0;
+        color: var(--text-dim);
+        line-height: 1.5;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Geometric Testing Showcase</h1>
+    <p class="subtitle">cliffy-test invariants, manifolds, and probabilistic verification</p>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

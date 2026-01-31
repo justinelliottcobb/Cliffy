@@ -268,13 +268,16 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 0: Testing Framework
 
-- [ ] **Create `examples/testing-showcase/`**
+- [x] **Create `examples/testing-showcase/`** ✅
   - Demonstrates: cliffy-test geometric invariants
   - Features:
-    - Invariant definitions
-    - Manifold testing
-    - Visual test debugging
-    - Probabilistic tests (amari-flynn)
+    - Interactive test runner with progress visualization
+    - Invariant definitions (rotor normalization, sandwich product)
+    - Manifold constraint testing (unit sphere, positive definite)
+    - Probabilistic tests (rare/impossible patterns from amari-flynn)
+    - Sample point visualization with pass/fail coloring
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Phase 1: Geometric State
 
@@ -382,13 +385,13 @@ Examples that demonstrate specific phase capabilities:
 
 - Phase 7 Documentation continues
 
-### Ready to Implement
+### Completed This Sprint
 
-- Distributed examples now unblocked (Phase 2 completed in PR #138):
-  - multiplayer-game - High-frequency state sync, geometric interpolation
-  - document-editor - CRDT text, operational transforms, presence
-  - p2p-sync - WebRTC state synchronization
-  - testing-showcase - cliffy-test geometric invariants
+- All distributed examples completed (Phase 2 WASM bindings added):
+  - multiplayer-game - High-frequency state sync, geometric interpolation ✅
+  - document-editor - CRDT text, operational transforms, presence ✅
+  - p2p-sync - WebRTC state synchronization ✅
+  - testing-showcase - cliffy-test geometric invariants ✅
 
 ---
 
