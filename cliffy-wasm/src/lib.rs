@@ -733,6 +733,9 @@ pub fn combine4(
     ab.combine(&cd, &unpack_fn)
 }
 
+// Note: Blade and wedge are implemented in TypeScript (blade.ts) for better ergonomics.
+// The TypeScript implementation uses the existing combine infrastructure.
+
 /// Create a Behavior with a constant value.
 ///
 /// # JavaScript Example
