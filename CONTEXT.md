@@ -19,6 +19,25 @@ The cliffy-protocols crate is fully functional with:
 
 All 47 tests pass (42 unit + 5 doc tests) and the crate compiles successfully.
 
+### WASM Bindings for cliffy-protocols
+
+Added WASM bindings in `cliffy-wasm/src/protocols.rs`:
+- `VectorClock` - Causal ordering with tick, update, merge, happensBefore, concurrent
+- `GeometricCRDT` - Conflict-free replicated data with add, multiply, applyOperation, merge
+- `GeometricOperation` - Operation type with id, nodeId, value, operationType
+- `OperationType` - Addition, Multiplication, GeometricProduct, Exponential, Sandwich
+- `generateNodeId()` - UUID generation for node IDs
+
+Usage in JavaScript:
+```javascript
+import { GeometricCRDT, VectorClock, generateNodeId } from '@cliffy-ga/core';
+
+const nodeId = generateNodeId();
+const crdt = new GeometricCRDT(nodeId, 0.0);
+crdt.add(5.0);
+console.log(crdt.state()); // 5.0
+```
+
 ### New Example Created
 
 - **`examples/crdt-playground/`** (port 3007)
@@ -109,3 +128,6 @@ const blended = rotorA.blend(rotorB, t);
 - `BACKLOG.md` - Corrected Phase 2 status, marked crdt-playground complete
 - `CONTEXT.md` - Updated session context
 - `examples/crdt-playground/` - New CRDT simulation example
+- `cliffy-wasm/Cargo.toml` - Added cliffy-protocols and uuid dependencies
+- `cliffy-wasm/src/lib.rs` - Export protocols module
+- `cliffy-wasm/src/protocols.rs` - New WASM bindings for CRDT types
