@@ -171,20 +171,21 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 | Application | Status | Demonstrates |
 |-------------|--------|--------------|
 | Collaborative Whiteboard | ✅ Exists | Real-time drawing with geometric transforms |
-| Multiplayer Game | ❌ Not started | High-frequency state sync, interpolation |
+| Multiplayer Game | ✅ Complete | High-frequency state sync, interpolation |
 | Shared Document Editor | ❌ Not started | CRDT text, presence indicators |
 | Design Tool | ✅ Complete | Complex geometric operations, undo/redo |
 
 #### Multiplayer Game Example
 
-- [ ] **Create `examples/multiplayer-game/`**
+- [x] **Create `examples/multiplayer-game/`** ✅
   - Demonstrates: High-frequency state sync, geometric interpolation, distributed compute
   - Features:
     - Player position as GeometricState
-    - Interpolated movement (SLERP)
+    - Interpolated movement using .blend() (SLERP/LERP)
     - Collision detection via geometric distance
-    - Latency compensation
-  - Stack: TypeScript + Vite + @cliffy/core
+    - Latency compensation with simulated network delay
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Shared Document Editor Example
 

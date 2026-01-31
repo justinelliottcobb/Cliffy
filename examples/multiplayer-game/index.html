@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliffy Multiplayer Game</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0a0a1a;
+        --surface: #12122a;
+        --primary: #00ffaa;
+        --secondary: #0066ff;
+        --player1: #ff6b6b;
+        --player2: #4ecdc4;
+        --player3: #ffe66d;
+        --player4: #a855f7;
+        --text: #eee;
+        --text-dim: #888;
+        --border: #2a2a4e;
+        --grid: rgba(255, 255, 255, 0.05);
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 5px;
+        color: var(--primary);
+        font-size: 1.8em;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-dim);
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .game-container {
+        max-width: 1000px;
+        margin: 0 auto;
+        display: grid;
+        grid-template-columns: 1fr 280px;
+        gap: 20px;
+      }
+
+      @media (max-width: 800px) {
+        .game-container {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .game-area {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .game-canvas {
+        width: 100%;
+        aspect-ratio: 4/3;
+        background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+        cursor: crosshair;
+      }
+
+      .game-canvas::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(var(--grid) 1px, transparent 1px),
+          linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+        background-size: 40px 40px;
+      }
+
+      .player {
+        position: absolute;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: none;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+        font-weight: bold;
+        color: var(--bg);
+        box-shadow: 0 0 20px currentColor;
+      }
+
+      .player.local {
+        border: 3px solid white;
+      }
+
+      .player::after {
+        content: '';
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: currentColor;
+        border-radius: 50%;
+        top: -15px;
+        animation: ping 1s ease-out infinite;
+        opacity: 0;
+      }
+
+      .player.moving::after {
+        animation: ping 0.5s ease-out infinite;
+      }
+
+      @keyframes ping {
+        0% { transform: scale(1); opacity: 0.8; }
+        100% { transform: scale(2); opacity: 0; }
+      }
+
+      .player-trail {
+        position: absolute;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        opacity: 0.3;
+        pointer-events: none;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .panel h2 {
+        margin: 0 0 12px 0;
+        font-size: 1em;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .player-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .player-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px;
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      .player-dot {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        flex-shrink: 0;
+      }
+
+      .player-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .player-name {
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+
+      .player-pos {
+        font-size: 0.75em;
+        color: var(--text-dim);
+        font-family: monospace;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+      }
+
+      .stat-item {
+        background: var(--bg);
+        padding: 8px;
+        border-radius: 6px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.2em;
+        font-weight: bold;
+        color: var(--primary);
+      }
+
+      .stat-label {
+        font-size: 0.7em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+      }
+
+      .controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .control-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .control-row label {
+        flex: 1;
+        font-size: 0.85em;
+        color: var(--text-dim);
+      }
+
+      .control-row input[type="range"] {
+        width: 100px;
+      }
+
+      .control-row .value {
+        width: 50px;
+        text-align: right;
+        font-family: monospace;
+        font-size: 0.85em;
+      }
+
+      button {
+        background: var(--secondary);
+        color: var(--text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        filter: brightness(1.2);
+      }
+
+      button.primary {
+        background: var(--primary);
+        color: var(--bg);
+      }
+
+      .instructions {
+        font-size: 0.8em;
+        color: var(--text-dim);
+        line-height: 1.5;
+      }
+
+      .instructions kbd {
+        background: var(--bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-family: monospace;
+      }
+
+      .concept-box {
+        background: rgba(0, 255, 170, 0.1);
+        border: 1px solid rgba(0, 255, 170, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85em;
+      }
+
+      .concept-box h3 {
+        margin: 0 0 8px 0;
+        color: var(--primary);
+        font-size: 0.95em;
+      }
+
+      .concept-box p {
+        margin: 0;
+        color: var(--text-dim);
+        line-height: 1.5;
+      }
+
+      .fps-counter {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.8em;
+        color: var(--primary);
+      }
+
+      .latency-indicator {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+        background: rgba(0, 0, 0, 0.5);
+        padding: 4px 8px;
+        border-radius: 4px;
+        font-family: monospace;
+        font-size: 0.8em;
+      }
+
+      .latency-indicator.good { color: #00ff00; }
+      .latency-indicator.medium { color: #ffff00; }
+      .latency-indicator.bad { color: #ff0000; }
+    </style>
+  </head>
+  <body>
+    <h1>Multiplayer Game Demo</h1>
+    <p class="subtitle">High-frequency state sync with geometric interpolation</p>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
