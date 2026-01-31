@@ -302,13 +302,15 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 3: Synchronization
 
-- [ ] **Create `examples/p2p-sync/`**
-  - Demonstrates: WebRTC state synchronization
+- [x] **Create `examples/p2p-sync/`** ✅
+  - Demonstrates: WebRTC-style state synchronization
   - Features:
-    - Peer discovery
-    - Real-time sync across tabs/browsers
-    - Delta compression visualization
-    - Network partition handling
+    - Simulated peer discovery with mesh topology
+    - Real-time sync with delta visualization
+    - Network partition simulation (click peers to toggle)
+    - Vector clock-based causal ordering
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Phase 5: Edge Computing
 
