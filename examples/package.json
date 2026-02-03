@@ -8,7 +8,15 @@
     "whiteboard",
     "multiplayer-game",
     "document-editor",
-    "design-tool"
+    "design-tool",
+    "p2p-sync",
+    "testing-showcase",
+    "crdt-playground",
+    "geometric-transforms",
+    "gpu-benchmark",
+    "tsx-counter",
+    "tsx-forms",
+    "tsx-todo"
   ],
   "scripts": {
     "build:wasm": "wasm-pack build ../cliffy-wasm --target web --out-dir ../cliffy-wasm/pkg",
