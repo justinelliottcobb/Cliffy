@@ -1,0 +1,50 @@
+{
+  "name": "cliffy-tsukoshi",
+  "version": "0.1.0",
+  "description": "Minimal geometric state management - pure TypeScript, zero dependencies",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "geometric-algebra",
+    "state-management",
+    "interpolation",
+    "slerp",
+    "rotor",
+    "transforms",
+    "react-native",
+    "mobile"
+  ],
+  "author": "Cliffy Contributors",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/justinelliottcobb/Cliffy.git",
+    "directory": "cliffy-tsukoshi"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
