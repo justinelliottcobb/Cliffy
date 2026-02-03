@@ -1,9 +1,10 @@
-import { createExampleConfig } from '../vite.config.shared';
+import { defineConfig } from 'vite';
 
-export default createExampleConfig(__dirname, {
-  port: 3001,
-  aliases: {
-    // Add html.ts alias for Algebraic TSX
-    '@cliffy-ga/core/html': new URL('../../cliffy-wasm/pkg/html.ts', import.meta.url).pathname,
+export default defineConfig({
+  server: {
+    port: 3001,
+  },
+  build: {
+    target: 'esnext',
   },
 });
