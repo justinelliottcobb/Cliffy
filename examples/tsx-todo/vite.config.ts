@@ -1,8 +1,10 @@
-import { createExampleConfig } from '../vite.config.shared';
+import { defineConfig } from 'vite';
 
-export default createExampleConfig(__dirname, {
-  port: 3002,
-  aliases: {
-    '@cliffy-ga/core/html': new URL('../../cliffy-wasm/pkg/html.ts', import.meta.url).pathname,
+export default defineConfig({
+  server: {
+    port: 3002,
+  },
+  build: {
+    target: 'esnext',
   },
 });

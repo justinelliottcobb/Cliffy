@@ -15,8 +15,26 @@
 //!
 //! count.update(n => n + 1);  // Logs: Count: 1
 //! ```
+//!
+//! # Distributed State (CRDT)
+//!
+//! ```javascript
+//! import { GeometricCRDT, VectorClock, generateNodeId } from '@cliffy-ga/core';
+//!
+//! const nodeId = generateNodeId();
+//! const crdt = new GeometricCRDT(nodeId, 0.0);
+//!
+//! crdt.add(5.0);
+//! console.log(crdt.state()); // 5.0
+//! ```
 
 pub mod dom;
+pub mod protocols;
+
+// Re-export protocols types at top level
+pub use protocols::{
+    generate_node_id, GeometricCRDT, GeometricOperation, OperationType, VectorClock,
+};
 
 use js_sys::Function;
 use std::cell::RefCell;

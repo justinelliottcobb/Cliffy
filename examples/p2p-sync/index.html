@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliffy P2P Sync</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #0a0a1a;
+        --surface: #12122a;
+        --primary: #00ffaa;
+        --secondary: #0066ff;
+        --warning: #ffaa00;
+        --danger: #ff4444;
+        --success: #44ff88;
+        --peer1: #ff6b6b;
+        --peer2: #4ecdc4;
+        --peer3: #ffe66d;
+        --peer4: #a855f7;
+        --text: #eee;
+        --text-dim: #888;
+        --border: #2a2a4e;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 5px;
+        color: var(--primary);
+        font-size: 1.8em;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-dim);
+        margin-bottom: 20px;
+        font-size: 0.9em;
+      }
+
+      .app-container {
+        max-width: 1200px;
+        margin: 0 auto;
+      }
+
+      .network-view {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--border);
+        margin-bottom: 20px;
+        min-height: 350px;
+        position: relative;
+      }
+
+      .network-canvas {
+        width: 100%;
+        height: 300px;
+        position: relative;
+      }
+
+      .peer-node {
+        position: absolute;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-direction: column;
+        font-size: 0.8em;
+        font-weight: bold;
+        color: white;
+        cursor: pointer;
+        transition: transform 0.2s, box-shadow 0.2s;
+        transform: translate(-50%, -50%);
+      }
+
+      .peer-node:hover {
+        transform: translate(-50%, -50%) scale(1.1);
+      }
+
+      .peer-node.local {
+        border: 3px solid white;
+      }
+
+      .peer-node.partitioned {
+        opacity: 0.5;
+        border: 3px dashed var(--danger);
+      }
+
+      .peer-node .status-dot {
+        position: absolute;
+        top: -5px;
+        right: -5px;
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        border: 2px solid var(--surface);
+      }
+
+      .peer-node .status-dot.connected {
+        background: var(--success);
+      }
+
+      .peer-node .status-dot.syncing {
+        background: var(--warning);
+        animation: pulse 0.5s ease-in-out infinite;
+      }
+
+      .peer-node .status-dot.offline {
+        background: var(--danger);
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.2); }
+      }
+
+      .connection-line {
+        position: absolute;
+        height: 2px;
+        background: var(--border);
+        transform-origin: left center;
+        pointer-events: none;
+      }
+
+      .connection-line.active {
+        background: var(--primary);
+        box-shadow: 0 0 10px var(--primary);
+      }
+
+      .connection-line.syncing {
+        background: var(--warning);
+        animation: data-flow 1s linear infinite;
+      }
+
+      @keyframes data-flow {
+        0% { background-position: 0 0; }
+        100% { background-position: 20px 0; }
+      }
+
+      .data-packet {
+        position: absolute;
+        width: 8px;
+        height: 8px;
+        background: var(--primary);
+        border-radius: 50%;
+        pointer-events: none;
+        animation: packet-move 0.5s linear;
+      }
+
+      @keyframes packet-move {
+        0% { opacity: 1; }
+        100% { opacity: 0; }
+      }
+
+      .panels {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+      }
+
+      .panel {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 15px;
+        border: 1px solid var(--border);
+      }
+
+      .panel h2 {
+        margin: 0 0 12px 0;
+        font-size: 1em;
+        color: var(--primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .peer-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .peer-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px;
+        background: var(--bg);
+        border-radius: 6px;
+      }
+
+      .peer-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+        color: white;
+      }
+
+      .peer-info {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .peer-name {
+        font-weight: bold;
+        font-size: 0.9em;
+      }
+
+      .peer-meta {
+        font-size: 0.75em;
+        color: var(--text-dim);
+        font-family: monospace;
+      }
+
+      .peer-actions {
+        display: flex;
+        gap: 6px;
+      }
+
+      .peer-actions button {
+        padding: 4px 8px;
+        font-size: 0.75em;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .stat-item {
+        background: var(--bg);
+        padding: 10px;
+        border-radius: 6px;
+        text-align: center;
+      }
+
+      .stat-value {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: var(--primary);
+      }
+
+      .stat-label {
+        font-size: 0.7em;
+        color: var(--text-dim);
+        text-transform: uppercase;
+      }
+
+      .delta-log {
+        max-height: 180px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.75em;
+      }
+
+      .delta-item {
+        padding: 6px 8px;
+        border-radius: 4px;
+        margin-bottom: 4px;
+        background: var(--bg);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .delta-item .direction {
+        font-size: 1.2em;
+      }
+
+      .delta-item.outgoing .direction {
+        color: var(--primary);
+      }
+
+      .delta-item.incoming .direction {
+        color: var(--secondary);
+      }
+
+      .delta-item .size {
+        background: var(--border);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.85em;
+      }
+
+      button {
+        background: var(--secondary);
+        color: var(--text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.85em;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        filter: brightness(1.2);
+      }
+
+      button.primary {
+        background: var(--primary);
+        color: var(--bg);
+      }
+
+      button.danger {
+        background: var(--danger);
+      }
+
+      button.warning {
+        background: var(--warning);
+        color: var(--bg);
+      }
+
+      .controls {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+        margin-bottom: 15px;
+      }
+
+      .concept-box {
+        background: rgba(0, 255, 170, 0.1);
+        border: 1px solid rgba(0, 255, 170, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        font-size: 0.85em;
+      }
+
+      .concept-box h3 {
+        margin: 0 0 8px 0;
+        color: var(--primary);
+        font-size: 0.95em;
+      }
+
+      .concept-box p {
+        margin: 0;
+        color: var(--text-dim);
+        line-height: 1.5;
+      }
+
+      .state-display {
+        background: var(--bg);
+        border-radius: 6px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 0.85em;
+        word-break: break-all;
+      }
+
+      .state-display .key {
+        color: var(--secondary);
+      }
+
+      .state-display .value {
+        color: var(--primary);
+      }
+
+      .network-legend {
+        display: flex;
+        gap: 20px;
+        justify-content: center;
+        margin-top: 15px;
+        font-size: 0.8em;
+        color: var(--text-dim);
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>P2P State Synchronization</h1>
+    <p class="subtitle">WebRTC-style peer discovery and delta-based sync</p>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

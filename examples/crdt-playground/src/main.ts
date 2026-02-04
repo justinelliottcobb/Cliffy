@@ -2,172 +2,29 @@
  * Cliffy CRDT Playground
  *
  * Demonstrates:
- * - GeometricCRDT operations (simulated in TypeScript)
+ * - GeometricCRDT from cliffy-protocols via WASM bindings
  * - Multiple peers with concurrent operations
  * - Vector clocks for causal ordering
  * - Merge and convergence visualization
  * - Geometric algebra concepts in CRDT design
- *
- * Note: This is a TypeScript simulation of the Rust cliffy-protocols CRDT.
- * The actual implementation uses geometric algebra operations in Rust.
- *
- * Security Note: This demo uses innerHTML for rendering. In production,
- * use safe DOM methods or a sanitizer library like DOMPurify.
  */
 
-// =============================================================================
-// CRDT Simulation Types (mirrors cliffy-protocols/src/crdt.rs)
-// =============================================================================
-
-interface VectorClock {
-  [nodeId: string]: number;
-}
-
-interface GeometricOperation {
-  id: number;
-  nodeId: string;
-  timestamp: VectorClock;
-  value: number; // Simplified: using scalar for demo (real impl uses GA3 multivector)
-  operationType: 'addition' | 'multiplication' | 'geometric_product';
-}
-
-interface GeometricCRDT {
-  nodeId: string;
-  state: number; // Simplified scalar state (real impl uses GA3)
-  vectorClock: VectorClock;
-  operations: Map<number, GeometricOperation>;
-  nextOpId: number;
-}
-
-// =============================================================================
-// Vector Clock Operations
-// =============================================================================
-
-function createVectorClock(): VectorClock {
-  return {};
-}
-
-function tickClock(clock: VectorClock, nodeId: string): VectorClock {
-  return { ...clock, [nodeId]: (clock[nodeId] || 0) + 1 };
-}
-
-function mergeClock(a: VectorClock, b: VectorClock): VectorClock {
-  const result: VectorClock = { ...a };
-  for (const [node, time] of Object.entries(b)) {
-    result[node] = Math.max(result[node] || 0, time);
-  }
-  return result;
-}
-
-function happensBefore(a: VectorClock, b: VectorClock): boolean {
-  let atLeastOneLess = false;
-  const allNodes = new Set([...Object.keys(a), ...Object.keys(b)]);
-
-  for (const node of allNodes) {
-    const aTime = a[node] || 0;
-    const bTime = b[node] || 0;
-    if (aTime > bTime) return false;
-    if (aTime < bTime) atLeastOneLess = true;
-  }
-
-  return atLeastOneLess;
-}
-
-function formatClock(clock: VectorClock): string {
-  const entries = Object.entries(clock)
-    .map(([k, v]) => `${k.slice(0, 4)}:${v}`)
-    .join(', ');
-  return `{${entries}}`;
-}
-
-// =============================================================================
-// GeometricCRDT Operations
-// =============================================================================
-
-function createCRDT(nodeId: string, initialState: number = 0): GeometricCRDT {
-  return {
-    nodeId,
-    state: initialState,
-    vectorClock: createVectorClock(),
-    operations: new Map(),
-    nextOpId: 0,
-  };
-}
-
-function createOperation(
-  crdt: GeometricCRDT,
-  value: number,
-  opType: GeometricOperation['operationType']
-): GeometricOperation {
-  crdt.vectorClock = tickClock(crdt.vectorClock, crdt.nodeId);
-  const op: GeometricOperation = {
-    id: crdt.nextOpId++,
-    nodeId: crdt.nodeId,
-    timestamp: { ...crdt.vectorClock },
-    value,
-    operationType: opType,
-  };
-  return op;
-}
-
-function applyOperation(crdt: GeometricCRDT, op: GeometricOperation): void {
-  // Idempotent: skip if already applied
-  if (crdt.operations.has(op.id) && crdt.operations.get(op.id)?.nodeId === op.nodeId) {
-    return;
-  }
-
-  crdt.vectorClock = mergeClock(crdt.vectorClock, op.timestamp);
-  crdt.operations.set(crdt.operations.size, op);
-
-  switch (op.operationType) {
-    case 'addition':
-      crdt.state += op.value;
-      break;
-    case 'multiplication':
-      crdt.state *= op.value;
-      break;
-    case 'geometric_product':
-      // In real GA: geometric product of multivectors
-      // Simplified: treat as a scaling + rotation factor
-      crdt.state = crdt.state * op.value + op.value;
-      break;
-  }
-}
-
-function mergeCRDTs(a: GeometricCRDT, b: GeometricCRDT): GeometricCRDT {
-  // Collect all operations
-  const allOps: GeometricOperation[] = [];
-  a.operations.forEach((op) => allOps.push(op));
-  b.operations.forEach((op) => {
-    // Only add if not already present (by nodeId + original id)
-    const exists = allOps.some((o) => o.nodeId === op.nodeId && o.id === op.id);
-    if (!exists) allOps.push(op);
-  });
-
-  // Sort by causal order (happens-before), with deterministic tie-breaking
-  allOps.sort((x, y) => {
-    if (happensBefore(x.timestamp, y.timestamp)) return -1;
-    if (happensBefore(y.timestamp, x.timestamp)) return 1;
-    // Concurrent: use node ID and op ID for deterministic order
-    if (x.nodeId < y.nodeId) return -1;
-    if (x.nodeId > y.nodeId) return 1;
-    return x.id - y.id;
-  });
-
-  // Re-apply all operations to fresh state
-  const result = createCRDT(a.nodeId, 0);
-  result.vectorClock = mergeClock(a.vectorClock, b.vectorClock);
-
-  for (const op of allOps) {
-    applyOperation(result, op);
-  }
-
-  return result;
-}
+import init, {
+  GeometricCRDT,
+  VectorClock,
+  OperationType,
+  generateNodeId,
+} from '@cliffy-ga/core';
 
 // =============================================================================
 // UI State
 // =============================================================================
+
+interface PeerState {
+  id: string;
+  crdt: GeometricCRDT;
+  displayName: string;
+}
 
 interface LogEntry {
   time: string;
@@ -176,9 +33,10 @@ interface LogEntry {
 }
 
 const state = {
-  peers: new Map<string, GeometricCRDT>(),
+  peers: new Map<string, PeerState>(),
   log: [] as LogEntry[],
   mergeResult: null as GeometricCRDT | null,
+  initialized: false,
 };
 
 function addLogEntry(peer: string, action: string): void {
@@ -192,45 +50,63 @@ function addLogEntry(peer: string, action: string): void {
   render();
 }
 
-// Initialize peers
+// =============================================================================
+// CRDT Operations using real WASM bindings
+// =============================================================================
+
 function initializePeers(): void {
-  state.peers.set('peer1', createCRDT('peer1', 10));
-  state.peers.set('peer2', createCRDT('peer2', 10));
-  state.peers.set('peer3', createCRDT('peer3', 10));
+  state.peers.clear();
+
+  // Create three peers with the real GeometricCRDT
+  const peer1Id = generateNodeId();
+  const peer2Id = generateNodeId();
+  const peer3Id = generateNodeId();
+
+  state.peers.set('peer1', {
+    id: peer1Id,
+    crdt: new GeometricCRDT(peer1Id, 10.0),
+    displayName: 'Peer 1',
+  });
+
+  state.peers.set('peer2', {
+    id: peer2Id,
+    crdt: new GeometricCRDT(peer2Id, 10.0),
+    displayName: 'Peer 2',
+  });
+
+  state.peers.set('peer3', {
+    id: peer3Id,
+    crdt: new GeometricCRDT(peer3Id, 10.0),
+    displayName: 'Peer 3',
+  });
+
   state.log = [];
   state.mergeResult = null;
-  addLogEntry('system', 'Initialized 3 peers with state = 10');
+  addLogEntry('system', 'Initialized 3 peers with state = 10.0 (using real WASM CRDT)');
 }
-
-// =============================================================================
-// Operations
-// =============================================================================
 
 function add(peerId: string, value: number): void {
   const peer = state.peers.get(peerId);
   if (!peer) return;
 
-  const op = createOperation(peer, value, 'addition');
-  applyOperation(peer, op);
-  addLogEntry(peerId, `Added ${value} → state = ${peer.state}`);
+  peer.crdt.add(value);
+  addLogEntry(peerId, `Added ${value} → state = ${peer.crdt.state().toFixed(2)}`);
 }
 
 function multiply(peerId: string, value: number): void {
   const peer = state.peers.get(peerId);
   if (!peer) return;
 
-  const op = createOperation(peer, value, 'multiplication');
-  applyOperation(peer, op);
-  addLogEntry(peerId, `Multiplied by ${value} → state = ${peer.state}`);
+  peer.crdt.multiply(value);
+  addLogEntry(peerId, `Multiplied by ${value} → state = ${peer.crdt.state().toFixed(2)}`);
 }
 
 function geometricOp(peerId: string, value: number): void {
   const peer = state.peers.get(peerId);
   if (!peer) return;
 
-  const op = createOperation(peer, value, 'geometric_product');
-  applyOperation(peer, op);
-  addLogEntry(peerId, `Geometric product with ${value} → state = ${peer.state.toFixed(2)}`);
+  peer.crdt.applyOperation(value, OperationType.GeometricProduct);
+  addLogEntry(peerId, `Geometric product with ${value} → state = ${peer.crdt.state().toFixed(2)}`);
 }
 
 function syncPeers(fromId: string, toId: string): void {
@@ -238,40 +114,44 @@ function syncPeers(fromId: string, toId: string): void {
   const to = state.peers.get(toId);
   if (!from || !to) return;
 
-  // Send all operations from 'from' to 'to'
-  from.operations.forEach((op) => {
-    const exists = Array.from(to.operations.values()).some(
-      (o) => o.nodeId === op.nodeId && o.id === op.id
-    );
-    if (!exists) {
-      applyOperation(to, op);
-    }
+  // Merge the source into the destination
+  const merged = to.crdt.merge(from.crdt);
+
+  // Replace the destination CRDT with the merged result
+  state.peers.set(toId, {
+    ...to,
+    crdt: merged,
   });
 
-  addLogEntry('system', `Synced ${fromId} → ${toId}, ${toId} state = ${to.state.toFixed(2)}`);
+  addLogEntry('system', `Synced ${fromId} → ${toId}, ${toId} state = ${merged.state().toFixed(2)}`);
 }
 
 function mergeAll(): void {
-  const peers = Array.from(state.peers.values());
-  if (peers.length < 2) return;
+  const peerList = Array.from(state.peers.values());
+  if (peerList.length < 2) return;
 
-  let result = mergeCRDTs(peers[0], peers[1]);
-  for (let i = 2; i < peers.length; i++) {
-    result = mergeCRDTs(result, peers[i]);
+  // Start with peer1
+  let result = peerList[0].crdt;
+
+  // Merge all others into it
+  for (let i = 1; i < peerList.length; i++) {
+    result = result.merge(peerList[i].crdt);
   }
 
   state.mergeResult = result;
 
-  // Also update all peers to converged state
-  state.peers.forEach((peer) => {
-    peer.state = result.state;
-    peer.vectorClock = { ...result.vectorClock };
-    result.operations.forEach((op, key) => {
-      peer.operations.set(key, op);
+  // Update all peers to the merged state by creating new CRDTs
+  // (In a real app, you'd propagate the merged operations)
+  const finalState = result.state();
+  for (const [key, peer] of state.peers.entries()) {
+    const newCrdt = new GeometricCRDT(peer.id, finalState);
+    state.peers.set(key, {
+      ...peer,
+      crdt: newCrdt,
     });
-  });
+  }
 
-  addLogEntry('system', `Merged all peers → converged state = ${result.state.toFixed(2)}`);
+  addLogEntry('system', `Merged all peers → converged state = ${finalState.toFixed(2)}`);
 }
 
 function reset(): void {
@@ -282,13 +162,11 @@ function reset(): void {
 // Safe DOM Rendering Helpers
 // =============================================================================
 
-function escapeHtml(text: string): string {
-  const div = document.createElement('div');
-  div.textContent = text;
-  return div.innerHTML;
-}
-
-function createElement(tag: string, attrs: Record<string, string> = {}, children: (Node | string)[] = []): HTMLElement {
+function createElement(
+  tag: string,
+  attrs: Record<string, string> = {},
+  children: (Node | string)[] = []
+): HTMLElement {
   const el = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     el.setAttribute(key, value);
@@ -308,48 +186,70 @@ function createElement(tag: string, attrs: Record<string, string> = {}, children
 // =============================================================================
 
 function checkConvergence(): boolean {
-  const states = Array.from(state.peers.values()).map((p) => p.state);
+  const states = Array.from(state.peers.values()).map((p) => p.crdt.state());
   return states.every((s) => Math.abs(s - states[0]) < 0.001);
 }
 
-function createPeerCard(id: string, peer: GeometricCRDT): HTMLElement {
-  const card = createElement('div', { class: `peer-card ${id}` });
+function formatVectorClock(crdt: GeometricCRDT): string {
+  const clock = crdt.vectorClock;
+  const obj = clock.toObject();
+  const entries = Object.entries(obj)
+    .map(([k, v]) => `${k.slice(0, 4)}:${v}`)
+    .join(', ');
+  return `{${entries || 'empty'}}`;
+}
+
+function createPeerCard(key: string, peer: PeerState): HTMLElement {
+  const card = createElement('div', { class: `peer-card ${key}` });
 
   // Header
   const header = createElement('div', { class: 'peer-header' });
   const name = createElement('span', { class: 'peer-name' }, [
     createElement('span', { class: 'peer-dot' }),
-    id.charAt(0).toUpperCase() + id.slice(1),
+    peer.displayName,
   ]);
-  const peerId = createElement('span', { class: 'peer-id' }, [peer.nodeId]);
+  const peerId = createElement('span', { class: 'peer-id' }, [peer.id.slice(0, 8) + '...']);
   header.appendChild(name);
   header.appendChild(peerId);
   card.appendChild(header);
 
   // State display
   const stateDisplay = createElement('div', { class: 'state-display' });
-  stateDisplay.appendChild(createElement('div', { class: 'state-label' }, ['Current State (Multivector Scalar)']));
-  stateDisplay.appendChild(createElement('div', { class: 'state-value' }, [peer.state.toFixed(2)]));
-  stateDisplay.appendChild(createElement('div', { class: 'vector-clock' }, [`Vector Clock: ${formatClock(peer.vectorClock)}`]));
+  stateDisplay.appendChild(
+    createElement('div', { class: 'state-label' }, ['Current State (GA3 Scalar)'])
+  );
+  stateDisplay.appendChild(
+    createElement('div', { class: 'state-value' }, [peer.crdt.state().toFixed(2)])
+  );
+  stateDisplay.appendChild(
+    createElement('div', { class: 'vector-clock' }, [
+      `Vector Clock: ${formatVectorClock(peer.crdt)}`,
+    ])
+  );
+  stateDisplay.appendChild(
+    createElement('div', { class: 'op-count' }, [
+      `Operations: ${peer.crdt.operationCount}`,
+    ])
+  );
   card.appendChild(stateDisplay);
 
   // Operations
   const ops = createElement('div', { class: 'operations' });
 
   const btn1 = createElement('button', {}, ['+5']);
-  btn1.onclick = () => add(id, 5);
+  btn1.onclick = () => add(key, 5);
   ops.appendChild(btn1);
 
   const btn2 = createElement('button', {}, ['-3']);
-  btn2.onclick = () => add(id, -3);
+  btn2.onclick = () => add(key, -3);
   ops.appendChild(btn2);
 
   const btn3 = createElement('button', {}, ['×2']);
-  btn3.onclick = () => multiply(id, 2);
+  btn3.onclick = () => multiply(key, 2);
   ops.appendChild(btn3);
 
   const btn4 = createElement('button', {}, ['GA ⊗ 1.5']);
-  btn4.onclick = () => geometricOp(id, 1.5);
+  btn4.onclick = () => geometricOp(key, 1.5);
   ops.appendChild(btn4);
 
   card.appendChild(ops);
@@ -359,7 +259,7 @@ function createPeerCard(id: string, peer: GeometricCRDT): HTMLElement {
 
 function createVisualization(): HTMLElement {
   const peerStates = Array.from(state.peers.values());
-  const maxState = Math.max(...peerStates.map((p) => Math.abs(p.state)), 1);
+  const maxState = Math.max(...peerStates.map((p) => Math.abs(p.crdt.state())), 1);
 
   const viz = createElement('div', { class: 'visualization' });
   viz.appendChild(createElement('div', { class: 'viz-axis x' }));
@@ -381,7 +281,7 @@ function createVisualization(): HTMLElement {
   viz.appendChild(labelState);
 
   peerStates.forEach((peer, i) => {
-    const x = 50 + (peer.state / maxState) * 35;
+    const x = 50 + (peer.crdt.state() / maxState) * 35;
     const y = 30 + i * 25;
     const point = createElement('div', { class: `viz-point peer${i + 1}` }, [`P${i + 1}`]);
     point.style.left = `${x}%`;
@@ -390,7 +290,7 @@ function createVisualization(): HTMLElement {
   });
 
   if (state.mergeResult) {
-    const x = 50 + (state.mergeResult.state / maxState) * 35;
+    const x = 50 + (state.mergeResult.state() / maxState) * 35;
     const point = createElement('div', { class: 'viz-point merged' }, ['M']);
     point.style.left = `${x}%`;
     point.style.top = '80%';
@@ -424,18 +324,29 @@ function render(): void {
   const app = document.getElementById('app');
   if (!app) return;
 
+  if (!state.initialized) {
+    app.textContent = 'Initializing WASM...';
+    return;
+  }
+
   // Clear existing content
   app.textContent = '';
 
   const isConverged = checkConvergence();
   const playground = createElement('div', { class: 'playground' });
 
+  // === WASM Badge ===
+  const badge = createElement('div', { class: 'wasm-badge' }, [
+    '✓ Using real cliffy-protocols WASM bindings',
+  ]);
+  playground.appendChild(badge);
+
   // === Peers Section ===
   const peersSection = createElement('div', { class: 'section' });
   peersSection.appendChild(createElement('h2', {}, ['Distributed Peers']));
   const peersGrid = createElement('div', { class: 'peers-grid' });
-  for (const [id, peer] of state.peers.entries()) {
-    peersGrid.appendChild(createPeerCard(id, peer));
+  for (const [key, peer] of state.peers.entries()) {
+    peersGrid.appendChild(createPeerCard(key, peer));
   }
   peersSection.appendChild(peersGrid);
   playground.appendChild(peersSection);
@@ -445,8 +356,13 @@ function render(): void {
   vizSection.appendChild(createElement('h2', {}, ['State Space Visualization']));
   vizSection.appendChild(createVisualization());
 
-  const convergence = createElement('div', { class: `convergence-indicator ${isConverged ? 'converged' : 'diverged'}` });
-  convergence.textContent = isConverged ? '✓ All peers converged' : '⚠ Peers have diverged states';
+  const convergence = createElement(
+    'div',
+    { class: `convergence-indicator ${isConverged ? 'converged' : 'diverged'}` }
+  );
+  convergence.textContent = isConverged
+    ? '✓ All peers converged'
+    : '⚠ Peers have diverged states';
   vizSection.appendChild(convergence);
   playground.appendChild(vizSection);
 
@@ -481,9 +397,17 @@ function render(): void {
 
   if (state.mergeResult) {
     const result = createElement('div', { class: 'merge-result' });
-    result.appendChild(createElement('div', { class: 'state-label' }, ['Merged State (Geometric Mean)']));
-    result.appendChild(createElement('div', { class: 'state-value' }, [state.mergeResult.state.toFixed(2)]));
-    result.appendChild(createElement('div', { class: 'vector-clock' }, [`Merged Clock: ${formatClock(state.mergeResult.vectorClock)}`]));
+    result.appendChild(
+      createElement('div', { class: 'state-label' }, ['Merged State (Geometric Join)'])
+    );
+    result.appendChild(
+      createElement('div', { class: 'state-value' }, [state.mergeResult.state().toFixed(2)])
+    );
+    result.appendChild(
+      createElement('div', { class: 'vector-clock' }, [
+        `Merged Clock: ${formatVectorClock(state.mergeResult)}`,
+      ])
+    );
     mergeSection.appendChild(result);
   }
 
@@ -492,7 +416,12 @@ function render(): void {
   const conceptBox1 = createElement('div', { class: 'concept-box' });
   conceptBox1.appendChild(createElement('h3', {}, ['How Geometric CRDT Works']));
   const p1 = createElement('p', {});
-  p1.textContent = 'Each peer maintains state as a GA3 multivector and a vector clock. Operations are geometric transformations (rotors, translations). When merging, operations are replayed in causal order. Conflicts resolve via geometric mean: exp((log(a) + log(b))/2). This guarantees convergence without coordination.';
+  p1.textContent =
+    'Each peer maintains state as a GA3 multivector and a vector clock. ' +
+    'Operations are geometric transformations (rotors, translations). ' +
+    'When merging, operations are replayed in causal order. ' +
+    'Conflicts resolve via geometric mean: exp((log(a) + log(b))/2). ' +
+    'This guarantees convergence without coordination.';
   conceptBox1.appendChild(p1);
   syncSection.appendChild(conceptBox1);
   playground.appendChild(syncSection);
@@ -512,21 +441,33 @@ function render(): void {
   const box1 = createElement('div', { class: 'concept-box' });
   box1.appendChild(createElement('h3', {}, ['Vector Clocks']));
   const text1 = createElement('p', {});
-  text1.textContent = "Each peer tracks logical time for all known peers. This establishes causal ordering: if A happens-before B, then A's effects are applied before B's during merge. Concurrent operations are ordered deterministically by node ID.";
+  text1.textContent =
+    "Each peer tracks logical time for all known peers. " +
+    "This establishes causal ordering: if A happens-before B, " +
+    "then A's effects are applied before B's during merge. " +
+    "Concurrent operations are ordered deterministically by node ID.";
   box1.appendChild(text1);
   conceptsGrid.appendChild(box1);
 
   const box2 = createElement('div', { class: 'concept-box' });
   box2.appendChild(createElement('h3', {}, ['Geometric Operations']));
   const text2 = createElement('p', {});
-  text2.textContent = 'State changes are geometric transformations in Clifford algebra: addition (translation), multiplication (scaling), geometric_product (rotation + scaling). The geometric product ab encodes both the inner and outer products.';
+  text2.textContent =
+    'State changes are geometric transformations in Clifford algebra: ' +
+    'addition (translation), multiplication (scaling), ' +
+    'geometric_product (rotation + scaling). ' +
+    'The geometric product ab encodes both the inner and outer products.';
   box2.appendChild(text2);
   conceptsGrid.appendChild(box2);
 
   const box3 = createElement('div', { class: 'concept-box' });
   box3.appendChild(createElement('h3', {}, ['Eventual Consistency']));
   const text3 = createElement('p', {});
-  text3.textContent = 'CRDTs guarantee that all peers will eventually converge to the same state, regardless of the order messages are received. The key: operations are commutative and associative when properly ordered by causal history.';
+  text3.textContent =
+    'CRDTs guarantee that all peers will eventually converge to the same state, ' +
+    'regardless of the order messages are received. ' +
+    'The key: operations are commutative and associative ' +
+    'when properly ordered by causal history.';
   box3.appendChild(text3);
   conceptsGrid.appendChild(box3);
 
@@ -547,9 +488,23 @@ function render(): void {
 // Initialize
 // =============================================================================
 
-initializePeers();
-render();
+async function main() {
+  // Initialize the WASM module
+  await init();
 
-console.log('Cliffy CRDT Playground initialized');
-console.log('This is a TypeScript simulation of cliffy-protocols/src/crdt.rs');
-console.log('The actual implementation uses geometric algebra (GA3) multivectors in Rust.');
+  state.initialized = true;
+  initializePeers();
+  render();
+
+  console.log('Cliffy CRDT Playground initialized');
+  console.log('Using real cliffy-protocols WASM bindings');
+  console.log('Available types: GeometricCRDT, VectorClock, OperationType, generateNodeId');
+}
+
+main().catch((err) => {
+  console.error('Failed to initialize:', err);
+  const app = document.getElementById('app');
+  if (app) {
+    app.textContent = `Failed to initialize: ${err.message}`;
+  }
+});

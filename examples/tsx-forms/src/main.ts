@@ -10,8 +10,32 @@
  * - Conditional UI based on validation state
  */
 
-import init, { behavior, combine, wedge } from '@cliffy-ga/core';
+import init, { behavior, combine } from '@cliffy-ga/core';
 import { html, mount } from '@cliffy-ga/core/html';
+
+// Helper to combine 3-4 behaviors (replaces wedge)
+function combine3<A, B, C, R>(
+  a: ReturnType<typeof behavior<A>>,
+  b: ReturnType<typeof behavior<B>>,
+  c: ReturnType<typeof behavior<C>>,
+  fn: (a: A, b: B, c: C) => R
+): ReturnType<typeof behavior<R>> {
+  return combine(combine(a, b, (x: A, y: B) => [x, y] as [A, B]), c, (pair: [A, B], z: C) => fn(pair[0], pair[1], z));
+}
+
+function combine4<A, B, C, D, R>(
+  a: ReturnType<typeof behavior<A>>,
+  b: ReturnType<typeof behavior<B>>,
+  c: ReturnType<typeof behavior<C>>,
+  d: ReturnType<typeof behavior<D>>,
+  fn: (a: A, b: B, c: C, d: D) => R
+): ReturnType<typeof behavior<R>> {
+  return combine(
+    combine(a, b, (x: A, y: B) => [x, y] as [A, B]),
+    combine(c, d, (x: C, y: D) => [x, y] as [C, D]),
+    (ab: [A, B], cd: [C, D]) => fn(ab[0], ab[1], cd[0], cd[1])
+  );
+}
 
 // Validation result type
 interface ValidationResult {
@@ -131,28 +155,29 @@ async function main() {
 
   const bioCharCount = bio.map((text: string) => text.length);
 
-  // wedge() creates a Blade from multiple behaviors, .map() projects to a new Behavior
-  const isFormValid = wedge(
+  // Combine multiple validation behaviors
+  const isFormValid = combine4(
     nameValidation,
     emailValidation,
     passwordValidation,
-    bioValidation
-  ).map((n: ValidationResult, e: ValidationResult, p: ValidationResult, b: ValidationResult) =>
-    n.valid && e.valid && p.valid && b.valid
+    bioValidation,
+    (n: ValidationResult, e: ValidationResult, p: ValidationResult, b: ValidationResult) =>
+      n.valid && e.valid && p.valid && b.valid
   );
 
-  const allFieldsTouched = wedge(
+  const allFieldsTouched = combine3(
     nameTouched,
     emailTouched,
-    passwordTouched
-  ).map((n: boolean, e: boolean, p: boolean) => n && e && p);
+    passwordTouched,
+    (n: boolean, e: boolean, p: boolean) => n && e && p
+  );
 
-  const canSubmit = wedge(
+  const canSubmit = combine3(
     isFormValid,
     allFieldsTouched,
-    submitted
-  ).map((valid: boolean, touched: boolean, alreadySubmitted: boolean) =>
-    valid && touched && !alreadySubmitted
+    submitted,
+    (valid: boolean, touched: boolean, alreadySubmitted: boolean) =>
+      valid && touched && !alreadySubmitted
   );
 
   // Input class based on validation state

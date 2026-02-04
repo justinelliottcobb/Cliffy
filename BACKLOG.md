@@ -171,31 +171,34 @@ From ROADMAP.md Phase 6.3, these example applications need to be built:
 | Application | Status | Demonstrates |
 |-------------|--------|--------------|
 | Collaborative Whiteboard | ✅ Exists | Real-time drawing with geometric transforms |
-| Multiplayer Game | ❌ Not started | High-frequency state sync, interpolation |
-| Shared Document Editor | ❌ Not started | CRDT text, presence indicators |
+| Multiplayer Game | ✅ Complete | High-frequency state sync, interpolation |
+| Shared Document Editor | ✅ Complete | CRDT text, presence indicators |
 | Design Tool | ✅ Complete | Complex geometric operations, undo/redo |
 
 #### Multiplayer Game Example
 
-- [ ] **Create `examples/multiplayer-game/`**
+- [x] **Create `examples/multiplayer-game/`** ✅
   - Demonstrates: High-frequency state sync, geometric interpolation, distributed compute
   - Features:
     - Player position as GeometricState
-    - Interpolated movement (SLERP)
+    - Interpolated movement using .blend() (SLERP/LERP)
     - Collision detection via geometric distance
-    - Latency compensation
-  - Stack: TypeScript + Vite + @cliffy/core
+    - Latency compensation with simulated network delay
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Shared Document Editor Example
 
-- [ ] **Create `examples/document-editor/`**
+- [x] **Create `examples/document-editor/`** ✅
   - Demonstrates: CRDT text, operational transforms, presence
   - Features:
-    - Text as geometric state (character positions)
-    - Cursor positions as Behaviors
-    - User presence indicators
-    - Conflict-free concurrent editing
-  - Stack: TypeScript + Vite + @cliffy/core
+    - Text operations as GeometricCRDT entries
+    - Cursor positions as FRP Behaviors
+    - User presence indicators with typing status
+    - Conflict-free concurrent editing with simulated peers
+    - Real-time operation log visualization
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Design Tool Example
 
@@ -265,13 +268,16 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 0: Testing Framework
 
-- [ ] **Create `examples/testing-showcase/`**
+- [x] **Create `examples/testing-showcase/`** ✅
   - Demonstrates: cliffy-test geometric invariants
   - Features:
-    - Invariant definitions
-    - Manifold testing
-    - Visual test debugging
-    - Probabilistic tests (amari-flynn)
+    - Interactive test runner with progress visualization
+    - Invariant definitions (rotor normalization, sandwich product)
+    - Manifold constraint testing (unit sphere, positive definite)
+    - Probabilistic tests (rare/impossible patterns from amari-flynn)
+    - Sample point visualization with pass/fail coloring
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Phase 1: Geometric State
 
@@ -299,13 +305,15 @@ Examples that demonstrate specific phase capabilities:
 
 #### Phase 3: Synchronization
 
-- [ ] **Create `examples/p2p-sync/`**
-  - Demonstrates: WebRTC state synchronization
+- [x] **Create `examples/p2p-sync/`** ✅
+  - Demonstrates: WebRTC-style state synchronization
   - Features:
-    - Peer discovery
-    - Real-time sync across tabs/browsers
-    - Delta compression visualization
-    - Network partition handling
+    - Simulated peer discovery with mesh topology
+    - Real-time sync with delta visualization
+    - Network partition simulation (click peers to toggle)
+    - Vector clock-based causal ordering
+  - Stack: TypeScript + Vite + @cliffy-ga/core
+  - Status: Complete
 
 #### Phase 5: Edge Computing
 
@@ -377,13 +385,13 @@ Examples that demonstrate specific phase capabilities:
 
 - Phase 7 Documentation continues
 
-### Ready to Implement
+### Completed This Sprint
 
-- Distributed examples now unblocked (Phase 2 completed in PR #138):
-  - multiplayer-game - High-frequency state sync, geometric interpolation
-  - document-editor - CRDT text, operational transforms, presence
-  - p2p-sync - WebRTC state synchronization
-  - testing-showcase - cliffy-test geometric invariants
+- All distributed examples completed (Phase 2 WASM bindings added):
+  - multiplayer-game - High-frequency state sync, geometric interpolation ✅
+  - document-editor - CRDT text, operational transforms, presence ✅
+  - p2p-sync - WebRTC state synchronization ✅
+  - testing-showcase - cliffy-test geometric invariants ✅
 
 ---
 
