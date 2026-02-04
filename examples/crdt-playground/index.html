@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cliffy CRDT Playground</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+
+      :root {
+        --bg: #1a1a2e;
+        --surface: #16213e;
+        --surface-hover: #1f3460;
+        --primary: #e94560;
+        --secondary: #0f3460;
+        --accent: #00d4aa;
+        --text: #eee;
+        --text-dim: #888;
+        --border: #2a2a4e;
+
+        --peer1: #e94560;
+        --peer2: #00d4aa;
+        --peer3: #ffc107;
+        --merged: #9c27b0;
+      }
+
+      body {
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+        margin: 0;
+        padding: 20px;
+        min-height: 100vh;
+      }
+
+      h1 {
+        text-align: center;
+        margin-bottom: 10px;
+        color: var(--primary);
+      }
+
+      .subtitle {
+        text-align: center;
+        color: var(--text-dim);
+        margin-bottom: 30px;
+      }
+
+      .playground {
+        max-width: 1200px;
+        margin: 0 auto;
+        display: grid;
+        gap: 20px;
+      }
+
+      .section {
+        background: var(--surface);
+        border-radius: 12px;
+        padding: 20px;
+        border: 1px solid var(--border);
+      }
+
+      .section h2 {
+        margin: 0 0 15px 0;
+        font-size: 1.2em;
+        color: var(--text);
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .section h2::before {
+        content: '';
+        width: 4px;
+        height: 20px;
+        background: var(--primary);
+        border-radius: 2px;
+      }
+
+      .peers-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+        gap: 20px;
+      }
+
+      .peer-card {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 15px;
+        border: 2px solid var(--border);
+      }
+
+      .peer-card.peer1 { border-color: var(--peer1); }
+      .peer-card.peer2 { border-color: var(--peer2); }
+      .peer-card.peer3 { border-color: var(--peer3); }
+
+      .peer-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 15px;
+      }
+
+      .peer-name {
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .peer-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+      }
+
+      .peer1 .peer-dot { background: var(--peer1); }
+      .peer2 .peer-dot { background: var(--peer2); }
+      .peer3 .peer-dot { background: var(--peer3); }
+
+      .peer-id {
+        font-size: 0.8em;
+        color: var(--text-dim);
+        font-family: monospace;
+      }
+
+      .state-display {
+        background: var(--surface);
+        border-radius: 6px;
+        padding: 12px;
+        margin-bottom: 15px;
+        font-family: monospace;
+      }
+
+      .state-label {
+        color: var(--text-dim);
+        font-size: 0.85em;
+        margin-bottom: 5px;
+      }
+
+      .state-value {
+        font-size: 1.5em;
+        font-weight: bold;
+      }
+
+      .peer1 .state-value { color: var(--peer1); }
+      .peer2 .state-value { color: var(--peer2); }
+      .peer3 .state-value { color: var(--peer3); }
+
+      .vector-clock {
+        font-size: 0.85em;
+        color: var(--text-dim);
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border);
+      }
+
+      .operations {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+
+      button {
+        background: var(--secondary);
+        color: var(--text);
+        border: none;
+        padding: 8px 16px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        background: var(--surface-hover);
+        transform: translateY(-1px);
+      }
+
+      button:active {
+        transform: translateY(0);
+      }
+
+      button.primary {
+        background: var(--primary);
+      }
+
+      button.accent {
+        background: var(--accent);
+        color: var(--bg);
+      }
+
+      .merge-section {
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .merge-controls {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+
+      .merge-result {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 15px;
+        border: 2px solid var(--merged);
+      }
+
+      .merge-result .state-value {
+        color: var(--merged);
+      }
+
+      .history-log {
+        background: var(--bg);
+        border-radius: 8px;
+        padding: 15px;
+        max-height: 200px;
+        overflow-y: auto;
+        font-family: monospace;
+        font-size: 0.85em;
+      }
+
+      .log-entry {
+        padding: 4px 0;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        gap: 10px;
+      }
+
+      .log-entry:last-child {
+        border-bottom: none;
+      }
+
+      .log-time {
+        color: var(--text-dim);
+        min-width: 60px;
+      }
+
+      .log-peer {
+        min-width: 60px;
+        font-weight: bold;
+      }
+
+      .log-peer.peer1 { color: var(--peer1); }
+      .log-peer.peer2 { color: var(--peer2); }
+      .log-peer.peer3 { color: var(--peer3); }
+      .log-peer.system { color: var(--merged); }
+
+      .log-action {
+        color: var(--text);
+      }
+
+      .visualization {
+        height: 200px;
+        background: var(--bg);
+        border-radius: 8px;
+        position: relative;
+        overflow: hidden;
+      }
+
+      .viz-point {
+        position: absolute;
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        transition: all 0.3s ease;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7em;
+        font-weight: bold;
+        color: var(--bg);
+      }
+
+      .viz-point.peer1 { background: var(--peer1); }
+      .viz-point.peer2 { background: var(--peer2); }
+      .viz-point.peer3 { background: var(--peer3); }
+      .viz-point.merged { background: var(--merged); width: 30px; height: 30px; }
+
+      .viz-axis {
+        position: absolute;
+        background: var(--border);
+      }
+
+      .viz-axis.x {
+        left: 10%;
+        right: 10%;
+        top: 50%;
+        height: 1px;
+      }
+
+      .viz-axis.y {
+        top: 10%;
+        bottom: 10%;
+        left: 50%;
+        width: 1px;
+      }
+
+      .viz-label {
+        position: absolute;
+        font-size: 0.75em;
+        color: var(--text-dim);
+      }
+
+      .concept-box {
+        background: var(--secondary);
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 15px;
+      }
+
+      .concept-box h3 {
+        margin: 0 0 10px 0;
+        color: var(--accent);
+        font-size: 1em;
+      }
+
+      .concept-box p {
+        margin: 0;
+        font-size: 0.9em;
+        line-height: 1.5;
+        color: var(--text-dim);
+      }
+
+      .concept-box code {
+        background: var(--bg);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+
+      .convergence-indicator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        border-radius: 8px;
+        font-weight: bold;
+      }
+
+      .convergence-indicator.converged {
+        background: rgba(0, 212, 170, 0.2);
+        color: var(--accent);
+      }
+
+      .convergence-indicator.diverged {
+        background: rgba(233, 69, 96, 0.2);
+        color: var(--primary);
+      }
+
+      .reset-all {
+        margin-top: 20px;
+        text-align: center;
+      }
+
+      .wasm-badge {
+        background: linear-gradient(135deg, var(--accent), #00a888);
+        color: var(--bg);
+        padding: 8px 16px;
+        border-radius: 20px;
+        font-size: 0.85em;
+        font-weight: bold;
+        display: inline-block;
+        margin-bottom: 20px;
+      }
+
+      .op-count {
+        font-size: 0.8em;
+        color: var(--text-dim);
+        margin-top: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Cliffy CRDT Playground</h1>
+    <p class="subtitle">Explore conflict-free replicated data types with geometric algebra</p>
+    <div id="app"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

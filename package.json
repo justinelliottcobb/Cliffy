@@ -4,11 +4,12 @@
   "description": "WASM-first reactive framework with classical FRP semantics and geometric algebra foundation",
   "type": "module",
   "scripts": {
-    "build": "npm run build:wasm",
+    "build": "npm run build:wasm && npm run postbuild:wasm",
     "build:wasm": "wasm-pack build cliffy-wasm --target web --out-dir pkg",
-    "build:release": "wasm-pack build cliffy-wasm --target web --release --out-dir pkg",
+    "build:release": "wasm-pack build cliffy-wasm --target web --release --out-dir pkg && npm run postbuild:wasm",
+    "postbuild:wasm": "node scripts/post-wasm-build.js",
 
-    "dev": "cargo watch -w cliffy-core -w cliffy-wasm -s 'wasm-pack build cliffy-wasm --target web --out-dir pkg --dev'",
+    "dev": "cargo watch -w cliffy-core -w cliffy-wasm -s 'wasm-pack build cliffy-wasm --target web --out-dir pkg --dev && node scripts/post-wasm-build.js'",
 
     "test": "cargo test --workspace",
     "test:rust": "cargo test --workspace",

@@ -2,4 +2,32 @@ let upstream =
       https://github.com/purescript/package-sets/releases/download/psc-0.15.10-20230621/packages.dhall
         sha256:7a24ebdbacb2bfa27b2fc6ce3da96f048093d64e54369965a2a7b5d9892b6031
 
-in  upstream
+-- Add cliffy-purescript from the Cliffy monorepo
+-- The package is located in the cliffy-purescript subdirectory
+let additions =
+      { cliffy-purescript =
+          { dependencies =
+              [ "arrays"
+              , "console"
+              , "effect"
+              , "foldable-traversable"
+              , "integers"
+              , "math"
+              , "maybe"
+              , "newtype"
+              , "numbers"
+              , "prelude"
+              , "transformers"
+              , "tuples"
+              , "typelevel-prelude"
+              , "web-dom"
+              , "web-events"
+              , "web-html"
+              ]
+          , repo = "https://github.com/justinelliottcobb/Cliffy.git"
+          , version = "main"
+          , subdir = "cliffy-purescript"
+          }
+      }
+
+in  upstream // additions

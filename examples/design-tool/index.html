@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliffy Design Tool</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #1a1a2e;
+      color: #e8e8e8;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .app-container {
+      display: flex;
+      height: 100vh;
+    }
+
+    .toolbar {
+      width: 60px;
+      background: #0f0f1a;
+      border-right: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1rem 0.5rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .tool-btn {
+      width: 44px;
+      height: 44px;
+      border: none;
+      border-radius: 8px;
+      background: transparent;
+      color: #888;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.2rem;
+      transition: all 0.2s;
+    }
+
+    .tool-btn:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: #e8e8e8;
+    }
+
+    .tool-btn.active {
+      background: #7c3aed;
+      color: white;
+    }
+
+    .tool-btn svg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .main-area {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .top-bar {
+      height: 48px;
+      background: #0f0f1a;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      gap: 1rem;
+    }
+
+    .top-bar h1 {
+      font-size: 1rem;
+      font-weight: 500;
+      background: linear-gradient(90deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .top-bar .spacer {
+      flex: 1;
+    }
+
+    .action-btn {
+      padding: 0.4rem 0.8rem;
+      border: none;
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #e8e8e8;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: background 0.2s;
+    }
+
+    .action-btn:hover {
+      background: rgba(255, 255, 255, 0.2);
+    }
+
+    .action-btn:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+
+    .action-btn.primary {
+      background: #7c3aed;
+    }
+
+    .action-btn.primary:hover {
+      background: #6d28d9;
+    }
+
+    .canvas-area {
+      flex: 1;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .canvas {
+      width: 100%;
+      height: 100%;
+      background-image:
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+      background-size: 20px 20px;
+      cursor: crosshair;
+    }
+
+    .canvas.tool-select {
+      cursor: default;
+    }
+
+    .canvas.tool-move {
+      cursor: move;
+    }
+
+    .shape {
+      position: absolute;
+      border: 2px solid transparent;
+      cursor: move;
+      user-select: none;
+    }
+
+    .shape.selected {
+      border-color: #00d4ff;
+    }
+
+    .shape.selected::after {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: -6px;
+      right: -6px;
+      bottom: -6px;
+      border: 1px dashed rgba(0, 212, 255, 0.5);
+      pointer-events: none;
+    }
+
+    .shape-rect {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      border-radius: 4px;
+    }
+
+    .shape-circle {
+      background: linear-gradient(135deg, #00d4ff, #0891b2);
+      border-radius: 50%;
+    }
+
+    .shape-triangle {
+      background: transparent;
+      width: 0 !important;
+      height: 0 !important;
+      border-left: 40px solid transparent;
+      border-right: 40px solid transparent;
+      border-bottom: 70px solid #f59e0b;
+    }
+
+    .resize-handle {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: #00d4ff;
+      border: 2px solid white;
+      border-radius: 2px;
+    }
+
+    .resize-handle.nw { top: -5px; left: -5px; cursor: nw-resize; }
+    .resize-handle.ne { top: -5px; right: -5px; cursor: ne-resize; }
+    .resize-handle.sw { bottom: -5px; left: -5px; cursor: sw-resize; }
+    .resize-handle.se { bottom: -5px; right: -5px; cursor: se-resize; }
+
+    .rotate-handle {
+      position: absolute;
+      top: -30px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 16px;
+      height: 16px;
+      background: #7c3aed;
+      border: 2px solid white;
+      border-radius: 50%;
+      cursor: grab;
+    }
+
+    .rotate-handle:active {
+      cursor: grabbing;
+    }
+
+    .properties-panel {
+      width: 250px;
+      background: #0f0f1a;
+      border-left: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 1rem;
+    }
+
+    .properties-panel h3 {
+      font-size: 0.85rem;
+      color: #888;
+      margin-bottom: 1rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .property-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .property-row {
+      display: flex;
+      align-items: center;
+      margin-bottom: 0.75rem;
+    }
+
+    .property-row label {
+      width: 60px;
+      font-size: 0.8rem;
+      color: #888;
+    }
+
+    .property-row input {
+      flex: 1;
+      padding: 0.4rem 0.6rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      background: rgba(255, 255, 255, 0.05);
+      color: #e8e8e8;
+      font-size: 0.85rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+    }
+
+    .property-row input:focus {
+      outline: none;
+      border-color: #7c3aed;
+    }
+
+    .no-selection {
+      color: #666;
+      font-size: 0.85rem;
+      text-align: center;
+      padding: 2rem 1rem;
+    }
+
+    .status-bar {
+      height: 28px;
+      background: #0a0a14;
+      border-top: 1px solid rgba(255, 255, 255, 0.1);
+      display: flex;
+      align-items: center;
+      padding: 0 1rem;
+      font-size: 0.75rem;
+      color: #666;
+    }
+
+    .status-bar .separator {
+      margin: 0 1rem;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <div id="app"></div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

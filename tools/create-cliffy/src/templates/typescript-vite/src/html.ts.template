@@ -1,0 +1,334 @@
+/**
+ * Algebraic TSX - Tagged template literal for reactive DOM elements
+ *
+ * This module provides an `html` template tag that creates real DOM elements
+ * with automatic reactive bindings for Behavior values.
+ *
+ * @example
+ * ```typescript
+ * const count = new Behavior(0);
+ *
+ * const el = html`
+ *   <button onclick=${() => count.update(n => n + 1)}>
+ *     Clicked ${count} times
+ *   </button>
+ * `;
+ * ```
+ */
+
+import type { Behavior } from '@cliffy/core';
+
+// Type guard to check if a value is a Behavior
+function isBehavior(value: unknown): value is Behavior {
+  return value !== null &&
+         typeof value === 'object' &&
+         'sample' in value &&
+         'subscribe' in value &&
+         typeof (value as any).sample === 'function' &&
+         typeof (value as any).subscribe === 'function';
+}
+
+// Marker for placeholder values in the template
+const PLACEHOLDER_MARKER = '\x00CLIFFY_PLACEHOLDER_';
+
+interface Subscription {
+  unsubscribe: () => void;
+}
+
+interface CliffyElement extends HTMLElement {
+  __cliffy_subscriptions?: Subscription[];
+  __cliffy_cleanup?: (() => void)[];
+}
+
+/**
+ * Parse the template literal into HTML string with placeholders
+ */
+function parseTemplate(strings: TemplateStringsArray, values: unknown[]): { html: string; values: unknown[] } {
+  let html = '';
+  for (let i = 0; i < strings.length; i++) {
+    html += strings[i];
+    if (i < values.length) {
+      html += `${PLACEHOLDER_MARKER}${i}\x00`;
+    }
+  }
+  return { html, values };
+}
+
+/**
+ * Track a subscription on an element for cleanup
+ */
+function trackSubscription(element: CliffyElement, subscription: Subscription): void {
+  if (!element.__cliffy_subscriptions) {
+    element.__cliffy_subscriptions = [];
+  }
+  element.__cliffy_subscriptions.push(subscription);
+}
+
+/**
+ * Process an element's attributes, replacing placeholders with actual values
+ */
+function processAttributes(element: CliffyElement, values: unknown[]): void {
+  const attributes = Array.from(element.attributes);
+
+  for (const attr of attributes) {
+    const name = attr.name;
+    const value = attr.value;
+
+    const placeholderMatch = value.match(new RegExp(`${PLACEHOLDER_MARKER}(\\d+)\x00`));
+
+    if (placeholderMatch) {
+      const index = parseInt(placeholderMatch[1], 10);
+      const actualValue = values[index];
+
+      element.removeAttribute(name);
+
+      // Handle event listeners (onclick, onchange, etc.)
+      if (name.startsWith('on')) {
+        const eventName = name.slice(2).toLowerCase();
+        if (typeof actualValue === 'function') {
+          element.addEventListener(eventName, actualValue as EventListener);
+
+          if (!element.__cliffy_cleanup) {
+            element.__cliffy_cleanup = [];
+          }
+          element.__cliffy_cleanup.push(() => {
+            element.removeEventListener(eventName, actualValue as EventListener);
+          });
+        }
+      }
+      // Handle Behavior values
+      else if (isBehavior(actualValue)) {
+        const behavior = actualValue;
+
+        if (name === 'class' || name === 'className') {
+          element.className = String(behavior.sample());
+          const subscription = behavior.subscribe((val: unknown) => {
+            element.className = String(val);
+          });
+          trackSubscription(element, subscription);
+        } else if (name === 'checked' || name === 'disabled' || name === 'hidden') {
+          const updateBool = (val: unknown) => {
+            if (val) element.setAttribute(name, '');
+            else element.removeAttribute(name);
+          };
+          updateBool(behavior.sample());
+          trackSubscription(element, behavior.subscribe(updateBool));
+        } else {
+          element.setAttribute(name, String(behavior.sample()));
+          const subscription = behavior.subscribe((val: unknown) => {
+            if (val === null || val === undefined || val === false) {
+              element.removeAttribute(name);
+            } else {
+              element.setAttribute(name, String(val));
+            }
+          });
+          trackSubscription(element, subscription);
+        }
+      }
+      // Handle static values
+      else {
+        if (name === 'class' || name === 'className') {
+          element.className = String(actualValue);
+        } else if (actualValue === true) {
+          element.setAttribute(name, '');
+        } else if (actualValue !== false && actualValue !== null && actualValue !== undefined) {
+          element.setAttribute(name, String(actualValue));
+        }
+      }
+    }
+  }
+}
+
+/**
+ * Process text content, replacing placeholders with actual values
+ */
+function processTextContent(node: Text, values: unknown[], parent: Node): void {
+  const text = node.textContent || '';
+  const placeholderRegex = new RegExp(`${PLACEHOLDER_MARKER}(\\d+)\x00`, 'g');
+
+  if (!placeholderRegex.test(text)) {
+    return;
+  }
+
+  placeholderRegex.lastIndex = 0;
+
+  const parts: Array<string | { index: number }> = [];
+  let lastIndex = 0;
+  let match;
+
+  // Use RegExp.prototype.exec to find all matches (not child_process exec)
+  while ((match = placeholderRegex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push({ index: parseInt(match[1], 10) });
+    lastIndex = match.index + match[0].length;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  const fragment = document.createDocumentFragment();
+
+  for (const part of parts) {
+    if (typeof part === 'string') {
+      fragment.appendChild(document.createTextNode(part));
+    } else {
+      const actualValue = values[part.index];
+
+      if (isBehavior(actualValue)) {
+        const textNode = document.createTextNode(String(actualValue.sample()));
+        fragment.appendChild(textNode);
+
+        const subscription = actualValue.subscribe((val: unknown) => {
+          textNode.textContent = String(val);
+        });
+
+        const parentElement = parent as CliffyElement;
+        trackSubscription(parentElement, subscription);
+      } else if (actualValue instanceof Node) {
+        fragment.appendChild(actualValue);
+      } else if (Array.isArray(actualValue)) {
+        for (const item of actualValue) {
+          if (item instanceof Node) {
+            fragment.appendChild(item);
+          } else {
+            fragment.appendChild(document.createTextNode(String(item)));
+          }
+        }
+      } else {
+        fragment.appendChild(document.createTextNode(String(actualValue ?? '')));
+      }
+    }
+  }
+
+  node.parentNode?.replaceChild(fragment, node);
+}
+
+/**
+ * Recursively process all nodes in the tree
+ */
+function processNode(node: Node, values: unknown[]): void {
+  if (node.nodeType === Node.ELEMENT_NODE) {
+    processAttributes(node as CliffyElement, values);
+
+    const children = Array.from(node.childNodes);
+    for (const child of children) {
+      processNode(child, values);
+    }
+  } else if (node.nodeType === Node.TEXT_NODE) {
+    processTextContent(node as Text, values, node.parentNode || node);
+  }
+}
+
+/**
+ * Tagged template literal for creating reactive DOM elements.
+ *
+ * Creates real DOM elements with automatic reactive bindings:
+ * - Behavior values in text content automatically update
+ * - Behavior values in attributes stay synchronized
+ * - Event handlers (onclick, onchange, etc.) are wired up
+ * - Nested html`` templates are supported
+ */
+export function html(strings: TemplateStringsArray, ...values: unknown[]): DocumentFragment | Element {
+  const { html: htmlString, values: templateValues } = parseTemplate(strings, values);
+
+  const template = document.createElement('template');
+  template.innerHTML = htmlString.trim();
+
+  const content = template.content;
+
+  const children = Array.from(content.childNodes);
+  for (const child of children) {
+    processNode(child, templateValues);
+  }
+
+  if (content.children.length === 1 && content.childNodes.length === 1) {
+    return content.firstElementChild as Element;
+  }
+
+  return content;
+}
+
+/**
+ * Recursively cleanup all subscriptions in an element tree
+ */
+function cleanupElement(element: Element): void {
+  for (const child of Array.from(element.children)) {
+    const cliffyChild = child as CliffyElement;
+
+    if (cliffyChild.__cliffy_subscriptions) {
+      for (const sub of cliffyChild.__cliffy_subscriptions) {
+        sub.unsubscribe();
+      }
+    }
+
+    if (cliffyChild.__cliffy_cleanup) {
+      for (const cleanup of cliffyChild.__cliffy_cleanup) {
+        cleanup();
+      }
+    }
+
+    cleanupElement(child);
+  }
+}
+
+/**
+ * Mount an element or fragment to a container.
+ *
+ * @param element - The element to mount (from html`` or any DOM node)
+ * @param container - CSS selector or DOM element to mount into
+ * @returns Cleanup function that removes the element and unsubscribes all Behaviors
+ */
+export function mount(
+  element: Node | DocumentFragment,
+  container: string | Element
+): () => void {
+  const target = typeof container === 'string'
+    ? document.querySelector(container)
+    : container;
+
+  if (!target) {
+    throw new Error(`Mount target not found: ${container}`);
+  }
+
+  // Clear existing content safely
+  while (target.firstChild) {
+    const child = target.firstChild;
+    if (child instanceof Element) {
+      cleanupElement(child);
+    }
+    target.removeChild(child);
+  }
+
+  const mountedElements: CliffyElement[] = [];
+
+  if (element instanceof DocumentFragment) {
+    const children = Array.from(element.children) as CliffyElement[];
+    mountedElements.push(...children);
+    target.appendChild(element);
+  } else {
+    mountedElements.push(element as CliffyElement);
+    target.appendChild(element);
+  }
+
+  return () => {
+    for (const el of mountedElements) {
+      if (el.__cliffy_subscriptions) {
+        for (const sub of el.__cliffy_subscriptions) {
+          sub.unsubscribe();
+        }
+      }
+
+      if (el.__cliffy_cleanup) {
+        for (const cleanup of el.__cliffy_cleanup) {
+          cleanup();
+        }
+      }
+
+      cleanupElement(el);
+      el.remove();
+    }
+  };
+}

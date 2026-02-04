@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cliffy Geometric Transforms</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      color: #e8e8e8;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    h1 {
+      text-align: center;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(90deg, #00d4ff, #7c3aed);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: #888;
+      margin-bottom: 2rem;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .demo-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+      gap: 2rem;
+      margin-bottom: 2rem;
+    }
+
+    .demo-card {
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 12px;
+      padding: 1.5rem;
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .demo-card h2 {
+      font-size: 1.2rem;
+      margin-bottom: 0.5rem;
+      color: #00d4ff;
+    }
+
+    .demo-card p {
+      font-size: 0.9rem;
+      color: #888;
+      margin-bottom: 1rem;
+    }
+
+    .canvas-container {
+      position: relative;
+      width: 100%;
+      height: 250px;
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 1rem;
+    }
+
+    .transform-target {
+      position: absolute;
+      width: 60px;
+      height: 60px;
+      background: linear-gradient(135deg, #7c3aed, #00d4ff);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 0.8rem;
+      transition: none;
+    }
+
+    .transform-target.arrow {
+      clip-path: polygon(50% 0%, 100% 50%, 75% 50%, 75% 100%, 25% 100%, 25% 50%, 0% 50%);
+    }
+
+    .controls {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+    }
+
+    .control-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .control-row label {
+      min-width: 80px;
+      font-size: 0.85rem;
+      color: #aaa;
+    }
+
+    .control-row input[type="range"] {
+      flex: 1;
+      height: 6px;
+      -webkit-appearance: none;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      outline: none;
+    }
+
+    .control-row input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      background: #00d4ff;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .control-row .value {
+      min-width: 60px;
+      text-align: right;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.8rem;
+      color: #7c3aed;
+    }
+
+    .button-row {
+      display: flex;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    button {
+      padding: 0.5rem 1rem;
+      border: none;
+      border-radius: 6px;
+      background: rgba(124, 58, 237, 0.3);
+      color: #e8e8e8;
+      cursor: pointer;
+      font-size: 0.85rem;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: rgba(124, 58, 237, 0.5);
+    }
+
+    button.active {
+      background: #7c3aed;
+    }
+
+    .info-panel {
+      background: rgba(0, 0, 0, 0.3);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 0.75rem;
+      line-height: 1.6;
+    }
+
+    .info-panel .label {
+      color: #888;
+    }
+
+    .info-panel .value {
+      color: #00d4ff;
+    }
+
+    .blend-visualization {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 0;
+    }
+
+    .blend-point {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.7rem;
+      font-weight: bold;
+    }
+
+    .blend-point.start {
+      background: #7c3aed;
+    }
+
+    .blend-point.end {
+      background: #00d4ff;
+    }
+
+    .blend-point.current {
+      background: linear-gradient(135deg, #7c3aed, #00d4ff);
+      border: 2px solid white;
+    }
+
+    .blend-line {
+      flex: 1;
+      height: 4px;
+      background: linear-gradient(90deg, #7c3aed, #00d4ff);
+      margin: 0 0.5rem;
+      position: relative;
+    }
+
+    .blend-marker {
+      position: absolute;
+      top: -8px;
+      width: 20px;
+      height: 20px;
+      background: white;
+      border-radius: 50%;
+      transform: translateX(-50%);
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Geometric Transforms</h1>
+    <p class="subtitle">Cliffy's GA-powered rotation, translation, and interpolation</p>
+    <div id="app"></div>
+  </div>
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
