@@ -322,7 +322,7 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 | Phase 4 | Done | Algebraic TSX Components |
 | Phase 5 | Done | Edge Computing (WebGPU) |
 | Phase 6 | **v0.1.0** | Production Readiness |
-| Phase 7 | Planned | Native Mobile (Fek'lhr) |
+| Phase 7 | Planned | Native Mobile (Trebek) |
 
 ## License
 

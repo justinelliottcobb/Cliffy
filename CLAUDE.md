@@ -52,7 +52,7 @@ mount(app, '#app');
         │                                           │
         ▼                                           ▼
 ┌───────────────────────────────┐     ┌───────────────────────────────┐
-│        Algebraic TSX          │     │      Fek'lhr (Mobile)         │
+│        Algebraic TSX          │     │      Trebek (Mobile)          │
 │  (Web: dataflow → DOM)        │     │  (RN/Lynx: machines → native) │
 └───────────────────────────────┘     └───────────────────────────────┘
                               │
@@ -278,7 +278,7 @@ See `ROADMAP.md` for full details. Summary:
 | **4** | Algebraic TSX (composable components, dataflow graphs) |
 | **5** | Edge Computing (WebGPU, distributed compute) |
 | **6** | Production (scale testing, docs, examples) |
-| **7** | Native Mobile (Fek'lhr: RN + Lynx middleware) |
+| **7** | Native Mobile (Trebek: RN + Lynx middleware) |
 
 ## Key Principles
 
