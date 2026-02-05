@@ -1,4 +1,8 @@
+# Cliffy Examples - Netlify Configuration
+# This file must be at the repo root for Netlify to find it
+
 [build]
+  base = "examples"
   publish = "dist"
   command = "npm ci && npm run build:netlify"
 
