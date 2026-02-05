@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": [
     "shared",
+    "landing",
     "whiteboard",
     "multiplayer-game",
     "document-editor",
@@ -20,11 +21,15 @@
   ],
   "scripts": {
     "build:wasm": "wasm-pack build ../cliffy-wasm --target web --out-dir ../cliffy-wasm/pkg",
+    "build:landing": "npm run build -w landing",
+    "build:netlify": "node scripts/build-all.js",
+    "dev:landing": "npm run dev -w landing",
     "dev:whiteboard": "npm run dev -w whiteboard",
     "dev:game": "npm run dev -w multiplayer-game",
     "dev:editor": "npm run dev -w document-editor",
     "dev:design": "npm run dev -w design-tool",
     "build:all": "npm run build -ws --if-present",
+    "preview": "npx serve dist",
     "test:examples": "playwright test",
     "clean": "rm -rf node_modules */node_modules */dist"
   },

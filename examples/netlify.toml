@@ -1,0 +1,91 @@
+[build]
+  publish = "dist"
+  command = "npm ci && npm run build:netlify"
+
+[build.environment]
+  NETLIFY = "true"
+  NODE_VERSION = "20"
+
+# Landing page SPA fallback
+[[redirects]]
+  from = "/"
+  to = "/index.html"
+  status = 200
+
+# Example subdirectory SPAs
+[[redirects]]
+  from = "/tsx-counter/*"
+  to = "/tsx-counter/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/tsx-todo/*"
+  to = "/tsx-todo/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/tsx-forms/*"
+  to = "/tsx-forms/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/whiteboard/*"
+  to = "/whiteboard/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/design-tool/*"
+  to = "/design-tool/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/crdt-playground/*"
+  to = "/crdt-playground/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/document-editor/*"
+  to = "/document-editor/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/multiplayer-game/*"
+  to = "/multiplayer-game/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/p2p-sync/*"
+  to = "/p2p-sync/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/geometric-transforms/*"
+  to = "/geometric-transforms/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/gpu-benchmark/*"
+  to = "/gpu-benchmark/index.html"
+  status = 200
+
+[[redirects]]
+  from = "/testing-showcase/*"
+  to = "/testing-showcase/index.html"
+  status = 200
+
+# WASM MIME type headers
+[[headers]]
+  for = "/*.wasm"
+  [headers.values]
+    Content-Type = "application/wasm"
+
+# Cache control for assets
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/*/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

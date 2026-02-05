@@ -1,11 +1,14 @@
 import { defineConfig, loadEnv } from 'vite';
 import { resolve } from 'path';
 
+const base = process.env.NETLIFY ? '/whiteboard/' : '/';
+
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, __dirname, '');
   const allowedHosts = env.VITE_ALLOWED_HOST ? [env.VITE_ALLOWED_HOST] : [];
 
   return {
+    base,
     server: {
       port: 3000,
       host: '0.0.0.0',
