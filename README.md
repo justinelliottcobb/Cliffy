@@ -1,8 +1,17 @@
 # Cliffy
 
+[![npm](https://img.shields.io/npm/v/@cliffy-ga/core)](https://www.npmjs.com/package/@cliffy-ga/core)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+
 A WASM-first reactive framework with classical FRP semantics, powered by geometric algebra.
 
 Build collaborative applications at scale where **distributed systems problems become geometric algebra problems** with closed-form solutions and guaranteed convergence.
+
+## Install
+
+```bash
+npm install @cliffy-ga/core
+```
 
 ## Quick Start
 
@@ -25,8 +34,10 @@ npm run dev
 - **Classical FRP** - `Behavior<T>` (continuous) and `Event<T>` (discrete) following Conal Elliott's original semantics
 - **Algebraic TSX** - Declarative UI with `html` tagged templates that auto-update when Behaviors change
 - **WASM-First** - Core logic in Rust, runs anywhere via WebAssembly
+- **Distributed State** - Geometric CRDTs with lattice join, vector clocks, and coordination-free merge
 - **Geometric Foundation** - State transformations as geometric operations (hidden from users)
-- **Multi-Language** - TypeScript, JavaScript, and PureScript examples
+- **Multi-Language** - TypeScript, JavaScript, and PureScript bindings
+- **No WASM? No problem** - [cliffy-tsukoshi](cliffy-tsukoshi/) provides pure TypeScript geometric state for mobile and constrained environments
 
 ## Algebraic TSX
 
@@ -159,18 +170,26 @@ const text = ifElse(isLoading, () => "Loading...", () => "Ready");
 
 | Example | Description | Run |
 |---------|-------------|-----|
-| [tsx-counter](examples/tsx-counter) | Basic counter with derived state | `cd examples/tsx-counter && npm run dev` |
-| [tsx-todo](examples/tsx-todo) | Todo list with filtering | `cd examples/tsx-todo && npm run dev` |
-| [tsx-forms](examples/tsx-forms) | Form validation patterns | `cd examples/tsx-forms && npm run dev` |
-| [purescript-counter](examples/purescript-counter) | Counter in PureScript | `cd examples/purescript-counter && npm run dev` |
-| [purescript-todo](examples/purescript-todo) | Todo list in PureScript | `cd examples/purescript-todo && npm run dev` |
-| [whiteboard](examples/whiteboard) | Collaborative drawing canvas | `cd examples/whiteboard && npm run dev` |
+| [tsx-counter](examples/tsx-counter) | Basic counter with derived state | `npm run dev -w tsx-counter` |
+| [tsx-todo](examples/tsx-todo) | Todo list with filtering | `npm run dev -w tsx-todo` |
+| [tsx-forms](examples/tsx-forms) | Form validation patterns | `npm run dev -w tsx-forms` |
+| [whiteboard](examples/whiteboard) | Collaborative drawing canvas | `npm run dev -w whiteboard` |
+| [design-tool](examples/design-tool) | Shape manipulation with rotors | `npm run dev -w design-tool` |
+| [multiplayer-game](examples/multiplayer-game) | Entity interpolation with latency sim | `npm run dev -w multiplayer-game` |
+| [document-editor](examples/document-editor) | CRDT-based collaborative editing | `npm run dev -w document-editor` |
+| [p2p-sync](examples/p2p-sync) | P2P sync with network partitions | `npm run dev -w p2p-sync` |
+| [crdt-playground](examples/crdt-playground) | Interactive CRDT exploration | `npm run dev -w crdt-playground` |
+| [geometric-transforms](examples/geometric-transforms) | Rotor rotations visualized | `npm run dev -w geometric-transforms` |
+| [gpu-benchmark](examples/gpu-benchmark) | WebGPU vs CPU performance | `npm run dev -w gpu-benchmark` |
+| [testing-showcase](examples/testing-showcase) | Algebraic testing patterns | `npm run dev -w testing-showcase` |
+| [purescript-counter](examples/purescript-counter) | Counter in PureScript | See example README |
+| [purescript-todo](examples/purescript-todo) | Todo list in PureScript | See example README |
 
 ## Project Structure
 
 ```
 cliffy/
-├── cliffy-core/           # Rust FRP implementation
+├── cliffy-core/           # Rust FRP implementation (79 tests)
 │   └── src/
 │       ├── behavior.rs    # Behavior<T> - continuous signals
 │       ├── event.rs       # Event<T> - discrete occurrences
@@ -178,34 +197,58 @@ cliffy/
 │       ├── component.rs   # Component model
 │       ├── dataflow.rs    # Dataflow graph IR
 │       └── geometric.rs   # GA conversion (internal)
-├── cliffy-wasm/           # WASM bindings
-│   ├── src/lib.rs         # WASM exports
+├── cliffy-wasm/           # WASM bindings (@cliffy-ga/core on npm)
+│   ├── src/
+│   │   ├── lib.rs         # WASM exports
+│   │   └── protocols.rs   # CRDT/VectorClock bindings
 │   └── pkg/
 │       ├── html.ts        # Algebraic TSX implementation
 │       └── cliffy_wasm.js
+├── cliffy-tsukoshi/       # Pure TypeScript geometric state (zero deps)
+│   └── src/
+│       ├── ga3.ts         # GA3 multivector operations
+│       ├── rotor.ts       # Rotations with SLERP
+│       ├── transform.ts   # Rotation + translation
+│       └── state.ts       # GeometricState + ReactiveState
 ├── cliffy-purescript/     # PureScript bindings
 │   └── src/
 │       ├── Cliffy.purs    # FRP primitives (Behavior, Event)
 │       └── Cliffy/
 │           ├── Html.purs  # Type-safe Html DSL
 │           └── Foreign.js # FFI bridge
-├── cliffy-protocols/      # CRDT and sync protocols
-├── cliffy-gpu/            # WebGPU/SIMD acceleration
-├── cliffy-test/           # Algebraic testing framework
+├── cliffy-protocols/      # Distributed state (42 tests)
+├── cliffy-gpu/            # WebGPU/SIMD acceleration (18 tests)
+├── cliffy-test/           # Algebraic testing framework (25 tests)
+├── cliffy-loadtest/       # Scale testing simulator (15 tests)
 ├── tools/
 │   └── create-cliffy/     # Project scaffolding CLI
-├── examples/              # Example applications
-│   ├── tsx-counter/       # TypeScript counter
-│   ├── tsx-todo/          # TypeScript todo list
-│   ├── tsx-forms/         # Form validation
-│   ├── purescript-counter/
-│   ├── purescript-todo/
-│   └── whiteboard/        # Collaborative whiteboard
+├── examples/              # 14 example applications
 └── docs/                  # Documentation
-    ├── getting-started.md
-    ├── api-reference.md
-    └── migration-guide.md
 ```
+
+## cliffy-tsukoshi
+
+For environments without WASM support (mobile apps, edge functions, etc.), **cliffy-tsukoshi** provides the geometric state management core as pure TypeScript:
+
+```typescript
+import { GeometricState, Rotor, ReactiveState } from 'cliffy-tsukoshi';
+
+// Smooth interpolation between states
+const current = GeometricState.fromVector(0, 0, 0);
+const target = GeometricState.fromVector(100, 50, 0);
+const midway = current.blend(target, 0.5);  // (50, 25, 0)
+
+// Rotations via rotors
+const rotate90 = Rotor.fromAxisAngle('xy', Math.PI / 2);
+const rotated = current.applyRotor(rotate90);
+
+// Reactive wrapper with subscriptions
+const state = new ReactiveState(current);
+state.subscribe(s => updateUI(s));
+state.blendTo(target, 0.3);
+```
+
+~530 lines, zero dependencies, 64 tests. See [cliffy-tsukoshi/README.md](cliffy-tsukoshi/README.md) for full documentation.
 
 ## Building from Source
 
@@ -258,8 +301,13 @@ Cliffy uses [Clifford Algebra](https://en.wikipedia.org/wiki/Clifford_algebra) (
 
 - [Getting Started](docs/getting-started.md) - Installation and first app
 - [API Reference](docs/api-reference.md) - Complete API documentation
+- [FRP Guide](docs/frp-guide.md) - Behavior, Event, and combinators in depth
+- [Algebraic TSX Guide](docs/algebraic-tsx-guide.md) - Declarative UI patterns
+- [Distributed State Guide](docs/distributed-state-guide.md) - CRDTs and sync
+- [Testing Guide](docs/testing-guide.md) - Algebraic testing patterns
 - [Migration Guide](docs/migration-guide.md) - Coming from React/Vue
 - [PureScript FFI Patterns](docs/purescript-ffi-patterns.md) - PureScript integration
+- [Architecture Decision Records](docs/architecture/) - Design rationale
 
 ## Roadmap
 
@@ -270,10 +318,11 @@ See [ROADMAP.md](ROADMAP.md) for the full development plan.
 | Phase 0 | Done | Algebraic Testing Framework |
 | Phase 1 | Done | Geometric State Foundation |
 | Phase 2 | Done | Distributed State (CRDT) |
+| Phase 3 | Planned | Synchronization (WebRTC, persistence) |
 | Phase 4 | Done | Algebraic TSX Components |
 | Phase 5 | Done | Edge Computing (WebGPU) |
-| Phase 6 | Active | Production Readiness |
-| Phase 7 | Active | Documentation |
+| Phase 6 | **v0.1.0** | Production Readiness |
+| Phase 7 | Planned | Native Mobile (Fek'lhr) |
 
 ## License
 
