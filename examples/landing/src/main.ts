@@ -91,7 +91,7 @@ async function main() {
       ${exampleCards}
 
       <footer>
-        <p>Built with Cliffy v0.1.0 - Classical FRP without the complexity</p>
+        <p>Built with Cliffy v0.1.1 - Classical FRP without the complexity</p>
         <div class="links">
           <a href="https://github.com/justinelliottcobb/Cliffy" target="_blank">GitHub</a>
           <a href="https://www.npmjs.com/package/@cliffy-ga/core" target="_blank">npm</a>
