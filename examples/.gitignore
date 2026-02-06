@@ -12,5 +12,4 @@ dist/
 # Vite cache
 .vite/
 
-# Lock files (use workspace root)
-package-lock.json
+# Lock files are committed for CI reproducibility
