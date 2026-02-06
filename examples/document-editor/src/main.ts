@@ -311,6 +311,13 @@ function renderApp(): HTMLElement {
   editor.value = state.content;
   editor.spellcheck = false;
 
+  // Subscribe to contentBehavior to update textarea when state changes externally
+  contentBehavior.subscribe((content: string) => {
+    if (editor.value !== content) {
+      editor.value = content;
+    }
+  });
+
   editor.oninput = (e) => {
     const target = e.target as HTMLTextAreaElement;
     const newContent = target.value;
@@ -474,9 +481,17 @@ function renderApp(): HTMLElement {
       ])
     );
 
-    const statusClass = user.isTyping ? 'user-status typing' : 'user-status';
-    const statusText = user.isTyping ? 'Typing...' : `Cursor at ${user.cursorPosition}`;
-    info.appendChild(createElement('div', { class: statusClass }, [statusText]));
+    const statusDiv = createElement('div', { class: 'user-status' });
+    statusDiv.textContent = `Cursor at ${user.cursorPosition}`;
+
+    // Make local user's cursor position reactive
+    if (user.id === state.localUserId) {
+      cursorBehavior.subscribe((pos: number) => {
+        statusDiv.textContent = `Cursor at ${pos}`;
+      });
+    }
+
+    info.appendChild(statusDiv);
 
     item.appendChild(info);
     userList.appendChild(item);
