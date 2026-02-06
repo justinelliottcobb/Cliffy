@@ -111,12 +111,15 @@ function processAttributes(
 
                 // Determine projection type based on attribute
                 if (name === 'class' || name === 'className') {
-                    // For class, we need to handle it specially
+                    // Set initial value synchronously to avoid flash of unstyled content
+                    try { element.className = String(behavior.sample()); } catch {}
                     const subscription = behavior.subscribe((val: unknown) => {
                         element.className = String(val);
                     });
                     trackSubscription(element, subscription);
                 } else if (name === 'style') {
+                    // Set initial value synchronously
+                    try { element.setAttribute('style', String(behavior.sample())); } catch {}
                     const subscription = behavior.subscribe((val: unknown) => {
                         element.setAttribute('style', String(val));
                     });

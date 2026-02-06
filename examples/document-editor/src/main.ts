@@ -61,9 +61,9 @@ const state: DocumentState = {
   version: 1,
 };
 
-// FRP Behaviors
-let contentBehavior = behavior('');
-let cursorBehavior = behavior(0);
+// FRP Behaviors (initialized after WASM init)
+let contentBehavior: ReturnType<typeof behavior<string>>;
+let cursorBehavior: ReturnType<typeof behavior<number>>;
 
 // User colors
 const USER_COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a855f7'];
@@ -597,6 +597,7 @@ async function main() {
 
   initializeUsers();
   contentBehavior = behavior(state.content);
+  cursorBehavior = behavior(0);
 
   const app = document.getElementById('app');
   if (app) {
