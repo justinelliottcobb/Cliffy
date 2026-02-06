@@ -110,19 +110,26 @@ function processAttributes(
                 const behavior = actualValue;
 
                 // Determine projection type based on attribute
+                // Always set initial value synchronously, then subscribe for updates
                 if (name === 'class' || name === 'className') {
-                    // For class, we need to handle it specially
+                    // Set initial value immediately
+                    element.className = String(behavior.sample());
                     const subscription = behavior.subscribe((val: unknown) => {
                         element.className = String(val);
                     });
                     trackSubscription(element, subscription);
                 } else if (name === 'style') {
+                    element.setAttribute('style', String(behavior.sample()));
                     const subscription = behavior.subscribe((val: unknown) => {
                         element.setAttribute('style', String(val));
                     });
                     trackSubscription(element, subscription);
                 } else if (name === 'checked' || name === 'disabled' || name === 'hidden') {
-                    // Boolean attributes
+                    // Boolean attributes - set initial value
+                    const initialVal = behavior.sample();
+                    if (initialVal) {
+                        element.setAttribute(name, '');
+                    }
                     const subscription = behavior.subscribe((val: unknown) => {
                         if (val) {
                             element.setAttribute(name, '');
@@ -132,20 +139,26 @@ function processAttributes(
                     });
                     trackSubscription(element, subscription);
                 } else if (name === 'value' && element instanceof HTMLInputElement) {
-                    // Input value - bidirectional binding potential
+                    // Input value - set initial value
+                    (element as HTMLInputElement).value = String(behavior.sample());
                     const subscription = behavior.subscribe((val: unknown) => {
                         (element as HTMLInputElement).value = String(val);
                     });
                     trackSubscription(element, subscription);
                 } else if (name.startsWith('data-')) {
-                    // Data attributes
+                    // Data attributes - set initial value
                     const dataKey = name.slice(5);
+                    element.dataset[dataKey] = String(behavior.sample());
                     const subscription = behavior.subscribe((val: unknown) => {
                         element.dataset[dataKey] = String(val);
                     });
                     trackSubscription(element, subscription);
                 } else {
-                    // Generic attribute
+                    // Generic attribute - set initial value
+                    const initialVal = behavior.sample();
+                    if (initialVal !== null && initialVal !== undefined && initialVal !== false) {
+                        element.setAttribute(name, String(initialVal));
+                    }
                     const subscription = behavior.subscribe((val: unknown) => {
                         if (val === null || val === undefined || val === false) {
                             element.removeAttribute(name);
