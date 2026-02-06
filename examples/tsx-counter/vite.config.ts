@@ -1,13 +1,13 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
-const isNetlify = !!process.env.NETLIFY;
-const base = isNetlify ? '/tsx-counter/' : '/';
+// Use npm package on Netlify and CI (GitHub Actions), local pkg for local dev
+const isCI = !!process.env.NETLIFY || !!process.env.CI;
+const base = isCI ? '/tsx-counter/' : '/';
 
 export default defineConfig({
   base,
-  // Only use local WASM pkg for local dev, use npm package on Netlify
-  resolve: isNetlify ? {} : {
+  resolve: isCI ? {} : {
     alias: {
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },

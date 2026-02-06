@@ -1,7 +1,8 @@
 import { resolve } from 'path';
 import { defineConfig } from 'vite';
 
-const isNetlify = process.env.NETLIFY === 'true';
+// Use npm package on Netlify and CI (GitHub Actions), local pkg for local dev
+const isCI = !!process.env.NETLIFY || !!process.env.CI;
 
 export default defineConfig({
   base: '/',
@@ -19,8 +20,7 @@ export default defineConfig({
     exclude: ['@cliffy-ga/core'],
   },
 
-  // Only use local WASM pkg for local dev, use npm package on Netlify
-  resolve: isNetlify ? {} : {
+  resolve: isCI ? {} : {
     alias: {
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },
