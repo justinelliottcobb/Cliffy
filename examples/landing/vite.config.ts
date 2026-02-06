@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite';
 
-const base = process.env.NETLIFY ? '/tsx-todo/' : '/';
-
 export default defineConfig({
-  base,
   server: {
-    port: 3002,
+    port: 3100,
   },
   build: {
     target: 'esnext',
+    outDir: 'dist',
   },
 });
