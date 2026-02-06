@@ -4,7 +4,7 @@
 [build]
   base = "examples"
   publish = "dist"
-  command = "npm ci && npm run build:netlify"
+  command = "npm install && npm run build:netlify"
 
 [build.environment]
   NETLIFY = "true"

@@ -332,7 +332,7 @@ jobs:
 
       - name: Install dependencies
         working-directory: examples
-        run: npm ci
+        run: npm install
 
       - name: Build examples for Netlify
         working-directory: examples

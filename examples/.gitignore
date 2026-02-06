@@ -12,6 +12,7 @@ dist/
 # Vite cache
 .vite/
 
-# Lock files are committed for CI reproducibility
-# Only the root package-lock.json is needed (workspaces)
+# Lock files - not committed due to cross-platform CI (macOS/Windows/Linux)
+# npm generates platform-specific optional deps that break on other platforms
+package-lock.json
 */package-lock.json
