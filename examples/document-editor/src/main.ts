@@ -592,10 +592,12 @@ function mainLoop(timestamp: number): void {
 async function main() {
   await init();
 
-  // Initialize CRDT
+  // Initialize users first (sets localUserId)
+  initializeUsers();
+
+  // Initialize CRDT with the local user ID
   state.crdt = new GeometricCRDT(state.localUserId);
 
-  initializeUsers();
   contentBehavior = behavior(state.content);
   cursorBehavior = behavior(0);
 

@@ -527,7 +527,7 @@ function renderApp(): HTMLElement {
     stateDisplay.appendChild(document.createElement('br'));
 
     const crdtKey = createElement('span', { class: 'key' }, ['crdt_ops:']);
-    const crdtVal = createElement('span', { class: 'value' }, [` ${localPeer.crdt.operationCount()}`]);
+    const crdtVal = createElement('span', { class: 'value' }, [` ${localPeer.crdt.operationCount}`]);
     stateDisplay.appendChild(crdtKey);
     stateDisplay.appendChild(crdtVal);
   }
