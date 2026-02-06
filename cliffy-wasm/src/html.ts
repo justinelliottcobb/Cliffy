@@ -36,7 +36,10 @@ function isBehavior(value: unknown): value is Behavior {
 }
 
 // Marker for placeholder values in the template
-const PLACEHOLDER_MARKER = '\x00CLIFFY_PLACEHOLDER_';
+// Using a distinctive string pattern that survives HTML parsing
+// (null bytes get stripped, HTML comments become Comment nodes)
+const PLACEHOLDER_PREFIX = '\u200B__CLIFFY_PH_';
+const PLACEHOLDER_SUFFIX = '_PH__\u200B';
 
 interface CliffyElement extends HTMLElement {
     __cliffy_subscriptions?: Subscription[];
@@ -56,7 +59,7 @@ function parseTemplate(strings: TemplateStringsArray, values: unknown[]): Parsed
     for (let i = 0; i < strings.length; i++) {
         html += strings[i];
         if (i < values.length) {
-            html += `${PLACEHOLDER_MARKER}${i}\x00`;
+            html += `${PLACEHOLDER_PREFIX}${i}${PLACEHOLDER_SUFFIX}`;
         }
     }
     return { html, values };
@@ -78,7 +81,7 @@ function processAttributes(
         const value = attr.value;
 
         // Check if the attribute value contains a placeholder
-        const placeholderMatch = value.match(new RegExp(`${PLACEHOLDER_MARKER}(\\d+)\x00`));
+        const placeholderMatch = value.match(new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`));
 
         if (placeholderMatch) {
             const index = parseInt(placeholderMatch[1], 10);
@@ -177,7 +180,7 @@ function processTextContent(
     parent: Node
 ): void {
     const text = node.textContent || '';
-    const placeholderRegex = new RegExp(`${PLACEHOLDER_MARKER}(\\d+)\x00`, 'g');
+    const placeholderRegex = new RegExp(`${PLACEHOLDER_PREFIX}(\\d+)${PLACEHOLDER_SUFFIX}`, 'g');
 
     // Check if this text node contains any placeholders
     if (!placeholderRegex.test(text)) {
