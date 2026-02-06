@@ -1,36 +1,26 @@
-import { defineConfig, loadEnv } from 'vite';
+import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
-const base = process.env.NETLIFY ? '/whiteboard/' : '/';
+const isNetlify = !!process.env.NETLIFY;
+const base = isNetlify ? '/whiteboard/' : '/';
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, __dirname, '');
-  const allowedHosts = env.VITE_ALLOWED_HOST ? [env.VITE_ALLOWED_HOST] : [];
-
-  return {
-    base,
-    server: {
-      port: 3000,
-      host: '0.0.0.0',
-      allowedHosts,
+export default defineConfig({
+  base,
+  // Only use local WASM pkg for local dev, use npm package on Netlify
+  resolve: isNetlify ? {} : {
+    alias: {
+      '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },
-
-    build: {
-      target: 'esnext',
-      outDir: 'dist',
+  },
+  server: {
+    port: 3004,
+  },
+  build: {
+    target: 'esnext',
+  },
+  esbuild: {
+    supported: {
+      'top-level-await': true,
     },
-
-    resolve: {
-      alias: {
-        '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
-        '@cliffy/shared': resolve(__dirname, '../shared/src'),
-      },
-    },
-
-    esbuild: {
-      supported: {
-        'top-level-await': true,
-      },
-    },
-  };
+  },
 });

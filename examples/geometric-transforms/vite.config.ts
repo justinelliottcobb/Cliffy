@@ -1,20 +1,19 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
-const base = process.env.NETLIFY ? '/geometric-transforms/' : '/';
+const isNetlify = !!process.env.NETLIFY;
+const base = isNetlify ? '/geometric-transforms/' : '/';
 
 export default defineConfig({
   base,
-  resolve: {
+  // Only use local WASM pkg for local dev, use npm package on Netlify
+  resolve: isNetlify ? {} : {
     alias: {
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },
   },
-  optimizeDeps: {
-    exclude: ['@cliffy-ga/core'],
-  },
   server: {
-    port: 3004,
+    port: 3011,
   },
   build: {
     target: 'esnext',

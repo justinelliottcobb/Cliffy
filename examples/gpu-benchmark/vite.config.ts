@@ -1,14 +1,13 @@
-import { resolve } from 'path';
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
-const base = process.env.NETLIFY ? '/gpu-benchmark/' : '/';
+const isNetlify = !!process.env.NETLIFY;
+const base = isNetlify ? '/gpu-benchmark/' : '/';
 
 export default defineConfig({
   base,
-  optimizeDeps: {
-    exclude: ['@cliffy-ga/core'],
-  },
-  resolve: {
+  // Only use local WASM pkg for local dev, use npm package on Netlify
+  resolve: isNetlify ? {} : {
     alias: {
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },

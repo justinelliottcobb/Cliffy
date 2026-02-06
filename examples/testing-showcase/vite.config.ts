@@ -1,17 +1,19 @@
 import { defineConfig } from 'vite';
 import { resolve } from 'path';
 
-const base = process.env.NETLIFY ? '/testing-showcase/' : '/';
+const isNetlify = !!process.env.NETLIFY;
+const base = isNetlify ? '/testing-showcase/' : '/';
 
 export default defineConfig({
   base,
-  resolve: {
+  // Only use local WASM pkg for local dev, use npm package on Netlify
+  resolve: isNetlify ? {} : {
     alias: {
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },
   },
   server: {
-    port: 3011,
+    port: 3012,
   },
   build: {
     target: 'esnext',
