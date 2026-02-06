@@ -220,24 +220,65 @@ function processTextContent(
             const actualValue = values[part.index];
 
             if (isBehavior(actualValue)) {
-                // Check if the Behavior contains DOM nodes or primitive values
+                // Check if the Behavior contains DOM nodes, arrays, or primitive values
                 const initialValue = actualValue.sample();
 
-                if (initialValue instanceof Node || initialValue instanceof DocumentFragment) {
-                    // Behavior contains DOM nodes - need placeholder and replacement logic
-                    const placeholder = document.createComment('cliffy-reactive');
-                    fragment.appendChild(placeholder);
+                // Helper to convert a value to nodes
+                const toNodes = (val: unknown): Node[] => {
+                    if (val instanceof DocumentFragment) {
+                        return Array.from(val.childNodes);
+                    } else if (val instanceof Node) {
+                        return [val];
+                    } else if (Array.isArray(val)) {
+                        const nodes: Node[] = [];
+                        for (const item of val) {
+                            if (item instanceof Node) {
+                                nodes.push(item);
+                            } else if (item != null) {
+                                nodes.push(document.createTextNode(String(item)));
+                            }
+                        }
+                        return nodes;
+                    } else {
+                        return [document.createTextNode(String(val ?? ''))];
+                    }
+                };
 
-                    // Insert initial content after placeholder
-                    let currentNode: Node = initialValue;
-                    placeholder.parentNode?.insertBefore(currentNode, placeholder.nextSibling);
+                // Check if value needs DOM node handling (not a simple primitive)
+                const needsDomHandling = (val: unknown): boolean => {
+                    return val instanceof Node ||
+                           val instanceof DocumentFragment ||
+                           Array.isArray(val);
+                };
+
+                if (needsDomHandling(initialValue)) {
+                    // Behavior contains DOM nodes or arrays - need placeholder and replacement logic
+                    const startMarker = document.createComment('cliffy-start');
+                    const endMarker = document.createComment('cliffy-end');
+                    fragment.appendChild(startMarker);
+
+                    // Insert initial content
+                    let currentNodes: Node[] = toNodes(initialValue);
+                    for (const node of currentNodes) {
+                        fragment.appendChild(node);
+                    }
+                    fragment.appendChild(endMarker);
 
                     const subscription = actualValue.subscribe((val: unknown) => {
-                        const newNode = val instanceof Node || val instanceof DocumentFragment
-                            ? val
-                            : document.createTextNode(String(val ?? ''));
-                        currentNode.parentNode?.replaceChild(newNode, currentNode);
-                        currentNode = newNode;
+                        // Remove old nodes between markers
+                        const parent = startMarker.parentNode;
+                        if (!parent) return;
+
+                        // Remove all nodes between start and end markers
+                        while (startMarker.nextSibling && startMarker.nextSibling !== endMarker) {
+                            parent.removeChild(startMarker.nextSibling);
+                        }
+
+                        // Insert new nodes
+                        currentNodes = toNodes(val);
+                        for (const node of currentNodes) {
+                            parent.insertBefore(node, endMarker);
+                        }
                     });
 
                     const parentElement = parent as CliffyElement;
@@ -248,8 +289,20 @@ function processTextContent(
                     fragment.appendChild(textNode);
 
                     const subscription = actualValue.subscribe((val: unknown) => {
-                        if (val instanceof Node) {
-                            textNode.parentNode?.replaceChild(val, textNode);
+                        if (needsDomHandling(val)) {
+                            // Value changed to DOM nodes - need to switch to marker-based approach
+                            const parent = textNode.parentNode;
+                            if (!parent) return;
+
+                            const nodes = toNodes(val);
+                            // Replace text node with first node
+                            if (nodes.length > 0) {
+                                parent.replaceChild(nodes[0], textNode);
+                                // Insert remaining nodes after first
+                                for (let i = 1; i < nodes.length; i++) {
+                                    nodes[0].parentNode?.insertBefore(nodes[i], nodes[i-1].nextSibling);
+                                }
+                            }
                         } else {
                             textNode.textContent = String(val ?? '');
                         }
