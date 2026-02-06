@@ -3,7 +3,8 @@ import { resolve } from 'path';
 
 // Use npm package on Netlify and CI (GitHub Actions), local pkg for local dev
 const isCI = !!process.env.NETLIFY || !!process.env.CI;
-const base = isCI ? '/testing-showcase/' : '/';
+// Only set base path for Netlify builds, not for CI dev servers (E2E tests)
+const base = process.env.NETLIFY ? '/testing-showcase/' : '/';
 
 export default defineConfig({
   base,

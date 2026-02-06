@@ -3,7 +3,8 @@ import { resolve } from 'path';
 
 // Use npm package on Netlify and CI (GitHub Actions), local pkg for local dev
 const isCI = !!process.env.NETLIFY || !!process.env.CI;
-const base = isCI ? '/whiteboard/' : '/';
+// Only set base path for Netlify builds, not for CI dev servers (E2E tests)
+const base = process.env.NETLIFY ? '/whiteboard/' : '/';
 
 export default defineConfig({
   base,
@@ -13,7 +14,7 @@ export default defineConfig({
     },
   },
   server: {
-    port: 3004,
+    port: 3000,
   },
   build: {
     target: 'esnext',
