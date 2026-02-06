@@ -269,7 +269,7 @@ function renderApp(): HTMLElement {
     // Simulate a sync operation
     console.log('CRDT sync triggered');
     console.log('Local state:', state.crdt.getState());
-    console.log('Operations:', state.crdt.operationCount());
+    console.log('Operations:', state.crdt.operationCount);
   };
   toolbar.appendChild(syncBtn);
 
@@ -500,7 +500,7 @@ function renderApp(): HTMLElement {
   addStat(String(state.content.length), 'Characters');
   addStat(String(state.content.split('\n').length), 'Lines');
   addStat(String(state.version), 'Version');
-  addStat(String(state.crdt?.operationCount() || 0), 'CRDT Ops');
+  addStat(String(state.crdt?.operationCount || 0), 'CRDT Ops');
 
   statsPanel.appendChild(statsGrid);
   sidebar.appendChild(statsPanel);
