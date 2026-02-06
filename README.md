@@ -1,9 +1,14 @@
 # Cliffy
 
 [![npm](https://img.shields.io/npm/v/@cliffy-ga/core)](https://www.npmjs.com/package/@cliffy-ga/core)
+[![Netlify Status](https://api.netlify.com/api/v1/badges/211f9fc6-dbfb-4837-a0b0-11aaf4c04573/deploy-status)](https://app.netlify.com/projects/cliffy-ga/deploys)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![Rust](https://img.shields.io/badge/Rust-1.70+-orange.svg)](https://www.rust-lang.org/)
+[![WASM](https://img.shields.io/badge/WebAssembly-ready-blueviolet.svg)](https://webassembly.org/)
 
 A WASM-first reactive framework with classical FRP semantics, powered by geometric algebra.
+
+**[Live Examples](https://cliffy-ga.netlify.app/)** | [Documentation](docs/) | [API Reference](docs/api-reference.md)
 
 Build collaborative applications at scale where **distributed systems problems become geometric algebra problems** with closed-form solutions and guaranteed convergence.
 
