@@ -13,3 +13,5 @@ dist/
 .vite/
 
 # Lock files are committed for CI reproducibility
+# Only the root package-lock.json is needed (workspaces)
+*/package-lock.json
