@@ -220,17 +220,44 @@ function processTextContent(
             const actualValue = values[part.index];
 
             if (isBehavior(actualValue)) {
-                // Create a text node and set up reactive binding
-                const textNode = document.createTextNode(String(actualValue.sample()));
-                fragment.appendChild(textNode);
+                // Check if the Behavior contains DOM nodes or primitive values
+                const initialValue = actualValue.sample();
 
-                const subscription = actualValue.subscribe((val: unknown) => {
-                    textNode.textContent = String(val);
-                });
+                if (initialValue instanceof Node || initialValue instanceof DocumentFragment) {
+                    // Behavior contains DOM nodes - need placeholder and replacement logic
+                    const placeholder = document.createComment('cliffy-reactive');
+                    fragment.appendChild(placeholder);
 
-                // Track subscription on parent element
-                const parentElement = parent as CliffyElement;
-                trackSubscription(parentElement, subscription);
+                    // Insert initial content after placeholder
+                    let currentNode: Node = initialValue;
+                    placeholder.parentNode?.insertBefore(currentNode, placeholder.nextSibling);
+
+                    const subscription = actualValue.subscribe((val: unknown) => {
+                        const newNode = val instanceof Node || val instanceof DocumentFragment
+                            ? val
+                            : document.createTextNode(String(val ?? ''));
+                        currentNode.parentNode?.replaceChild(newNode, currentNode);
+                        currentNode = newNode;
+                    });
+
+                    const parentElement = parent as CliffyElement;
+                    trackSubscription(parentElement, subscription);
+                } else {
+                    // Behavior contains primitive value - use text node
+                    const textNode = document.createTextNode(String(initialValue ?? ''));
+                    fragment.appendChild(textNode);
+
+                    const subscription = actualValue.subscribe((val: unknown) => {
+                        if (val instanceof Node) {
+                            textNode.parentNode?.replaceChild(val, textNode);
+                        } else {
+                            textNode.textContent = String(val ?? '');
+                        }
+                    });
+
+                    const parentElement = parent as CliffyElement;
+                    trackSubscription(parentElement, subscription);
+                }
             } else if (actualValue instanceof Node) {
                 // It's a DOM node (possibly from nested html``)
                 fragment.appendChild(actualValue);
