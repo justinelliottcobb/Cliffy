@@ -224,7 +224,7 @@ These examples specifically demonstrate the Algebraic TSX rendering approach:
     - Behavior in text content
     - Event handlers
     - Conditional CSS classes
-  - Status: Complete, tested with @cliffy-ga/core@0.1.1
+  - Status: Complete, tested with @cliffy-ga/core@0.1.2
 
 - [x] **Create `examples/tsx-todo/`** ✅
   - Demonstrates: List rendering, component composition

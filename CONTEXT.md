@@ -61,7 +61,7 @@ console.log(crdt.state()); // 5.0
 - Added `.project()` and `.select()` methods to Behavior
 - Added `.blend()` method to Rotor, Translation, Transform, GeometricState
 - Created npm package README for `@cliffy-ga/core`
-- Published through `@cliffy-ga/core@0.1.1`
+- Published through `@cliffy-ga/core@0.1.2`
 - Completed examples: tsx-counter, tsx-todo, tsx-forms, purescript-counter, purescript-todo
 
 ## Current Branch
@@ -70,7 +70,7 @@ console.log(crdt.state()); // 5.0
 
 ## Package Versions
 
-- `@cliffy-ga/core`: 0.1.1 (published to npm)
+- `@cliffy-ga/core`: 0.1.2 (published to npm)
 
 ## Key API Reference
 
