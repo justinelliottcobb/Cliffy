@@ -299,10 +299,17 @@ See `ROADMAP.md` for full details. Summary:
 ## Git Workflow
 
 ```
-main (stable)
-  └── develop (integration)
+main (stable releases)
+  └── develop (integration branch)
         └── feature/xyz (feature branches)
+        └── bugfix/xyz (bugfix branches)
+        └── chore/xyz (maintenance branches)
 ```
+
+**Gitflow pattern**:
+1. Create `feature/`, `bugfix/`, or `chore/` branch from `develop`
+2. PR to `develop` for review and merge
+3. When ready for release: PR from `develop` to `main`
 
 **Pre-commit**: fmt, clippy, unit tests
 **Pre-push**: full tests, doctests, build, WASM build

@@ -1,16 +1,27 @@
 import { defineConfig } from 'vite';
+import { resolve } from 'path';
 
+// Use npm package on Netlify and CI (GitHub Actions), local pkg for local dev
+const isCI = !!process.env.NETLIFY || !!process.env.CI;
+// Only set base path for Netlify builds, not for CI dev servers (E2E tests)
 const base = process.env.NETLIFY ? '/design-tool/' : '/';
 
 export default defineConfig({
   base,
-  optimizeDeps: {
-    exclude: ['@cliffy-ga/core'],
+  resolve: isCI ? {} : {
+    alias: {
+      '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
+    },
   },
   server: {
     port: 3005,
   },
   build: {
     target: 'esnext',
+  },
+  esbuild: {
+    supported: {
+      'top-level-await': true,
+    },
   },
 });

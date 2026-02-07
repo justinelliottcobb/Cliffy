@@ -116,7 +116,7 @@ function benchmarkRotorComposition(iterations: number): number {
   for (let i = 0; i < iterations; i++) {
     const a = rotors[i % rotors.length];
     const b = rotors[(i + 50) % rotors.length];
-    a.compose(b);
+    a.then(b);
   }
   return performance.now() - start;
 }

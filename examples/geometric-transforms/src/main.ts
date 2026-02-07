@@ -60,11 +60,12 @@ async function main() {
   }
 
   // Apply rotor to a point and get CSS transform
-  const rotorTransformCSS = currentRotor.map((rotor: Rotor) => {
+  // Note: Must return full style string since html`` doesn't support partial Behavior in attributes
+  const rotorStyle = currentRotor.map((rotor: Rotor) => {
     // For 2D visualization, we project the 3D rotation to 2D
     // XY plane rotation maps directly to CSS rotate
     const angleDeg = (rotor.angle() * 180) / Math.PI;
-    return `rotate(${angleDeg}deg)`;
+    return `left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(${angleDeg}deg)`;
   });
 
   // Display rotor info
@@ -103,13 +104,13 @@ async function main() {
   translateY.subscribe(() => updateComposedTransform());
   composeAngle.subscribe(() => updateComposedTransform());
 
-  // CSS for composed transform
-  const composeTransformCSS = composedTransform.map(() => {
+  // CSS for composed transform - full style string for reactive binding
+  const composeStyle = composedTransform.map(() => {
     const tx = translateX.sample() as number;
     const ty = translateY.sample() as number;
     const angle = composeAngle.sample() as number;
     // Note: CSS applies transforms right-to-left, so translate then rotate
-    return `translate(${tx}px, ${ty}px) rotate(${angle}deg)`;
+    return `left: 50%; top: 50%; transform: translate(-50%, -50%) translate(${tx}px, ${ty}px) rotate(${angle}deg)`;
   });
 
   // =========================================================================
@@ -141,9 +142,9 @@ async function main() {
   endAngle.subscribe(() => updateBlend());
   updateBlend();
 
-  const blendTransformCSS = blendedRotor.map((rotor: Rotor) => {
+  const blendStyle = blendedRotor.map((rotor: Rotor) => {
     const angleDeg = (rotor.angle() * 180) / Math.PI;
-    return `rotate(${angleDeg}deg)`;
+    return `left: 50%; top: 50%; transform: translate(-50%, -50%) rotate(${angleDeg}deg)`;
   });
 
   const blendInfo = blendedRotor.map((rotor: Rotor) => {
@@ -153,6 +154,9 @@ async function main() {
       angleDeg: ((rotor.angle() * 180) / Math.PI).toFixed(1),
     };
   });
+
+  // Blend marker position style
+  const blendMarkerStyle = blendT.map((t: number) => `left: ${t * 100}%`);
 
   // =========================================================================
   // Demo 4: GeometricState Transforms
@@ -191,8 +195,8 @@ async function main() {
   stateRotation.subscribe(() => updateGeometricState());
   updateGeometricState();
 
-  const stateTransformCSS = geometricPosition.map((pos: { x: number; y: number }) => {
-    return `translate(${pos.x - 30}px, ${pos.y - 30}px)`;
+  const stateStyle = geometricPosition.map((pos: { x: number; y: number }) => {
+    return `left: 0; top: 0; transform: translate(${pos.x - 30}px, ${pos.y - 30}px)`;
   });
 
   const stateInfo = geometricPosition.map((pos: { x: number; y: number }) => {
@@ -216,7 +220,7 @@ async function main() {
         <div class="canvas-container">
           <div
             class="transform-target arrow"
-            style="left: 50%; top: 50%; transform: translate(-50%, -50%) ${rotorTransformCSS}"
+            style=${rotorStyle}
           >
             R
           </div>
@@ -274,7 +278,7 @@ async function main() {
         <div class="canvas-container">
           <div
             class="transform-target"
-            style="left: 50%; top: 50%; transform: translate(-50%, -50%) ${composeTransformCSS}"
+            style=${composeStyle}
           >
             T
           </div>
@@ -325,7 +329,7 @@ async function main() {
         <div class="canvas-container">
           <div
             class="transform-target arrow"
-            style="left: 50%; top: 50%; transform: translate(-50%, -50%) ${blendTransformCSS}"
+            style=${blendStyle}
           >
             B
           </div>
@@ -336,7 +340,7 @@ async function main() {
           <div class="blend-line">
             <div
               class="blend-marker"
-              style="left: ${blendT.map((t: number) => `${t * 100}%`)}"
+              style=${blendMarkerStyle}
             ></div>
           </div>
           <div class="blend-point end">${endAngle.map((a: number) => `${a}°`)}</div>
@@ -396,7 +400,7 @@ async function main() {
         <div class="canvas-container">
           <div
             class="transform-target"
-            style="transform: ${stateTransformCSS}; left: 0; top: 0;"
+            style=${stateStyle}
           >
             G
           </div>

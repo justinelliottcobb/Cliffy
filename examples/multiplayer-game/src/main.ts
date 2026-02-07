@@ -59,8 +59,8 @@ const state: GameState = {
   trails: [],
 };
 
-// FRP Behaviors for reactive updates
-let fpsCounter = behavior(60);
+// FRP Behaviors for reactive updates (initialized after WASM init)
+let fpsCounter: ReturnType<typeof behavior<number>>;
 let frameCount = 0;
 let lastFpsUpdate = Date.now();
 
@@ -514,6 +514,9 @@ function gameLoop(currentTime: number): void {
 
 async function main() {
   await init();
+
+  // Initialize FRP Behaviors after WASM is ready
+  fpsCounter = behavior(60);
 
   initializePlayers();
 

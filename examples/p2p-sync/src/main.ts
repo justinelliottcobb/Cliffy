@@ -76,9 +76,9 @@ const state: SyncState = {
   sharedCounter: 0,
 };
 
-// FRP Behaviors
-let counterBehavior = behavior(0);
-let syncStatusBehavior = behavior('idle');
+// FRP Behaviors (initialized after WASM init)
+let counterBehavior: ReturnType<typeof behavior<number>>;
+let syncStatusBehavior: ReturnType<typeof behavior<string>>;
 
 // Peer colors
 const PEER_COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a855f7'];
@@ -527,7 +527,7 @@ function renderApp(): HTMLElement {
     stateDisplay.appendChild(document.createElement('br'));
 
     const crdtKey = createElement('span', { class: 'key' }, ['crdt_ops:']);
-    const crdtVal = createElement('span', { class: 'value' }, [` ${localPeer.crdt.operationCount()}`]);
+    const crdtVal = createElement('span', { class: 'value' }, [` ${localPeer.crdt.operationCount}`]);
     stateDisplay.appendChild(crdtKey);
     stateDisplay.appendChild(crdtVal);
   }
@@ -607,6 +607,10 @@ function mainLoop(): void {
 
 async function main() {
   await init();
+
+  // Initialize FRP Behaviors after WASM is ready
+  counterBehavior = behavior(0);
+  syncStatusBehavior = behavior('idle');
 
   initializePeers();
 

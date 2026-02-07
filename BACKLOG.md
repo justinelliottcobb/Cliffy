@@ -98,6 +98,35 @@ Items are categorized by:
 
 ---
 
+## Example Enhancements
+
+### Document Editor (`examples/document-editor`)
+
+- [ ] **Implement Force Sync button with visible CRDT merge**
+  - Origin: Phase 6 (Examples) bugfix testing
+  - Related: cliffy-protocols CRDT
+  - Issue: Force Sync button only logs to console, doesn't demonstrate CRDT conflict resolution
+  - Fix: Create simulated concurrent edits from remote users, then merge and show resolution visually
+
+- [ ] **Add remote user cursor position updates**
+  - Origin: Phase 6 (Examples) bugfix testing
+  - Issue: Remote user (Alice, Bob, Charlie) cursor positions don't update visually
+  - Fix: Add periodic updates to simulate remote editing activity with visible cursor movement
+
+- [ ] **Show CRDT operation history visualization**
+  - Origin: Phase 6 (Examples) bugfix testing
+  - Issue: Operations panel exists but doesn't clearly show conflict resolution
+  - Fix: Highlight merged operations, show vector clock causality
+
+### Design Tool (`examples/design-tool`)
+
+- [ ] **Review completeness and functionality**
+  - Origin: Phase 6 (Examples) bugfix testing
+  - Issue: Reported as potentially incomplete during testing
+  - Fix: Verify all advertised features work (shape manipulation, undo/redo, etc.)
+
+---
+
 ## Documentation Updates (Algebraic TSX)
 
 These tasks update existing documentation and code snippets to use the new Algebraic TSX patterns.

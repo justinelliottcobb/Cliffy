@@ -61,9 +61,9 @@ const state: DocumentState = {
   version: 1,
 };
 
-// FRP Behaviors
-let contentBehavior = behavior('');
-let cursorBehavior = behavior(0);
+// FRP Behaviors (initialized after WASM init)
+let contentBehavior: ReturnType<typeof behavior<string>>;
+let cursorBehavior: ReturnType<typeof behavior<number>>;
 
 // User colors
 const USER_COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a855f7'];
@@ -269,7 +269,7 @@ function renderApp(): HTMLElement {
     // Simulate a sync operation
     console.log('CRDT sync triggered');
     console.log('Local state:', state.crdt.getState());
-    console.log('Operations:', state.crdt.operationCount());
+    console.log('Operations:', state.crdt.operationCount);
   };
   toolbar.appendChild(syncBtn);
 
@@ -310,6 +310,13 @@ function renderApp(): HTMLElement {
   editor.className = 'editor';
   editor.value = state.content;
   editor.spellcheck = false;
+
+  // Subscribe to contentBehavior to update textarea when state changes externally
+  contentBehavior.subscribe((content: string) => {
+    if (editor.value !== content) {
+      editor.value = content;
+    }
+  });
 
   editor.oninput = (e) => {
     const target = e.target as HTMLTextAreaElement;
@@ -474,9 +481,17 @@ function renderApp(): HTMLElement {
       ])
     );
 
-    const statusClass = user.isTyping ? 'user-status typing' : 'user-status';
-    const statusText = user.isTyping ? 'Typing...' : `Cursor at ${user.cursorPosition}`;
-    info.appendChild(createElement('div', { class: statusClass }, [statusText]));
+    const statusDiv = createElement('div', { class: 'user-status' });
+    statusDiv.textContent = `Cursor at ${user.cursorPosition}`;
+
+    // Make local user's cursor position reactive
+    if (user.id === state.localUserId) {
+      cursorBehavior.subscribe((pos: number) => {
+        statusDiv.textContent = `Cursor at ${pos}`;
+      });
+    }
+
+    info.appendChild(statusDiv);
 
     item.appendChild(info);
     userList.appendChild(item);
@@ -500,7 +515,7 @@ function renderApp(): HTMLElement {
   addStat(String(state.content.length), 'Characters');
   addStat(String(state.content.split('\n').length), 'Lines');
   addStat(String(state.version), 'Version');
-  addStat(String(state.crdt?.operationCount() || 0), 'CRDT Ops');
+  addStat(String(state.crdt?.operationCount || 0), 'CRDT Ops');
 
   statsPanel.appendChild(statsGrid);
   sidebar.appendChild(statsPanel);
@@ -592,11 +607,14 @@ function mainLoop(timestamp: number): void {
 async function main() {
   await init();
 
-  // Initialize CRDT
+  // Initialize users first (sets localUserId)
+  initializeUsers();
+
+  // Initialize CRDT with the local user ID
   state.crdt = new GeometricCRDT(state.localUserId);
 
-  initializeUsers();
   contentBehavior = behavior(state.content);
+  cursorBehavior = behavior(0);
 
   const app = document.getElementById('app');
   if (app) {
