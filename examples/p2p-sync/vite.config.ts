@@ -19,8 +19,16 @@ export default defineConfig({
       '@cliffy-ga/core': resolve(__dirname, '../../cliffy-wasm/pkg'),
     },
   },
+  // Don't pre-bundle WASM packages - they need import.meta.url to work correctly
+  optimizeDeps: {
+    exclude: ['@cliffy-ga/core'],
+  },
   server: {
     port: 3010,
+    // Ensure .wasm files are served with correct MIME type
+    fs: {
+      allow: ['..'],
+    },
   },
   build: {
     target: 'esnext',
