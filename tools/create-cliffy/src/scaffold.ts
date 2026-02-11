@@ -22,7 +22,7 @@ export interface ScaffoldOptions {
   packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
 }
 
-const CLIFFY_VERSION = '0.1.2';
+const CLIFFY_VERSION = '0.1.3';
 
 interface TemplateVariables {
   projectName: string;
