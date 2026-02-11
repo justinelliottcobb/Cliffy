@@ -57,6 +57,9 @@ export interface PeerManagerEvents {
   onPeerDisconnected: (peerId: string) => void;
   onPeerStateChange: (peerId: string, state: PeerConnectionState) => void;
   onSyncMessage: (peerId: string, message: SyncMessage) => void;
+  onSignalingDisconnected: () => void;
+  onSignalingReconnecting: (attempt: number, maxAttempts: number) => void;
+  onSignalingReconnectFailed: () => void;
   onError: (error: Error) => void;
 }
 
@@ -145,6 +148,18 @@ export class PeerManager {
     this.events.onSyncMessage = handler;
   }
 
+  onSignalingDisconnected(handler: PeerManagerEvents['onSignalingDisconnected']): void {
+    this.events.onSignalingDisconnected = handler;
+  }
+
+  onSignalingReconnecting(handler: PeerManagerEvents['onSignalingReconnecting']): void {
+    this.events.onSignalingReconnecting = handler;
+  }
+
+  onSignalingReconnectFailed(handler: PeerManagerEvents['onSignalingReconnectFailed']): void {
+    this.events.onSignalingReconnectFailed = handler;
+  }
+
   onError(handler: PeerManagerEvents['onError']): void {
     this.events.onError = handler;
   }
@@ -184,6 +199,34 @@ export class PeerManager {
     this.peerNames.clear();
     this.roomId = null;
     this.isReady = false;
+  }
+
+  /**
+   * Manually reconnect to the signaling server.
+   * Useful when automatic reconnection has failed.
+   */
+  async reconnect(): Promise<void> {
+    if (!this.roomId) {
+      throw new Error('No room to reconnect to. Call join() first.');
+    }
+
+    const savedRoomId = this.roomId;
+
+    // Reset state
+    this.transport.close();
+    this.peers.clear();
+
+    // Reconnect to signaling
+    await this.signaling.reconnect();
+
+    // Rejoin room
+    this.signaling.join(savedRoomId, this.config.peerName);
+
+    // Restart heartbeat
+    this.startHeartbeat();
+
+    this.isReady = true;
+    this.events.onReady?.();
   }
 
   /**
@@ -419,6 +462,19 @@ export class PeerManager {
 
     this.signaling.onError((error) => {
       this.events.onError?.(error);
+    });
+
+    this.signaling.onDisconnected(() => {
+      this.isReady = false;
+      this.events.onSignalingDisconnected?.();
+    });
+
+    this.signaling.onReconnecting((attempt, maxAttempts) => {
+      this.events.onSignalingReconnecting?.(attempt, maxAttempts);
+    });
+
+    this.signaling.onReconnectFailed(() => {
+      this.events.onSignalingReconnectFailed?.();
     });
   }
 

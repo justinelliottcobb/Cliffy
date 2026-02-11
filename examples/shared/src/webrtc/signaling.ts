@@ -25,6 +25,8 @@ export interface SignalingConfig {
 export interface SignalingEvents {
   onConnected: () => void;
   onDisconnected: () => void;
+  onReconnecting: (attempt: number, maxAttempts: number) => void;
+  onReconnectFailed: () => void;
   onPeers: (peers: Array<{ id: string; name?: string }>) => void;
   onPeerJoined: (peerId: string, peerName?: string) => void;
   onPeerLeft: (peerId: string) => void;
@@ -83,6 +85,14 @@ export class SignalingClient {
 
   onDisconnected(handler: SignalingEvents['onDisconnected']): void {
     this.events.onDisconnected = handler;
+  }
+
+  onReconnecting(handler: SignalingEvents['onReconnecting']): void {
+    this.events.onReconnecting = handler;
+  }
+
+  onReconnectFailed(handler: SignalingEvents['onReconnectFailed']): void {
+    this.events.onReconnectFailed = handler;
   }
 
   onPeers(handler: SignalingEvents['onPeers']): void {
@@ -304,20 +314,53 @@ export class SignalingClient {
       this.config.reconnect.enabled &&
       this.reconnectAttempts < this.config.reconnect.maxAttempts
     ) {
-      this.reconnectAttempts++;
-      const delay = this.config.reconnect.delayMs * this.reconnectAttempts;
-
-      setTimeout(async () => {
-        try {
-          await this.connect();
-          // Rejoin room if we were in one
-          if (this.roomId) {
-            this.join(this.roomId, this.peerName);
-          }
-        } catch {
-          // Reconnection failed, will try again on next close
-        }
-      }, delay);
+      this.scheduleReconnect();
+    } else if (
+      !this.isClosing &&
+      this.config.reconnect.enabled &&
+      this.reconnectAttempts >= this.config.reconnect.maxAttempts
+    ) {
+      this.events.onReconnectFailed?.();
     }
+  }
+
+  private scheduleReconnect(): void {
+    this.reconnectAttempts++;
+
+    // Exponential backoff: delay * 2^(attempt-1), capped at 30 seconds
+    const baseDelay = this.config.reconnect.delayMs;
+    const delay = Math.min(
+      baseDelay * Math.pow(2, this.reconnectAttempts - 1),
+      30000
+    );
+
+    this.events.onReconnecting?.(
+      this.reconnectAttempts,
+      this.config.reconnect.maxAttempts
+    );
+
+    setTimeout(async () => {
+      if (this.isClosing) return;
+
+      try {
+        await this.connect();
+        // Rejoin room if we were in one
+        if (this.roomId) {
+          this.join(this.roomId, this.peerName);
+        }
+      } catch {
+        // Connection failed - handleClose will be called,
+        // which will schedule another reconnect attempt
+      }
+    }, delay);
+  }
+
+  /**
+   * Manually trigger reconnection (resets attempt counter).
+   */
+  reconnect(): Promise<void> {
+    this.reconnectAttempts = 0;
+    this.isClosing = false;
+    return this.connect();
   }
 }
