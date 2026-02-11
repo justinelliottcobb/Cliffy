@@ -627,13 +627,53 @@ function renderApp(): HTMLElement {
 // Main Loop
 // =============================================================================
 
-function mainLoop(): void {
-  updatePeerList();
+// Track state for change detection
+let lastRenderState = {
+  connectionStatus: '',
+  connectedPeersCount: 0,
+  sharedCounter: 0,
+  syncLogLength: 0,
+  error: null as string | null,
+  totalSyncs: 0,
+};
 
+function stateHasChanged(): boolean {
+  return (
+    lastRenderState.connectionStatus !== state.connectionStatus ||
+    lastRenderState.connectedPeersCount !== state.connectedPeers.length ||
+    lastRenderState.sharedCounter !== state.sharedCounter ||
+    lastRenderState.syncLogLength !== state.syncLog.length ||
+    lastRenderState.error !== state.error ||
+    lastRenderState.totalSyncs !== state.stats.totalSyncs
+  );
+}
+
+function updateLastRenderState(): void {
+  lastRenderState = {
+    connectionStatus: state.connectionStatus,
+    connectedPeersCount: state.connectedPeers.length,
+    sharedCounter: state.sharedCounter,
+    syncLogLength: state.syncLog.length,
+    error: state.error,
+    totalSyncs: state.stats.totalSyncs,
+  };
+}
+
+function render(): void {
   const app = document.getElementById('app');
   if (app) {
     app.textContent = '';
     app.appendChild(renderApp());
+  }
+  updateLastRenderState();
+}
+
+function mainLoop(): void {
+  updatePeerList();
+
+  // Only re-render if state has changed
+  if (stateHasChanged()) {
+    render();
   }
 
   setTimeout(mainLoop, 100);
@@ -1034,10 +1074,8 @@ async function main() {
   counterBehavior = behavior(0);
   statusBehavior = behavior('disconnected');
 
-  const app = document.getElementById('app');
-  if (app) {
-    app.appendChild(renderApp());
-  }
+  // Initial render
+  render();
 
   console.log('Cliffy P2P Sync Demo initialized');
   console.log('Local peer ID:', state.localPeerId);
