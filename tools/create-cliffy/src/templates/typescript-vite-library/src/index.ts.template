@@ -1,0 +1,11 @@
+/**
+ * {{projectName}} - A Cliffy component library
+ *
+ * This library provides reusable reactive components built with Cliffy.
+ */
+
+// Export components
+export { Counter } from './components/Counter';
+
+// Re-export types that consumers might need
+export type { CounterProps } from './components/Counter';

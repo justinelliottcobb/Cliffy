@@ -16,13 +16,13 @@ export default defineConfig({
     alias: {
       // During development, point to local WASM package if available
       // For production, this should be the published npm package
-      '@cliffy/core': resolve(__dirname, 'node_modules/@cliffy/core'),
+      '@cliffy-ga/core': resolve(__dirname, 'node_modules/@cliffy-ga/core'),
     },
   },
 
   optimizeDeps: {
     // Exclude WASM package from optimization (it's pre-built)
-    exclude: ['@cliffy/core'],
+    exclude: ['@cliffy-ga/core'],
   },
 
   esbuild: {

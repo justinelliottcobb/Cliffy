@@ -33,11 +33,13 @@ program
   .version(packageJson.version)
   .argument('[project-name]', 'Name of the project')
   .option('-t, --template <template>', 'Template to use (typescript-vite, bun, purescript)')
+  .option('--library', 'Create a component library instead of an application')
   .option('--no-git', 'Skip git initialization')
   .option('--no-install', 'Skip dependency installation')
   .option('--package-manager <pm>', 'Package manager to use (npm, yarn, pnpm, bun)')
   .action(async (projectName: string | undefined, options: {
     template?: string;
+    library?: boolean;
     git: boolean;
     install: boolean;
     packageManager?: string;
@@ -64,6 +66,24 @@ program
         },
         {
           type: 'select',
+          name: 'projectType',
+          message: 'What are you building?',
+          choices: [
+            {
+              title: 'Application (recommended)',
+              value: 'app',
+              description: 'A Cliffy web application',
+            },
+            {
+              title: 'Component Library',
+              value: 'library',
+              description: 'A reusable component library for publishing',
+            },
+          ],
+          initial: 0,
+        },
+        {
+          type: (prev: string) => prev === 'app' ? 'select' : null,
           name: 'template',
           message: 'Select a template:',
           choices: [
@@ -105,9 +125,15 @@ program
       });
 
       projectName = response.projectName;
-      options.template = response.template;
+      options.library = response.projectType === 'library';
+      options.template = response.projectType === 'library' ? 'typescript-vite-library' : response.template;
       options.git = response.git;
       options.install = response.install;
+    }
+
+    // Handle library mode from CLI flag
+    if (options.library && !options.template) {
+      options.template = 'typescript-vite-library';
     }
 
     // Validate template
