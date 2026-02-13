@@ -10,6 +10,9 @@ import pc from 'picocolors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// Templates are in src/templates, but compiled code runs from dist/
+// Go up one level from dist/ to find src/templates/
+const TEMPLATES_DIR = join(__dirname, '..', 'src', 'templates');
 
 export const TEMPLATES = ['typescript-vite', 'typescript-vite-library', 'bun', 'purescript'] as const;
 export type Template = typeof TEMPLATES[number];
@@ -87,7 +90,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
   mkdirSync(targetDir, { recursive: true });
 
   // Copy template files
-  const templateDir = join(__dirname, 'templates', template);
+  const templateDir = join(TEMPLATES_DIR, template);
   const variables: TemplateVariables = {
     projectName,
     cliffyVersion: CLIFFY_VERSION,
