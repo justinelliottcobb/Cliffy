@@ -57,8 +57,6 @@ const justifyMap: Record<FlexJustify, string> = {
  * Create a Stack component.
  */
 export async function Stack(props: StackProps = {}): Promise<HTMLElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const {
     direction = 'vertical',
     gap = 'md',
@@ -70,34 +68,29 @@ export async function Stack(props: StackProps = {}): Promise<HTMLElement> {
     children,
   } = props;
 
-  // Build initial styles
-  const buildStyle = (): string => {
-    const dir: FlexDirection = isBehavior(direction)
-      ? (direction.sample() as FlexDirection)
-      : direction;
-    const g: SpacingValue = isBehavior(gap)
-      ? (gap.sample() as SpacingValue)
-      : gap;
-
-    const styles = [
-      'display: flex',
-      `flex-direction: ${directionMap[dir]}`,
-      `gap: ${toSpacingValue(g)}`,
-      `align-items: ${alignMap[align]}`,
-      `justify-content: ${justifyMap[justify]}`,
-      wrap ? 'flex-wrap: wrap' : 'flex-wrap: nowrap',
-    ];
-
-    return styles.join('; ');
-  };
-
   // Create element
-  const element = html`
-    <div
-      class="cliffy-stack ${className && !isBehavior(className) ? className : ''}"
-      style="${buildStyle()}"
-    ></div>
-  ` as HTMLElement;
+  const element = document.createElement('div');
+  element.className = className && !isBehavior(className)
+    ? `cliffy-stack ${className}`
+    : 'cliffy-stack';
+
+  // Apply base styles
+  element.style.display = 'flex';
+  element.style.flexWrap = wrap ? 'wrap' : 'nowrap';
+  element.style.alignItems = alignMap[align];
+  element.style.justifyContent = justifyMap[justify];
+
+  // Apply initial direction
+  const initialDirection: FlexDirection = isBehavior(direction)
+    ? (direction.sample() as FlexDirection)
+    : direction;
+  element.style.flexDirection = directionMap[initialDirection];
+
+  // Apply initial gap
+  const initialGap: SpacingValue = isBehavior(gap)
+    ? (gap.sample() as SpacingValue)
+    : gap;
+  element.style.gap = toSpacingValue(initialGap);
 
   // Subscribe to reactive direction
   if (isBehavior(direction)) {

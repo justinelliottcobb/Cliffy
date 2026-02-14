@@ -16,20 +16,20 @@ export interface SpacerProps {
  * Create a Spacer component.
  */
 export async function Spacer(props: SpacerProps = {}): Promise<HTMLElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const { size } = props;
 
-  const buildStyle = (): string => {
-    if (size !== undefined) {
-      return [
-        'flex: 0 0 auto',
-        `width: ${toSpacingValue(size)}`,
-        `height: ${toSpacingValue(size)}`,
-      ].join('; ');
-    }
-    return 'flex: 1 1 auto';
-  };
+  // Create element
+  const element = document.createElement('div');
+  element.className = 'cliffy-spacer';
 
-  return html`<div class="cliffy-spacer" style="${buildStyle()}"></div>` as HTMLElement;
+  // Apply styles
+  if (size !== undefined) {
+    element.style.flex = '0 0 auto';
+    element.style.width = toSpacingValue(size);
+    element.style.height = toSpacingValue(size);
+  } else {
+    element.style.flex = '1 1 auto';
+  }
+
+  return element;
 }

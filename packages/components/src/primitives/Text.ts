@@ -26,8 +26,6 @@ export interface TextProps extends StyleProps {
  * Create a Text component.
  */
 export async function Text(props: TextProps): Promise<HTMLElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const {
     content,
     size = 'md',
@@ -39,8 +37,11 @@ export async function Text(props: TextProps): Promise<HTMLElement> {
     className,
   } = props;
 
-  // Build CSS classes
-  const classes = [
+  // Create element with the specified tag
+  const element = document.createElement(as);
+
+  // Set classes
+  element.className = [
     'cliffy-text',
     `cliffy-text--${size}`,
     `cliffy-text--${weight}`,
@@ -50,36 +51,23 @@ export async function Text(props: TextProps): Promise<HTMLElement> {
     .filter(Boolean)
     .join(' ');
 
-  // Build inline styles
-  const buildStyle = (): string => {
-    const styles: string[] = [];
+  // Set styles
+  element.style.fontSize = `var(--cliffy-text-${size})`;
+  element.style.fontWeight = `var(--cliffy-font-${weight})`;
 
-    styles.push(`font-size: var(--cliffy-text-${size})`);
-    styles.push(`font-weight: var(--cliffy-font-${weight})`);
+  if (color && !isBehavior(color)) {
+    element.style.color = color;
+  }
 
-    if (color && !isBehavior(color)) {
-      styles.push(`color: ${color}`);
-    }
+  if (truncate) {
+    element.style.overflow = 'hidden';
+    element.style.textOverflow = 'ellipsis';
+    element.style.whiteSpace = 'nowrap';
+  }
 
-    if (truncate) {
-      styles.push('overflow: hidden');
-      styles.push('text-overflow: ellipsis');
-      styles.push('white-space: nowrap');
-    }
-
-    return styles.join('; ');
-  };
-
-  // Use static or initial content
+  // Set initial content
   const initialContent = isBehavior(content) ? content.sample() : content;
-
-  // Create element based on 'as' prop
-  const element = html`
-    <${as}
-      class="${classes}"
-      style="${buildStyle()}"
-    >${initialContent}</${as}>
-  ` as HTMLElement;
+  element.textContent = String(initialContent);
 
   // Subscribe to reactive content
   if (isBehavior(content)) {

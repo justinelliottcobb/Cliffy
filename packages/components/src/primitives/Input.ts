@@ -33,32 +33,19 @@ export interface InputProps extends StyleProps {
   fullWidth?: boolean;
 }
 
-// Base input styles
-const baseStyles = `
-  font-family: var(--cliffy-font-sans);
-  border: var(--cliffy-border-width) solid var(--cliffy-color-border);
-  border-radius: var(--cliffy-radius-md);
-  background: var(--cliffy-color-background);
-  color: var(--cliffy-color-foreground);
-  transition: all var(--cliffy-duration-normal) var(--cliffy-easing);
-  outline: none;
-`;
-
-// Size styles
-const sizeStyles: Record<Size, string> = {
-  xs: 'padding: var(--cliffy-space-xs); font-size: var(--cliffy-text-xs);',
-  sm: 'padding: var(--cliffy-space-xs) var(--cliffy-space-sm); font-size: var(--cliffy-text-sm);',
-  md: 'padding: var(--cliffy-space-sm) var(--cliffy-space-md); font-size: var(--cliffy-text-md);',
-  lg: 'padding: var(--cliffy-space-sm) var(--cliffy-space-lg); font-size: var(--cliffy-text-lg);',
-  xl: 'padding: var(--cliffy-space-md) var(--cliffy-space-xl); font-size: var(--cliffy-text-xl);',
+// Size to padding/font-size mapping
+const sizeConfig: Record<Size, { padding: string; fontSize: string }> = {
+  xs: { padding: 'var(--cliffy-space-xs)', fontSize: 'var(--cliffy-text-xs)' },
+  sm: { padding: 'var(--cliffy-space-xs) var(--cliffy-space-sm)', fontSize: 'var(--cliffy-text-sm)' },
+  md: { padding: 'var(--cliffy-space-sm) var(--cliffy-space-md)', fontSize: 'var(--cliffy-text-md)' },
+  lg: { padding: 'var(--cliffy-space-sm) var(--cliffy-space-lg)', fontSize: 'var(--cliffy-text-lg)' },
+  xl: { padding: 'var(--cliffy-space-md) var(--cliffy-space-xl)', fontSize: 'var(--cliffy-text-xl)' },
 };
 
 /**
  * Create an Input component.
  */
 export async function Input(props: InputProps): Promise<HTMLInputElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const {
     value,
     onInput,
@@ -75,45 +62,57 @@ export async function Input(props: InputProps): Promise<HTMLInputElement> {
     className,
   } = props;
 
-  // Build styles
-  const buildStyle = (): string => {
-    let styles = baseStyles + sizeStyles[size];
+  // Create element
+  const element = document.createElement('input');
+  element.type = type;
+  element.className = `cliffy-input cliffy-input--${size}${className && !isBehavior(className) ? ` ${className}` : ''}`;
 
-    if (fullWidth) {
-      styles += 'width: 100%; box-sizing: border-box;';
-    }
+  // Apply base styles
+  element.style.fontFamily = 'var(--cliffy-font-sans)';
+  element.style.border = 'var(--cliffy-border-width) solid var(--cliffy-color-border)';
+  element.style.borderRadius = 'var(--cliffy-radius-md)';
+  element.style.background = 'var(--cliffy-color-background)';
+  element.style.color = 'var(--cliffy-color-foreground)';
+  element.style.transition = 'all var(--cliffy-duration-normal) var(--cliffy-easing)';
+  element.style.outline = 'none';
 
-    return styles.replace(/\s+/g, ' ').trim();
-  };
+  // Apply size styles
+  const sizeStyles = sizeConfig[size];
+  element.style.padding = sizeStyles.padding;
+  element.style.fontSize = sizeStyles.fontSize;
 
-  // Get initial values
-  const initialValue = value.sample();
+  if (fullWidth) {
+    element.style.width = '100%';
+    element.style.boxSizing = 'border-box';
+  }
+
+  // Set attributes
+  if (name) element.name = name;
+  if (id) element.id = id;
+  element.readOnly = readOnly;
+
+  // Set initial values
+  const initialValue = value.sample() as string;
   const initialPlaceholder = placeholder
     ? isBehavior(placeholder)
-      ? placeholder.sample()
+      ? (placeholder.sample() as string)
       : placeholder
     : '';
   const initialDisabled = isBehavior(disabled) ? disabled.sample() : disabled;
 
-  // Create element
-  const element = html`
-    <input
-      type="${type}"
-      class="cliffy-input cliffy-input--${size} ${className && !isBehavior(className) ? className : ''}"
-      style="${buildStyle()}"
-      value="${initialValue}"
-      placeholder="${initialPlaceholder}"
-      disabled="${initialDisabled}"
-      readonly="${readOnly}"
-      name="${name || ''}"
-      id="${id || ''}"
-    />
-  ` as HTMLInputElement;
+  element.value = initialValue;
+  element.placeholder = initialPlaceholder;
+  element.disabled = initialDisabled;
+
+  if (initialDisabled) {
+    element.style.opacity = '0.5';
+    element.style.cursor = 'not-allowed';
+  }
 
   // Handle focus styles
   element.addEventListener('focus', () => {
     element.style.borderColor = 'var(--cliffy-color-primary)';
-    element.style.boxShadow = `0 0 0 var(--cliffy-focus-ring-width) var(--cliffy-color-primary-light)`;
+    element.style.boxShadow = '0 0 0 var(--cliffy-focus-ring-width) var(--cliffy-color-primary-light)';
   });
 
   element.addEventListener('blur', () => {

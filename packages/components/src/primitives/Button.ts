@@ -24,56 +24,27 @@ export interface ButtonProps extends StyleProps {
   type?: 'button' | 'submit' | 'reset';
 }
 
-// Base button styles
-const baseStyles = `
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--cliffy-space-sm);
-  font-family: var(--cliffy-font-sans);
-  font-weight: var(--cliffy-font-medium);
-  border: none;
-  cursor: pointer;
-  transition: all var(--cliffy-duration-normal) var(--cliffy-easing);
-  border-radius: var(--cliffy-radius-md);
-`;
-
-// Size styles
-const sizeStyles: Record<Size, string> = {
-  xs: 'padding: var(--cliffy-space-xs) var(--cliffy-space-sm); font-size: var(--cliffy-text-xs);',
-  sm: 'padding: var(--cliffy-space-xs) var(--cliffy-space-md); font-size: var(--cliffy-text-sm);',
-  md: 'padding: var(--cliffy-space-sm) var(--cliffy-space-md); font-size: var(--cliffy-text-md);',
-  lg: 'padding: var(--cliffy-space-sm) var(--cliffy-space-lg); font-size: var(--cliffy-text-lg);',
-  xl: 'padding: var(--cliffy-space-md) var(--cliffy-space-xl); font-size: var(--cliffy-text-xl);',
+// Size to padding/font-size mapping
+const sizeConfig: Record<Size, { padding: string; fontSize: string }> = {
+  xs: { padding: 'var(--cliffy-space-xs) var(--cliffy-space-sm)', fontSize: 'var(--cliffy-text-xs)' },
+  sm: { padding: 'var(--cliffy-space-xs) var(--cliffy-space-md)', fontSize: 'var(--cliffy-text-sm)' },
+  md: { padding: 'var(--cliffy-space-sm) var(--cliffy-space-md)', fontSize: 'var(--cliffy-text-md)' },
+  lg: { padding: 'var(--cliffy-space-sm) var(--cliffy-space-lg)', fontSize: 'var(--cliffy-text-lg)' },
+  xl: { padding: 'var(--cliffy-space-md) var(--cliffy-space-xl)', fontSize: 'var(--cliffy-text-xl)' },
 };
 
-// Variant styles
-const variantStyles: Record<ButtonVariant, string> = {
-  primary: `
-    background: var(--cliffy-color-primary);
-    color: white;
-  `,
-  secondary: `
-    background: var(--cliffy-color-secondary);
-    color: white;
-  `,
-  ghost: `
-    background: transparent;
-    color: var(--cliffy-color-foreground);
-    border: var(--cliffy-border-width) solid var(--cliffy-color-border);
-  `,
-  danger: `
-    background: var(--cliffy-color-error);
-    color: white;
-  `,
+// Variant to color mapping
+const variantConfig: Record<ButtonVariant, { background: string; color: string; border?: string }> = {
+  primary: { background: 'var(--cliffy-color-primary)', color: 'white' },
+  secondary: { background: 'var(--cliffy-color-secondary)', color: 'white' },
+  ghost: { background: 'transparent', color: 'var(--cliffy-color-foreground)', border: 'var(--cliffy-border-width) solid var(--cliffy-color-border)' },
+  danger: { background: 'var(--cliffy-color-error)', color: 'white' },
 };
 
 /**
  * Create a Button component.
  */
 export async function Button(props: ButtonProps): Promise<HTMLButtonElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const {
     label,
     onClick,
@@ -86,31 +57,53 @@ export async function Button(props: ButtonProps): Promise<HTMLButtonElement> {
     className,
   } = props;
 
-  // Build styles
-  const buildStyle = (): string => {
-    let styles = baseStyles + sizeStyles[size] + variantStyles[variant];
+  // Create element
+  const element = document.createElement('button');
+  element.type = type;
+  element.className = `cliffy-btn cliffy-btn--${variant} cliffy-btn--${size}${className && !isBehavior(className) ? ` ${className}` : ''}`;
 
-    if (fullWidth) {
-      styles += 'width: 100%;';
-    }
+  // Apply base styles
+  element.style.display = 'inline-flex';
+  element.style.alignItems = 'center';
+  element.style.justifyContent = 'center';
+  element.style.gap = 'var(--cliffy-space-sm)';
+  element.style.fontFamily = 'var(--cliffy-font-sans)';
+  element.style.fontWeight = 'var(--cliffy-font-medium)';
+  element.style.border = 'none';
+  element.style.cursor = 'pointer';
+  element.style.transition = 'all var(--cliffy-duration-normal) var(--cliffy-easing)';
+  element.style.borderRadius = 'var(--cliffy-radius-md)';
 
-    return styles.replace(/\s+/g, ' ').trim();
-  };
+  // Apply size styles
+  const sizeStyles = sizeConfig[size];
+  element.style.padding = sizeStyles.padding;
+  element.style.fontSize = sizeStyles.fontSize;
 
-  // Get initial values
+  // Apply variant styles
+  const variantStyles = variantConfig[variant];
+  element.style.background = variantStyles.background;
+  element.style.color = variantStyles.color;
+  if (variantStyles.border) {
+    element.style.border = variantStyles.border;
+  }
+
+  if (fullWidth) {
+    element.style.width = '100%';
+  }
+
+  // Set initial values
   const initialLabel = isBehavior(label) ? label.sample() : label;
   const initialDisabled = isBehavior(disabled) ? disabled.sample() : disabled;
 
-  // Create element
-  const element = html`
-    <button
-      type="${type}"
-      class="cliffy-btn cliffy-btn--${variant} cliffy-btn--${size} ${className && !isBehavior(className) ? className : ''}"
-      style="${buildStyle()}"
-      disabled="${initialDisabled}"
-      onclick="${onClick}"
-    >${initialLabel}</button>
-  ` as HTMLButtonElement;
+  element.textContent = String(initialLabel);
+  element.disabled = initialDisabled;
+  if (initialDisabled) {
+    element.style.opacity = '0.5';
+    element.style.cursor = 'not-allowed';
+  }
+
+  // Add click handler
+  element.addEventListener('click', onClick);
 
   // Add hover/active styles via event listeners
   element.addEventListener('mouseenter', () => {

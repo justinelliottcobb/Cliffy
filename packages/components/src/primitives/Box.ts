@@ -29,8 +29,6 @@ export interface BoxProps extends StyleProps {
  * Create a Box component.
  */
 export async function Box(props: BoxProps = {}): Promise<HTMLElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const {
     padding,
     paddingX,
@@ -43,46 +41,33 @@ export async function Box(props: BoxProps = {}): Promise<HTMLElement> {
     children,
   } = props;
 
-  // Build initial style object
-  const buildStyle = (): Partial<CSSStyleDeclaration> => {
-    const s: Record<string, string> = {};
-
-    // Padding
-    if (padding !== undefined && !isBehavior(padding)) {
-      s.padding = toSpacingValue(padding);
-    }
-    if (paddingX !== undefined && !isBehavior(paddingX)) {
-      s.paddingLeft = toSpacingValue(paddingX);
-      s.paddingRight = toSpacingValue(paddingX);
-    }
-    if (paddingY !== undefined && !isBehavior(paddingY)) {
-      s.paddingTop = toSpacingValue(paddingY);
-      s.paddingBottom = toSpacingValue(paddingY);
-    }
-
-    // Margin
-    if (margin !== undefined && !isBehavior(margin)) {
-      s.margin = toSpacingValue(margin);
-    }
-    if (marginX !== undefined && !isBehavior(marginX)) {
-      s.marginLeft = toSpacingValue(marginX);
-      s.marginRight = toSpacingValue(marginX);
-    }
-    if (marginY !== undefined && !isBehavior(marginY)) {
-      s.marginTop = toSpacingValue(marginY);
-      s.marginBottom = toSpacingValue(marginY);
-    }
-
-    return s as Partial<CSSStyleDeclaration>;
-  };
-
   // Create element
-  const element = html`
-    <div
-      class=${className ?? 'cliffy-box'}
-      style=${style ?? buildStyle()}
-    ></div>
-  ` as HTMLElement;
+  const element = document.createElement('div');
+  element.className = className && !isBehavior(className) ? `cliffy-box ${className}` : 'cliffy-box';
+
+  // Apply static styles
+  if (padding !== undefined && !isBehavior(padding)) {
+    element.style.padding = toSpacingValue(padding);
+  }
+  if (paddingX !== undefined && !isBehavior(paddingX)) {
+    element.style.paddingLeft = toSpacingValue(paddingX);
+    element.style.paddingRight = toSpacingValue(paddingX);
+  }
+  if (paddingY !== undefined && !isBehavior(paddingY)) {
+    element.style.paddingTop = toSpacingValue(paddingY);
+    element.style.paddingBottom = toSpacingValue(paddingY);
+  }
+  if (margin !== undefined && !isBehavior(margin)) {
+    element.style.margin = toSpacingValue(margin);
+  }
+  if (marginX !== undefined && !isBehavior(marginX)) {
+    element.style.marginLeft = toSpacingValue(marginX);
+    element.style.marginRight = toSpacingValue(marginX);
+  }
+  if (marginY !== undefined && !isBehavior(marginY)) {
+    element.style.marginTop = toSpacingValue(marginY);
+    element.style.marginBottom = toSpacingValue(marginY);
+  }
 
   // Subscribe to Behavior props
   if (isBehavior(padding)) {

@@ -18,24 +18,18 @@ export interface CenterProps extends StyleProps {
  * Create a Center component.
  */
 export async function Center(props: CenterProps = {}): Promise<HTMLElement> {
-  const { html } = await import('@cliffy-ga/core/html');
-
   const { inline = false, style, className, children } = props;
 
-  const buildStyle = (): string => {
-    return [
-      `display: ${inline ? 'inline-flex' : 'flex'}`,
-      'align-items: center',
-      'justify-content: center',
-    ].join('; ');
-  };
+  // Create element
+  const element = document.createElement('div');
+  element.className = className && !isBehavior(className)
+    ? `cliffy-center ${className}`
+    : 'cliffy-center';
 
-  const element = html`
-    <div
-      class="cliffy-center ${className && !isBehavior(className) ? className : ''}"
-      style="${buildStyle()}"
-    ></div>
-  ` as HTMLElement;
+  // Apply styles
+  element.style.display = inline ? 'inline-flex' : 'flex';
+  element.style.alignItems = 'center';
+  element.style.justifyContent = 'center';
 
   // Append children
   if (children) {
