@@ -10,17 +10,17 @@
      Colors
      ========================================================================== */
 
-  /* Primary */
-  --cliffy-color-primary: #6366f1;
-  --cliffy-color-primary-hover: #4f46e5;
-  --cliffy-color-primary-active: #4338ca;
-  --cliffy-color-primary-light: #e0e7ff;
+  /* Primary - USPS Blue */
+  --cliffy-color-primary: #0066ff;
+  --cliffy-color-primary-hover: #0052cc;
+  --cliffy-color-primary-active: #003d99;
+  --cliffy-color-primary-light: #cce0ff;
 
   /* Secondary */
-  --cliffy-color-secondary: #8b5cf6;
-  --cliffy-color-secondary-hover: #7c3aed;
-  --cliffy-color-secondary-active: #6d28d9;
-  --cliffy-color-secondary-light: #ede9fe;
+  --cliffy-color-secondary: #0f3460;
+  --cliffy-color-secondary-hover: #0a2540;
+  --cliffy-color-secondary-active: #071a2e;
+  --cliffy-color-secondary-light: #d0dae8;
 
   /* Success */
   --cliffy-color-success: #22c55e;
@@ -52,11 +52,12 @@
   --cliffy-color-neutral-800: #27272a;
   --cliffy-color-neutral-900: #18181b;
 
-  /* Foreground / Background */
-  --cliffy-color-foreground: var(--cliffy-color-neutral-900);
-  --cliffy-color-background: #ffffff;
-  --cliffy-color-muted: var(--cliffy-color-neutral-500);
-  --cliffy-color-border: var(--cliffy-color-neutral-200);
+  /* Foreground / Background - Dark theme by default */
+  --cliffy-color-foreground: #eee;
+  --cliffy-color-background: #1a1a2e;
+  --cliffy-color-surface: #16213e;
+  --cliffy-color-muted: #888;
+  --cliffy-color-border: #2a2a4e;
 
   /* ==========================================================================
      Spacing
