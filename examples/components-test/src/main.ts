@@ -4,9 +4,9 @@
  * Verifies that @cliffy-ga/components works with @cliffy-ga/core.
  */
 
-import { init, behavior } from '@cliffy-ga/core';
+// Default export is the WASM loader, named exports are the API
+import initWasm, { init, behavior, DOMProjection } from '@cliffy-ga/core';
 import { initHtml, mount } from '@cliffy-ga/core/html';
-import { DOMProjection } from '@cliffy-ga/core';
 import {
   Button,
   Text,
@@ -23,7 +23,10 @@ import {
 import '../../../packages/components/dist/theme.css';
 
 async function main() {
-  // Initialize WASM and html template system
+  // Load WASM module first
+  await initWasm();
+
+  // Then initialize Cliffy and html template system
   init();
   initHtml(DOMProjection);
 

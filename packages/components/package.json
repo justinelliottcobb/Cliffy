@@ -17,7 +17,7 @@
   ],
   "scripts": {
     "dev": "vite build --watch",
-    "build": "vite build && cp src/theme/tokens.css dist/theme.css",
+    "build": "vite build && node -e \"require('fs').copyFileSync('src/theme/tokens.css', 'dist/theme.css')\"",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [
