@@ -1,0 +1,50 @@
+{
+  "name": "@cliffy-ga/components",
+  "version": "0.1.0",
+  "description": "UI component library for Cliffy applications",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./theme.css": "./dist/theme.css"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite build --watch",
+    "build": "vite build && cp src/theme/tokens.css dist/theme.css",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "cliffy",
+    "frp",
+    "reactive",
+    "components",
+    "ui"
+  ],
+  "author": "Industrial Algebra",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Industrial-Algebra/cliffy.git",
+    "directory": "packages/components"
+  },
+  "homepage": "https://github.com/Industrial-Algebra/cliffy#readme",
+  "bugs": {
+    "url": "https://github.com/Industrial-Algebra/cliffy/issues"
+  },
+  "peerDependencies": {
+    "@cliffy-ga/core": "^0.1.3"
+  },
+  "devDependencies": {
+    "@cliffy-ga/core": "^0.1.3",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.0.0"
+  }
+}

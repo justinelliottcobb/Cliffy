@@ -1,0 +1,152 @@
+/**
+ * Cliffy Design Tokens
+ *
+ * CSS Custom Properties for theming @cliffy-ga/components.
+ * Override these in your application to customize the look.
+ */
+
+:root {
+  /* ==========================================================================
+     Colors
+     ========================================================================== */
+
+  /* Primary */
+  --cliffy-color-primary: #6366f1;
+  --cliffy-color-primary-hover: #4f46e5;
+  --cliffy-color-primary-active: #4338ca;
+  --cliffy-color-primary-light: #e0e7ff;
+
+  /* Secondary */
+  --cliffy-color-secondary: #8b5cf6;
+  --cliffy-color-secondary-hover: #7c3aed;
+  --cliffy-color-secondary-active: #6d28d9;
+  --cliffy-color-secondary-light: #ede9fe;
+
+  /* Success */
+  --cliffy-color-success: #22c55e;
+  --cliffy-color-success-hover: #16a34a;
+  --cliffy-color-success-active: #15803d;
+  --cliffy-color-success-light: #dcfce7;
+
+  /* Warning */
+  --cliffy-color-warning: #f59e0b;
+  --cliffy-color-warning-hover: #d97706;
+  --cliffy-color-warning-active: #b45309;
+  --cliffy-color-warning-light: #fef3c7;
+
+  /* Error / Danger */
+  --cliffy-color-error: #ef4444;
+  --cliffy-color-error-hover: #dc2626;
+  --cliffy-color-error-active: #b91c1c;
+  --cliffy-color-error-light: #fee2e2;
+
+  /* Neutral */
+  --cliffy-color-neutral-50: #fafafa;
+  --cliffy-color-neutral-100: #f4f4f5;
+  --cliffy-color-neutral-200: #e4e4e7;
+  --cliffy-color-neutral-300: #d4d4d8;
+  --cliffy-color-neutral-400: #a1a1aa;
+  --cliffy-color-neutral-500: #71717a;
+  --cliffy-color-neutral-600: #52525b;
+  --cliffy-color-neutral-700: #3f3f46;
+  --cliffy-color-neutral-800: #27272a;
+  --cliffy-color-neutral-900: #18181b;
+
+  /* Foreground / Background */
+  --cliffy-color-foreground: var(--cliffy-color-neutral-900);
+  --cliffy-color-background: #ffffff;
+  --cliffy-color-muted: var(--cliffy-color-neutral-500);
+  --cliffy-color-border: var(--cliffy-color-neutral-200);
+
+  /* ==========================================================================
+     Spacing
+     ========================================================================== */
+
+  --cliffy-space-xs: 0.25rem;   /* 4px */
+  --cliffy-space-sm: 0.5rem;    /* 8px */
+  --cliffy-space-md: 1rem;      /* 16px */
+  --cliffy-space-lg: 1.5rem;    /* 24px */
+  --cliffy-space-xl: 2rem;      /* 32px */
+
+  /* ==========================================================================
+     Typography
+     ========================================================================== */
+
+  /* Font Families */
+  --cliffy-font-sans: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --cliffy-font-mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', monospace;
+
+  /* Font Sizes */
+  --cliffy-text-xs: 0.75rem;    /* 12px */
+  --cliffy-text-sm: 0.875rem;   /* 14px */
+  --cliffy-text-md: 1rem;       /* 16px */
+  --cliffy-text-lg: 1.125rem;   /* 18px */
+  --cliffy-text-xl: 1.25rem;    /* 20px */
+  --cliffy-text-2xl: 1.5rem;    /* 24px */
+  --cliffy-text-3xl: 1.875rem;  /* 30px */
+
+  /* Font Weights */
+  --cliffy-font-normal: 400;
+  --cliffy-font-medium: 500;
+  --cliffy-font-semibold: 600;
+  --cliffy-font-bold: 700;
+
+  /* Line Heights */
+  --cliffy-leading-tight: 1.25;
+  --cliffy-leading-normal: 1.5;
+  --cliffy-leading-relaxed: 1.75;
+
+  /* ==========================================================================
+     Borders
+     ========================================================================== */
+
+  --cliffy-radius-sm: 0.25rem;  /* 4px */
+  --cliffy-radius-md: 0.375rem; /* 6px */
+  --cliffy-radius-lg: 0.5rem;   /* 8px */
+  --cliffy-radius-xl: 0.75rem;  /* 12px */
+  --cliffy-radius-full: 9999px;
+
+  --cliffy-border-width: 1px;
+
+  /* ==========================================================================
+     Shadows
+     ========================================================================== */
+
+  --cliffy-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --cliffy-shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+  --cliffy-shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+
+  /* ==========================================================================
+     Transitions
+     ========================================================================== */
+
+  --cliffy-duration-fast: 100ms;
+  --cliffy-duration-normal: 200ms;
+  --cliffy-duration-slow: 300ms;
+  --cliffy-easing: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ==========================================================================
+     Focus Ring
+     ========================================================================== */
+
+  --cliffy-focus-ring-width: 2px;
+  --cliffy-focus-ring-offset: 2px;
+  --cliffy-focus-ring-color: var(--cliffy-color-primary);
+}
+
+/* Dark mode support (opt-in via class or media query) */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --cliffy-color-foreground: var(--cliffy-color-neutral-50);
+    --cliffy-color-background: var(--cliffy-color-neutral-900);
+    --cliffy-color-muted: var(--cliffy-color-neutral-400);
+    --cliffy-color-border: var(--cliffy-color-neutral-700);
+  }
+}
+
+[data-theme="dark"] {
+  --cliffy-color-foreground: var(--cliffy-color-neutral-50);
+  --cliffy-color-background: var(--cliffy-color-neutral-900);
+  --cliffy-color-muted: var(--cliffy-color-neutral-400);
+  --cliffy-color-border: var(--cliffy-color-neutral-700);
+}
