@@ -19,8 +19,8 @@ import {
   Spacer,
 } from '@cliffy-ga/components';
 
-// Import theme CSS
-import '@cliffy-ga/components/theme.css';
+// Import theme CSS (direct path for local development)
+import '../../../packages/components/dist/theme.css';
 
 async function main() {
   // Initialize WASM and html template system
