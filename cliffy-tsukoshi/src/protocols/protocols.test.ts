@@ -1,10 +1,19 @@
 /**
  * Tests for cliffy-tsukoshi protocols.
  *
- * These tests verify the distributed systems primitives implemented in pure TypeScript.
+ * These tests use the WASM-exposed cliffy-test framework for algebraic testing.
  */
 
 import { describe, it, expect } from 'vitest';
+
+// Import cliffy-test from WASM
+import {
+  testImpossible,
+  testRare,
+  TestResult,
+  InvariantCategory,
+  type InvariantTestReport,
+} from '@cliffy-ga/core';
 
 // Import the TypeScript protocols
 import { VectorClock } from './vector-clock.js';
@@ -543,78 +552,198 @@ describe('Consensus', () => {
 });
 
 // =============================================================================
-// Invariant-Style Tests (property-based)
+// Invariant Tests using cliffy-test WASM bindings
 // =============================================================================
 
-describe('Algebraic Invariants', () => {
+describe('Algebraic Invariants (cliffy-test)', () => {
   it('IMPOSSIBLE: Vector clock happensBefore is transitive', () => {
-    // If A -> B and B -> C, then A -> C
-    for (let i = 0; i < 20; i++) {
-      const a = new VectorClock();
-      const b = new VectorClock();
-      const c = new VectorClock();
+    const report = testImpossible(
+      'VectorClock.happensBefore transitivity',
+      () => {
+        const a = new VectorClock();
+        const b = new VectorClock();
+        const c = new VectorClock();
 
-      a.tick('n1');
-      b.update(a);
-      b.tick('n2');
-      c.update(b);
-      c.tick('n3');
+        a.tick('n1');
+        b.update(a);
+        b.tick('n2');
+        c.update(b);
+        c.tick('n3');
 
-      expect(a.happensBefore(b)).toBe(true);
-      expect(b.happensBefore(c)).toBe(true);
-      expect(a.happensBefore(c)).toBe(true); // Transitive
-    }
+        // If A -> B and B -> C, then A -> C
+        const ab = a.happensBefore(b);
+        const bc = b.happensBefore(c);
+        const ac = a.happensBefore(c);
+
+        return ab && bc && ac;
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.category).toBe(InvariantCategory.Impossible);
+    expect(report.failures).toBe(0);
   });
 
   it('IMPOSSIBLE: Lattice join is idempotent (a ∨ a = a)', () => {
-    for (let i = 0; i < 20; i++) {
-      const a = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
-      const result = latticeJoin(a, a);
-      expect(equals(result, a)).toBe(true);
-    }
+    const report = testImpossible(
+      'Lattice join idempotence',
+      () => {
+        const a = vector(
+          Math.random() * 10,
+          Math.random() * 10,
+          Math.random() * 10
+        );
+        const result = latticeJoin(a, a);
+        return equals(result, a);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
   });
 
   it('IMPOSSIBLE: Delta roundtrip preserves state', () => {
-    for (let i = 0; i < 20; i++) {
-      const from = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
-      const to = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+    const report = testImpossible(
+      'Delta roundtrip preservation',
+      () => {
+        const from = vector(
+          Math.random() * 10,
+          Math.random() * 10,
+          Math.random() * 10
+        );
+        const to = vector(
+          Math.random() * 10,
+          Math.random() * 10,
+          Math.random() * 10
+        );
 
-      const delta = computeDelta(from, to);
-      const reconstructed = applyAdditiveDelta(from, delta);
+        const delta = computeDelta(from, to);
+        const reconstructed = applyAdditiveDelta(from, delta);
 
-      expect(equals(reconstructed, to, 1e-10)).toBe(true);
-    }
+        return equals(reconstructed, to, 1e-10);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
   });
 
   it('IMPOSSIBLE: CRDT operations are idempotent', () => {
-    for (let i = 0; i < 10; i++) {
-      const crdt = new GeometricCRDT('test', scalar(0));
-      const op = crdt.createOperation(scalar(Math.random() * 10), OperationType.Addition);
+    const report = testImpossible(
+      'CRDT operation idempotence',
+      () => {
+        const crdt = new GeometricCRDT('test', scalar(0));
+        const op = crdt.createOperation(
+          scalar(Math.random() * 10),
+          OperationType.Addition
+        );
 
-      crdt.applyOperation(op);
-      const state1 = crdt.state[0];
+        crdt.applyOperation(op);
+        const state1 = crdt.state[0];
 
-      crdt.applyOperation(op); // Apply same op again
-      const state2 = crdt.state[0];
+        crdt.applyOperation(op); // Apply same op again
+        const state2 = crdt.state[0];
 
-      expect(state1).toBe(state2);
-    }
+        return state1 === state2;
+      },
+      50
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
   });
 
   it('IMPOSSIBLE: Vector clock merge is commutative', () => {
-    for (let i = 0; i < 20; i++) {
-      const clock1 = new VectorClock();
-      const clock2 = new VectorClock();
+    const report = testImpossible(
+      'VectorClock merge commutativity',
+      () => {
+        const clock1 = new VectorClock();
+        const clock2 = new VectorClock();
 
-      clock1.tick('n1');
-      clock1.tick('n1');
-      clock2.tick('n2');
-      clock2.tick('n3');
+        // Random ticks
+        for (let i = 0; i < Math.floor(Math.random() * 5) + 1; i++) {
+          clock1.tick('n1');
+        }
+        for (let i = 0; i < Math.floor(Math.random() * 5) + 1; i++) {
+          clock2.tick('n2');
+        }
 
-      const merge12 = clock1.merge(clock2);
-      const merge21 = clock2.merge(clock1);
+        const merge12 = clock1.merge(clock2);
+        const merge21 = clock2.merge(clock1);
 
-      expect(merge12.equals(merge21)).toBe(true);
-    }
+        return merge12.equals(merge21);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
+  });
+
+  it('IMPOSSIBLE: Lattice join is associative', () => {
+    const report = testImpossible(
+      'Lattice join associativity',
+      () => {
+        const a = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+        const b = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+        const c = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+
+        // (a ∨ b) ∨ c = a ∨ (b ∨ c)
+        const left = latticeJoin(latticeJoin(a, b), c);
+        const right = latticeJoin(a, latticeJoin(b, c));
+
+        return equals(left, right);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
+  });
+
+  it('IMPOSSIBLE: Lattice meet is associative', () => {
+    const report = testImpossible(
+      'Lattice meet associativity',
+      () => {
+        const a = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+        const b = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+        const c = vector(Math.random() * 10, Math.random() * 10, Math.random() * 10);
+
+        // (a ∧ b) ∧ c = a ∧ (b ∧ c)
+        const left = latticeMeet(latticeMeet(a, b), c);
+        const right = latticeMeet(a, latticeMeet(b, c));
+
+        return equals(left, right);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
+    expect(report.failures).toBe(0);
+  });
+
+  it('RARE: Concurrent vector clocks occur with random operations', () => {
+    // When two nodes operate independently, they should often be concurrent
+    const report = testRare(
+      'Concurrent clocks from independent operations',
+      0.3, // Allow up to 30% non-concurrent (sequential happens-before)
+      () => {
+        const clock1 = new VectorClock();
+        const clock2 = new VectorClock();
+
+        // Independent operations
+        clock1.tick('n1');
+        clock2.tick('n2');
+
+        // They should be concurrent
+        return clock1.concurrent(clock2);
+      },
+      100
+    );
+
+    expect(report.verified).toBe(true);
   });
 });
