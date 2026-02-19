@@ -27,7 +27,10 @@ web-sys = { workspace = true, features = [
 console_error_panic_hook = { version = "0.1", optional = true }
 cliffy-core = { path = "../cliffy-core" }
 cliffy-protocols = { path = "../cliffy-protocols" }
+cliffy-test = { path = "../cliffy-test" }
 uuid = { version = "1.0", features = ["v4", "js"] }
+getrandom = { version = "0.2", features = ["js"] }
+rand = "0.8"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
