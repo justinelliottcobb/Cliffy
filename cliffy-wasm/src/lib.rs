@@ -30,8 +30,6 @@
 
 pub mod dom;
 pub mod protocols;
-
-#[cfg(feature = "testing")]
 pub mod test;
 
 // Re-export protocols types at top level
@@ -39,8 +37,7 @@ pub use protocols::{
     generate_node_id, GeometricCRDT, GeometricOperation, OperationType, VectorClock,
 };
 
-// Re-export test types at top level (only when testing feature is enabled)
-#[cfg(feature = "testing")]
+// Re-export test types at top level
 pub use test::{
     assert_ga3_equal, assert_magnitude, assert_zero, random_ga3, random_rotor, random_unit_vector,
     rotor_manifold, test_impossible, test_rare, unit_sphere, GeometricError, InvariantCategory,
