@@ -9,7 +9,7 @@
  * Running with Bun provides faster startup and native TypeScript support.
  */
 
-import init, { Behavior } from '@cliffy/core';
+import init, { Behavior } from '@cliffy-ga/core';
 import { html, mount } from './html';
 
 // Initialize WASM module and render the app

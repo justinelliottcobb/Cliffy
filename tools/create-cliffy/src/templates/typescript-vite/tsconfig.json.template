@@ -14,8 +14,8 @@
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
     "paths": {
-      "@cliffy/core": ["./node_modules/@cliffy/core"],
-      "@cliffy/core/*": ["./node_modules/@cliffy/core/*"]
+      "@cliffy-ga/core": ["./node_modules/@cliffy-ga/core"],
+      "@cliffy-ga/core/*": ["./node_modules/@cliffy-ga/core/*"]
     }
   },
   "include": ["src/**/*"]

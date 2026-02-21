@@ -91,15 +91,16 @@ jobs:
 
       - name: Build WASM package
         run: wasm-pack build cliffy-wasm --target web --out-dir pkg
-        continue-on-error: true
+
+      - name: Run post-build script
+        run: node scripts/post-wasm-build.js
 
       - name: Upload WASM artifacts
         uses: actions/upload-artifact@v6
         with:
           name: wasm-build
           path: cliffy-wasm/pkg/
-          if-no-files-found: ignore
-        if: success()
+          if-no-files-found: error
 
   wasm-unit-tests:
     name: WASM Unit Tests

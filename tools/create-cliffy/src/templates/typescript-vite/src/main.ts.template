@@ -7,7 +7,7 @@
  * - Automatic DOM updates when Behaviors change
  */
 
-import init, { Behavior } from '@cliffy/core';
+import init, { Behavior } from '@cliffy-ga/core';
 import { html, mount } from './html';
 
 // Initialize WASM module and render the app

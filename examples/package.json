@@ -5,6 +5,7 @@
   "type": "module",
   "workspaces": [
     "shared",
+    "signaling-server",
     "landing",
     "whiteboard",
     "multiplayer-game",
@@ -37,6 +38,7 @@
     "dev:counter": "npm run dev -w tsx-counter",
     "dev:todo": "npm run dev -w tsx-todo",
     "dev:forms": "npm run dev -w tsx-forms",
+    "signaling": "npm run dev -w signaling-server",
     "build:all": "npm run build -ws --if-present",
     "preview": "npx serve dist -l 3000",
     "preview:build": "npm run build:preview && npm run preview",

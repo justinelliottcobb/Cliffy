@@ -1,10 +1,11 @@
 [package]
 name = "cliffy-test"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Algebraic testing framework for Cliffy - tests as geometric invariants"
 license = "MIT"
 repository = "https://github.com/justinelliottcobb/Cliffy"
+readme = "README.md"
 keywords = ["testing", "geometric-algebra", "property-testing", "invariants", "probabilistic"]
 categories = ["development-tools::testing", "mathematics"]
 
@@ -13,7 +14,7 @@ categories = ["development-tools::testing", "mathematics"]
 amari-core = { workspace = true }
 
 # Probabilistic contracts
-amari-flynn = "0.17.0"
+amari-flynn = "0.18"
 
 # Property-based testing
 quickcheck = "1.0"
