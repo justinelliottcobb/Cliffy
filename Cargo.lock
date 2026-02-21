@@ -13,9 +13,9 @@ dependencies = [
 
 [[package]]
 name = "amari-core"
-version = "0.17.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21ce640952988d6180a1b4960fa29eff4bdc38a6d2ddac98c46c980b8ca8746a"
+checksum = "6caa57d227ad2b1695db673e0901c3a6d2ac7d94872793349775c226616dd776"
 dependencies = [
  "approx",
  "bytemuck",
@@ -27,9 +27,9 @@ dependencies = [
 
 [[package]]
 name = "amari-flynn"
-version = "0.17.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6a0fed567013294c4916bf3375fabe6a88ba27252666502738509464cd423434"
+checksum = "3ec251e119a2fe7178049a341e8bebd00573091122b90a573a245da66d059c93"
 dependencies = [
  "amari-flynn-macros",
  "rand",
@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "amari-flynn-macros"
-version = "0.17.0"
+version = "0.18.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b07623c175c9842b2deb7cbed604d9eb8b6812a178d997e4c9eb79afaa8413cb"
+checksum = "21e61eea1be7c8bc87f13f3a5d80a26ea72590c03c7d884172621c8de45d23cc"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -330,8 +330,11 @@ version = "0.1.0"
 dependencies = [
  "cliffy-core",
  "cliffy-protocols",
+ "cliffy-test",
  "console_error_panic_hook",
+ "getrandom 0.2.17",
  "js-sys",
+ "rand",
  "uuid",
  "wasm-bindgen",
  "wasm-bindgen-test",
@@ -566,8 +569,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff2abc00be7fca6ebc474524697ae276ad847ad0a6b3faa4bcb027e9a4614ad0"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]

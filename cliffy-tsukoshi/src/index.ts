@@ -147,3 +147,56 @@ export function pos3(x: number, y: number, z: number): GeometricState {
 export function scalarState(value: number): GeometricState {
   return GeometricState.fromScalar(value);
 }
+
+// ==========================================================================
+// Protocols (also available via 'cliffy-tsukoshi/protocols')
+// ==========================================================================
+
+export {
+  // Vector Clock
+  VectorClock,
+  // CRDT
+  GeometricCRDT,
+  OperationType,
+  geometricMean,
+  // Lattice
+  GA3Lattice,
+  ComponentLattice,
+  latticeJoin,
+  latticeMeet,
+  // Delta
+  DeltaEncoding,
+  DeltaBatch,
+  computeDelta,
+  applyDelta,
+  applyAdditiveDelta,
+  // Storage
+  MemoryStore,
+  recoverState,
+  // Sync
+  SyncState,
+  PeerConnectionState,
+  // Consensus
+  GeometricConsensus,
+} from './protocols/index.js';
+
+export type {
+  GeometricOperation,
+  GeometricLattice,
+  StateDelta,
+  Snapshot,
+  StoredOperation,
+  StorageStats,
+  GeometricStore,
+  MemoryStoreConfig,
+  RecoveryResult,
+  SyncMessage,
+  SyncPayload,
+  PeerInfo,
+  PeerCapabilities,
+  PeerState,
+  SyncConfig,
+  ConsensusMessage,
+  MessageType,
+  ConsensusMessageHandler,
+} from './protocols/index.js';
