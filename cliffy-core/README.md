@@ -75,13 +75,93 @@ let rotated = state.apply_rotor(&Rotor::xy(std::f64::consts::FRAC_PI_2));
 - **Composable**: Map, combine, fold, filter operations
 - **Zero-cost abstractions**: Compiles to efficient code
 
-## Usage with Other Frameworks
+## Integration with Leptos
 
-`cliffy-core` is framework-agnostic and can be used with:
-- **Yew**: Reactive state for Yew components
-- **Leptos**: Signal-like reactivity
-- **Dioxus**: State management layer
-- **WASM**: Via `cliffy-wasm` bindings
+Use Cliffy's geometric state with Leptos signals:
+
+```rust
+use leptos::*;
+use cliffy_core::{Behavior, GeometricState, Rotor};
+
+#[component]
+fn RotatingBox() -> impl IntoView {
+    // Cliffy behavior for smooth rotation
+    let rotation = Behavior::new(0.0_f64);
+
+    // Bridge to Leptos signal
+    let (angle, set_angle) = create_signal(0.0);
+
+    // Subscribe Cliffy behavior to update Leptos
+    rotation.subscribe(move |value| set_angle.set(value));
+
+    // Geometric interpolation for smooth animation
+    let animate = move |_| {
+        let current = rotation.sample();
+        let target = current + std::f64::consts::FRAC_PI_4;
+
+        // Use rotor for smooth rotation
+        let rotor = Rotor::xy(target - current);
+        rotation.set(target);
+    };
+
+    view! {
+        <div
+            style:transform=move || format!("rotate({}rad)", angle.get())
+            on:click=animate
+        >
+            "Click to rotate"
+        </div>
+    }
+}
+```
+
+## Integration with Yew
+
+Use Cliffy behaviors as Yew component state:
+
+```rust
+use yew::prelude::*;
+use cliffy_core::{Behavior, combine};
+
+#[function_component]
+fn Counter() -> Html {
+    // Cliffy behaviors for state
+    let count_a = use_state(|| Behavior::new(0));
+    let count_b = use_state(|| Behavior::new(0));
+
+    // Derive combined state
+    let sum = combine(&*count_a, &*count_b, |a, b| a + b);
+
+    // Force re-render on changes
+    let trigger = use_force_update();
+
+    let on_click_a = {
+        let count = count_a.clone();
+        let trigger = trigger.clone();
+        Callback::from(move |_| {
+            count.update(|n| n + 1);
+            trigger.force_update();
+        })
+    };
+
+    let on_click_b = {
+        let count = count_b.clone();
+        let trigger = trigger.clone();
+        Callback::from(move |_| {
+            count.update(|n| n + 1);
+            trigger.force_update();
+        })
+    };
+
+    html! {
+        <div>
+            <p>{ format!("A: {} + B: {} = {}", count_a.sample(), count_b.sample(), sum.sample()) }</p>
+            <button onclick={on_click_a}>{ "Increment A" }</button>
+            <button onclick={on_click_b}>{ "Increment B" }</button>
+        </div>
+    }
+}
+```
 
 ## License
 
