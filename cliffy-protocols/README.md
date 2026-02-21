@@ -152,12 +152,94 @@ All conflict resolution uses geometric algebra:
 
 This means no ad-hoc conflict resolution logic - just geometry.
 
-## Usage with Frameworks
+## Integration with Leptos
 
-Works with any Rust async runtime:
-- **Tokio**: Full async support
-- **Yew/Leptos/Dioxus**: Client-side state sync
-- **Axum/Actix**: Server-side coordination
+Build collaborative apps with Leptos and geometric CRDTs:
+
+```rust
+use leptos::*;
+use cliffy_protocols::{GeometricCRDT, VectorClock};
+
+#[component]
+fn CollaborativeCounter() -> impl IntoView {
+    let node_id = "browser-1";
+    let (crdt, set_crdt) = create_signal(GeometricCRDT::new(node_id, 0.0));
+    let (count, set_count) = create_signal(0.0);
+
+    // Simulate receiving updates from other nodes
+    let merge_remote = move |remote_state: GeometricCRDT| {
+        set_crdt.update(|local| {
+            let merged = local.merge(&remote_state);
+            set_count.set(merged.value());
+            *local = merged;
+        });
+    };
+
+    let increment = move |_| {
+        set_crdt.update(|crdt| {
+            crdt.add(1.0);
+            set_count.set(crdt.value());
+        });
+    };
+
+    view! {
+        <div>
+            <p>"Collaborative count: " {count}</p>
+            <button on:click=increment>"+"</button>
+            <p class="hint">"Changes sync automatically with other users"</p>
+        </div>
+    }
+}
+```
+
+## Integration with Yew
+
+Real-time sync in Yew applications:
+
+```rust
+use yew::prelude::*;
+use cliffy_protocols::{SyncState, VectorClock, GeometricCRDT};
+use gloo_timers::callback::Interval;
+
+#[function_component]
+fn SyncedEditor() -> Html {
+    let node_id = "yew-client";
+    let sync = use_state(|| SyncState::new(node_id));
+    let document = use_state(|| GeometricCRDT::new(node_id, 0.0));
+
+    // Periodic sync with server
+    use_effect_with((), {
+        let sync = sync.clone();
+        let document = document.clone();
+        move |_| {
+            let interval = Interval::new(1000, move || {
+                // Create delta request for changes since last sync
+                let request = sync.create_delta_request(&sync.local_clock());
+
+                // In real app: send request via WebSocket
+                // On response: merge incoming state
+            });
+
+            || drop(interval)
+        }
+    });
+
+    let on_edit = {
+        let document = document.clone();
+        Callback::from(move |value: f64| {
+            document.borrow_mut().add(value);
+        })
+    };
+
+    html! {
+        <div class="editor">
+            <p>{ format!("Document state: {:.2}", document.value()) }</p>
+            <button onclick={on_edit.reform(|_| 1.0)}>{ "Add 1" }</button>
+            <span class="sync-status">{ "● Synced" }</span>
+        </div>
+    }
+}
+```
 
 ## License
 

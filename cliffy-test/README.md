@@ -140,6 +140,95 @@ fn rotor_composition_is_associative(a: ArbitraryRotor, b: ArbitraryRotor, c: Arb
 }
 ```
 
+## Testing Leptos Components
+
+Test geometric state invariants in Leptos apps:
+
+```rust
+use cliffy_test::{invariant_impossible, test_impossible};
+use cliffy_core::{Behavior, GeometricState};
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_rotation_state_invariants() {
+        // Test that rotation state always stays normalized
+        let report = test_impossible(
+            "Rotation state magnitude is always 1",
+            || {
+                let state = GeometricState::from_vector(
+                    rand::random::<f64>(),
+                    rand::random::<f64>(),
+                    rand::random::<f64>(),
+                );
+                let normalized = state.normalize();
+                (normalized.magnitude() - 1.0).abs() < 1e-10
+            },
+            1000,
+        );
+
+        assert!(report.verified, "Invariant violated: {:?}", report);
+    }
+}
+```
+
+## Testing Yew Components
+
+Validate CRDT convergence in Yew collaborative apps:
+
+```rust
+use cliffy_test::{test_impossible, test_rare};
+use cliffy_protocols::GeometricCRDT;
+
+#[cfg(test)]
+mod crdt_tests {
+    use super::*;
+
+    #[test]
+    fn test_crdt_convergence() {
+        // CRDTs must always converge regardless of merge order
+        let report = test_impossible(
+            "CRDT merge is commutative",
+            || {
+                let mut a = GeometricCRDT::new("a", rand::random());
+                let mut b = GeometricCRDT::new("b", rand::random());
+
+                a.add(rand::random());
+                b.add(rand::random());
+
+                let ab = a.clone().merge(&b);
+                let ba = b.clone().merge(&a);
+
+                (ab.value() - ba.value()).abs() < 1e-10
+            },
+            1000,
+        );
+
+        assert!(report.verified);
+    }
+
+    #[test]
+    fn test_sync_latency() {
+        // Sync should complete quickly in most cases
+        let report = test_rare(
+            "Sync completes in under 100ms",
+            || {
+                let start = std::time::Instant::now();
+                // Simulate sync operation
+                std::thread::sleep(std::time::Duration::from_millis(rand::random::<u64>() % 150));
+                start.elapsed().as_millis() < 100
+            },
+            0.3,  // Allow up to 30% slow syncs
+            100,
+        );
+
+        assert!(report.verified);
+    }
+}
+```
+
 ## License
 
 MIT

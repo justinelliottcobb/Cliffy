@@ -1,5 +1,5 @@
 {
-  "name": "cliffy-tsukoshi",
+  "name": "@cliffy-ga/tsukoshi",
   "version": "0.2.0",
   "description": "Minimal geometric state management with distributed protocols - pure TypeScript, zero dependencies",
   "type": "module",
