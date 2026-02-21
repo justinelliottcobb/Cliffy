@@ -1,10 +1,11 @@
 [package]
 name = "cliffy-core"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "Reactive UI framework with geometric algebra state management"
 license = "MIT"
-repository = "https://github.com/your-username/cliffy"
+repository = "https://github.com/justinelliottcobb/Cliffy"
+readme = "README.md"
 keywords = ["reactive", "frp", "geometric-algebra", "ui", "wasm"]
 categories = ["gui", "wasm", "mathematics"]
 
