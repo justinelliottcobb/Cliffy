@@ -50,6 +50,9 @@
     "url": "https://github.com/justinelliottcobb/Cliffy.git",
     "directory": "cliffy-tsukoshi"
   },
+  "publishConfig": {
+    "access": "public"
+  },
   "devDependencies": {
     "@cliffy-ga/core": "file:../cliffy-wasm/pkg",
     "tsup": "^8.0.0",
