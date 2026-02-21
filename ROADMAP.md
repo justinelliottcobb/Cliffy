@@ -23,12 +23,23 @@ All state transformations are geometric operations in Clifford algebra:
 
 ## Release Milestones
 
-| Version | Phase | Milestone | Description |
-|---------|-------|-----------|-------------|
-| **0.1.0** | Phase 8 | First Public Release | Core framework with documentation and multi-language examples |
-| **0.2.0** | Phase 9 | Mobile Support | Trebek middleware for React Native and Lynx |
-| **0.3.0** | Phase 10 | Living UI | Evolutionary UI with cliffy-alive integration |
-| **0.4.0** | Phase 11 | Component Library | Standard component set with living variants |
+| Version | Phase | Milestone | Status |
+|---------|-------|-----------|--------|
+| **0.1.x** | Phase 7-8 | First Public Release | ✅ Released (v0.1.3) |
+| **0.2.0** | Phase 9 | P2P Sync + Tooling | 🎯 Next Target |
+| **0.3.0** | Phase 10 | Component Library | Planned |
+| **0.4.0** | Phase 11 | Living UI | Planned |
+| **0.5.0** | Phase 12 | Mobile Support | Planned |
+
+### v0.1.x (Released)
+- Core FRP primitives (Behavior, Event, combinators)
+- WASM bindings with Algebraic TSX (html tagged template)
+- Distributed state protocols (CRDT, sync, storage)
+- Geometric testing framework
+- GPU acceleration with SIMD fallback
+- 13 example applications deployed to Netlify
+- PureScript bindings with type-safe Html DSL
+- `create-cliffy` scaffolding CLI
 
 ### Pre-release Phases (0.0.x)
 
@@ -47,21 +58,35 @@ Phases 0-7 are internal development milestones leading to the first public relea
 
 ## Current State
 
-### Working Crates
+**Current Release: v0.1.3** (`@cliffy-ga/core` on npm)
 
-| Crate | Status | Description |
-|-------|--------|-------------|
-| `cliffy-core` | ✅ Active | FRP primitives (Behavior, Event) with GA3 internally |
-| `cliffy-wasm` | ✅ Active | WASM bindings via wasm-bindgen |
-| `amari-core` | ✅ External | Geometric algebra library (dependency) |
+### Active Crates
+
+| Crate | Tests | Description |
+|-------|-------|-------------|
+| `cliffy-core` | 79 | FRP primitives (Behavior, Event) with GA3 internally |
+| `cliffy-wasm` | 4 | WASM bindings + html.ts (Algebraic TSX) |
+| `cliffy-protocols` | 42 | Distributed state (CRDT, sync, storage, lattice) |
+| `cliffy-test` | 25 | Geometric testing framework (invariants, manifolds) |
+| `cliffy-gpu` | 18 | WebGPU acceleration with SIMD fallback |
+| `cliffy-loadtest` | 15 | Scale testing simulator |
+| `amari-core` | External | Geometric algebra library (dependency) |
 
 ### Archived (to be revived)
 
 | Crate | Status | Description |
 |-------|--------|-------------|
-| `cliffy-protocols` | 📦 Archived | CRDT + consensus with geometric operations |
 | `cliffy-alive` | 📦 Archived | Living UI / cellular automata (experimental) |
-| `cliffy-frp` | 📦 Archived | Additional FRP utilities |
+
+### Deployed Examples (Netlify)
+
+| Category | Examples |
+|----------|----------|
+| Basics | tsx-counter, tsx-todo, tsx-forms |
+| Tools | whiteboard, design-tool |
+| Distributed | crdt-playground, document-editor, p2p-sync, multiplayer-game |
+| Advanced | geometric-transforms, gpu-benchmark, testing-showcase |
+| Infrastructure | landing page |
 
 ### Development Standards
 
@@ -149,16 +174,30 @@ amari-flynn = { path = "../amari/amari-flynn" }  # or version
 
 ---
 
+### Completed (v0.1.x)
+
+| Component | Status | Description |
+|-----------|--------|-------------|
+| `cliffy-test` | ✅ | Algebraic testing framework (invariants, manifolds, probabilistic) |
+| Geometric State Layer | ✅ | Rotors/versors for state transforms (in cliffy-core) |
+| Lattice Operations | ✅ | Join-semilattice with geometric join (in cliffy-protocols) |
+| Algebraic TSX | ✅ | html tagged template + PureScript DSL (in cliffy-wasm) |
+| WebGPU Acceleration | ✅ | GPU compute with SIMD fallback (in cliffy-gpu) |
+
+### In Progress (v0.2.0)
+
+| Component | Description |
+|-----------|-------------|
+| P2P Sync (WebRTC) | Real WebRTC-based state synchronization (PR #149) |
+| create-cliffy Library Mode | Scaffold component libraries, not just apps |
+
 ### Not Yet Built
 
 | Component | Description |
 |-----------|-------------|
-| `cliffy-test` | Algebraic testing framework (tests as geometric invariants) |
-| Geometric State Layer | Rotors/versors for state transforms |
-| Lattice Operations | Join-semilattice with geometric join |
-| P2P Sync | WebRTC-based state synchronization |
-| Algebraic TSX | Dataflow graph specification (not VDOM) |
-| WebGPU Acceleration | Parallel geometric operations |
+| Component Library | Standard geometric components with theming |
+| Living UI | cliffy-alive integration with new architecture |
+| Trebek Mobile | React Native + Lynx middleware (deferred)
 
 ---
 
@@ -1336,107 +1375,83 @@ The good news is ATSX uses the same `html` tagged template syntax as lit-html, s
 
 **🎯 Milestone: First Public Release (v0.1.0)**
 
-### 8.1 TypeScript Examples
+### 8.1 TypeScript Examples ✅
 
 Modern TypeScript with full type safety:
 
 ```typescript
-// examples/ts-counter/src/main.ts
-import { behavior, GeometricState, Rotor } from '@cliffy/core';
+// examples/tsx-counter/src/main.ts
+import init, { behavior } from '@cliffy-ga/core';
+import { html, mount } from '@cliffy-ga/core/html';
 
-const count = behavior<number>(0);
-const doubled = count.map(n => n * 2);
-
-count.subscribe(n => {
-    document.getElementById('count')!.textContent = String(n);
-});
-
-document.getElementById('increment')!.onclick = () => {
-    count.update(n => n + 1);
-};
-```
-
-**Examples**:
-- [ ] `ts-counter` - Basic counter with type-safe behaviors
-- [ ] `ts-todo` - TodoMVC with full typing
-- [ ] `ts-collaborative` - Real-time collaboration demo
-- [ ] `ts-animation` - Geometric interpolation showcase
-- [ ] `ts-forms` - Form validation with algebraic constraints
-
-### 8.2 JavaScript Examples
-
-Vanilla JavaScript for maximum accessibility:
-
-```javascript
-// examples/js-counter/src/main.js
-import { behavior } from '@cliffy/core';
+await init();
 
 const count = behavior(0);
 
-count.subscribe(n => {
-    document.getElementById('count').textContent = n;
-});
+const app = html`
+  <div class="counter">
+    <h1>Count: ${count}</h1>
+    <button onclick=${() => count.update(n => n + 1)}>+</button>
+  </div>
+`;
 
-document.getElementById('increment').onclick = () => {
-    count.update(n => n + 1);
-};
+mount(app, '#app');
 ```
 
-**Examples**:
+**Examples** (all deployed to Netlify):
+- [x] `tsx-counter` - Basic counter with Algebraic TSX
+- [x] `tsx-todo` - TodoMVC with full typing
+- [x] `tsx-forms` - Form validation with algebraic constraints
+- [x] `whiteboard` - Real-time drawing with geometric transforms
+- [x] `design-tool` - Complex geometric operations, undo/redo
+- [x] `document-editor` - CRDT text, presence indicators
+- [x] `multiplayer-game` - High-frequency state sync, interpolation
+- [x] `crdt-playground` - Geometric CRDT operations
+- [x] `p2p-sync` - Simulated peer synchronization
+- [x] `geometric-transforms` - Rotor rotations, transform composition
+- [x] `gpu-benchmark` - WebGPU/SIMD performance testing
+- [x] `testing-showcase` - cliffy-test geometric invariants
+
+### 8.2 JavaScript Examples (Deferred)
+
+JavaScript examples deferred to v0.2.0. TypeScript examples work without types for JS users.
+
+**Planned for v0.2.0**:
 - [ ] `js-counter` - Minimal counter
-- [ ] `js-todo` - TodoMVC without build step
-- [ ] `js-widget` - Embeddable widget pattern
 - [ ] `js-cdn` - CDN-only usage (no bundler)
 
-### 8.3 PureScript Examples
+### 8.3 PureScript Examples ✅
 
 Functional programming with algebraic precision:
 
 ```purescript
--- examples/ps-counter/src/Main.purs
+-- examples/purescript-counter/src/Main.purs
 module Main where
 
-import Cliffy.Core (behavior, subscribe, update)
-import Effect (Effect)
+import Cliffy (behavior, update)
+import Cliffy.Html (div, button, text, behaviorText, mount)
+import Cliffy.Html.Events (onClick)
 
 main :: Effect Unit
 main = do
   count <- behavior 0
 
-  subscribe count \n ->
-    setTextContent "count" (show n)
+  let app = div []
+        [ text "Count: "
+        , behaviorText count
+        , button [ onClick \_ -> update (_ + 1) count ] [ text "+" ]
+        ]
 
-  onClick "increment" do
-    update count (_ + 1)
+  mount app "#app"
 ```
 
-**Examples**:
-- [ ] `ps-counter` - Counter with pure functional style
-- [ ] `ps-todo` - TodoMVC with ADTs for state
-- [ ] `ps-frp` - Advanced FRP patterns (applicative, monadic)
-- [ ] `ps-validation` - Type-safe form validation
+**Examples** (require spago toolchain):
+- [x] `purescript-counter` - Counter with pure functional style
+- [x] `purescript-todo` - TodoMVC with ADTs for state
 
-### 8.4 CoffeeScript Examples
+### 8.4 CoffeeScript Examples (Deferred)
 
-Concise syntax for rapid prototyping:
-
-```coffeescript
-# examples/coffee-counter/src/main.coffee
-{behavior} = require '@cliffy/core'
-
-count = behavior 0
-
-count.subscribe (n) ->
-  document.getElementById('count').textContent = n
-
-document.getElementById('increment').onclick = ->
-  count.update (n) -> n + 1
-```
-
-**Examples**:
-- [ ] `coffee-counter` - Counter with CoffeeScript elegance
-- [ ] `coffee-todo` - TodoMVC in CoffeeScript
-- [ ] `coffee-prototype` - Rapid prototyping workflow
+CoffeeScript examples deferred to v0.2.0. Lower priority given TypeScript adoption.
 
 ### 8.5 Cross-Language Comparison
 
@@ -1475,11 +1490,117 @@ npm run build  # Production build
 
 ---
 
-## Phase 9: Native Mobile (Trebek) → v0.2.0
+## Phase 9: P2P Sync Polish + Tooling → v0.2.0
+
+**Goal**: Complete the WebRTC P2P synchronization implementation and enhance the create-cliffy scaffolding tool.
+
+**🎯 Milestone: P2P Sync + Tooling (v0.2.0)**
+
+### Overview
+
+Phase 9 focuses on completing and polishing the real-time synchronization layer while improving developer tooling:
+
+1. **WebRTC P2P Sync** - Real browser-to-browser synchronization (PR #149)
+2. **create-cliffy Library Mode** - Scaffold component libraries, not just apps
+3. **Documentation** - Complete create-cliffy and P2P sync documentation
+
+### 9.1 WebRTC P2P Sync (Completed in PR #149)
+
+Real peer-to-peer synchronization replacing the simulated network:
+
+```
+┌─────────────────┐     ┌─────────────────┐
+│   Browser A     │     │   Browser B     │
+│  ┌───────────┐  │     │  ┌───────────┐  │
+│  │ CRDT State│  │     │  │ CRDT State│  │
+│  └─────┬─────┘  │     │  └─────┬─────┘  │
+│  ┌─────▼─────┐  │     │  ┌─────▼─────┐  │
+│  │WebRTC     │◄─┼─────┼─►│WebRTC     │  │
+│  │Transport  │  │     │  │Transport  │  │
+│  └─────┬─────┘  │     │  └─────┬─────┘  │
+└────────┼────────┘     └────────┼────────┘
+         │   ┌───────────────┐   │
+         └──►│ Signaling     │◄──┘
+             │ Server (WS)   │
+             └───────────────┘
+```
+
+**Implemented**:
+- [x] `examples/shared/src/webrtc/types.ts` - Protocol types
+- [x] `examples/shared/src/webrtc/codec.ts` - Binary serialization
+- [x] `examples/shared/src/webrtc/transport.ts` - RTCPeerConnection wrapper
+- [x] `examples/shared/src/webrtc/signaling.ts` - WebSocket client
+- [x] `examples/shared/src/webrtc/peer-manager.ts` - High-level integration
+- [x] `examples/signaling-server/` - Node.js WebSocket relay
+
+**Polish Tasks**:
+- [ ] Add E2E tests for WebRTC sync (Playwright)
+- [ ] Improve error handling and reconnection logic
+- [ ] Add usage documentation to p2p-sync example
+- [ ] Deploy hosted signaling server (optional)
+
+### 9.2 create-cliffy Library Mode
+
+Extend the scaffolding tool to create component libraries:
+
+```bash
+npx create-cliffy my-lib
+# Select: "Component Library" instead of "Application"
+```
+
+**App vs Library Differences**:
+
+| Aspect | App | Library |
+|--------|-----|---------|
+| `private` | true | false |
+| Build output | Bundled | Unbundled ESM |
+| Entry point | `src/main.ts` | `src/index.ts` |
+| Vite mode | Default | `build.lib` |
+| TypeScript | Standard | Declarations enabled |
+| Exports | N/A | Package exports map |
+
+**Library Template Features**:
+- Vite library build mode with `vite-plugin-dts`
+- Peer dependencies on `@cliffy-ga/core`
+- TypeScript declaration generation
+- Example component included
+- Package exports map for proper ESM
+
+**Tasks**:
+- [ ] Add project type selection (app vs library) to CLI
+- [ ] Create `typescript-vite-library` template
+- [ ] Update scaffold.ts for library mode
+- [ ] Fix package name: `@cliffy/core` → `@cliffy-ga/core`
+- [ ] Update CLIFFY_VERSION to `0.1.3`
+
+### 9.3 create-cliffy Documentation
+
+Create comprehensive documentation for the scaffolding tool:
+
+**Tasks**:
+- [ ] Write `tools/create-cliffy/README.md`
+  - Installation and usage
+  - Available templates (typescript-vite, bun, purescript)
+  - App vs Library mode
+  - Template customization guide
+  - Contributing guide
+
+### Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| `vite-plugin-dts` | TypeScript declarations for library builds |
+| `ws` | WebSocket for signaling server |
+
+---
+
+## Phase 9-DEFERRED: Native Mobile (Trebek) → v0.5.0
+
+**Note**: Mobile support has been deferred to v0.5.0 to prioritize component library and Living UI work.
 
 **Goal**: Algebraic UI middleware for React Native and Lynx—pure functional state machines with zero hooks.
 
-**🎯 Milestone: Mobile Support (v0.2.0)**
+**🎯 Milestone: Mobile Support (v0.5.0)**
 
 ### Motivation
 
@@ -1770,11 +1891,143 @@ pub enum PropValue<T> {
 
 ---
 
-## Phase 10: Living UI Revival (cliffy-alive) → v0.3.0
+## Phase 10: Component Library (cliffy-components) → v0.3.0
+
+**Goal**: A standard library of geometric components built on Phase 4's foundation, preparing for Living UI integration.
+
+**🎯 Milestone: Component Library (v0.3.0)**
+
+### Overview
+
+The component library provides standard UI primitives with geometric state, serving as the foundation for Living UI variants:
+
+### 10.1 Core Components
+
+Standard UI primitives with geometric state:
+
+```rust
+/// Button with geometric state for animations
+pub struct Button {
+    label: Behavior<String>,
+    disabled: Behavior<bool>,
+    // 8D state: position, size, opacity, scale for hover/press
+    state: GeometricState,
+}
+
+impl Component for Button {
+    fn render(&self, state: &GA3) -> Element {
+        Element::tag("button")
+            .class("cliffy-button")
+            .class_if("disabled", self.disabled.sample())
+            .style("transform", self.state.to_transform())
+            .text(&self.label.sample())
+            .on("click", self.on_click.clone())
+    }
+}
+```
+
+**Components**:
+- [ ] `Button` - Click target with press/hover states
+- [ ] `Input` - Text input with validation state
+- [ ] `Select` - Dropdown with geometric transitions
+- [ ] `Checkbox` / `Radio` - Toggle controls
+- [ ] `Slider` - Range input with geometric thumb
+- [ ] `Modal` - Overlay with geometric entry/exit
+- [ ] `Tooltip` - Positioned overlay
+- [ ] `Tabs` - Tab navigation with transitions
+
+### 10.2 Layout Components
+
+Geometric layout primitives:
+
+```rust
+/// Flexbox-like layout with geometric spacing
+pub struct Stack {
+    direction: Behavior<Direction>,
+    spacing: Behavior<f64>,
+    children: Vec<Element>,
+}
+
+/// Grid layout with geometric cell sizing
+pub struct Grid {
+    columns: Behavior<usize>,
+    gap: Behavior<f64>,
+    children: Vec<Element>,
+}
+```
+
+**Components**:
+- [ ] `Stack` - Vertical/horizontal stacking
+- [ ] `Grid` - Grid layout
+- [ ] `Canvas` - Absolute positioning
+- [ ] `Scroll` - Scrollable container
+- [ ] `Split` - Resizable split panes
+
+### 10.3 Form Components
+
+Form handling with geometric validation:
+
+```rust
+/// Form with geometric validation feedback
+pub struct Form {
+    fields: Vec<FormField>,
+    validation: ValidationState,
+    on_submit: Event<FormData>,
+}
+
+/// Validation state as geometric distance from valid manifold
+pub struct ValidationState {
+    /// 0 = valid, >0 = distance from validity
+    error_distance: Behavior<f64>,
+    /// Error messages projected from validation manifold
+    errors: Behavior<Vec<ValidationError>>,
+}
+```
+
+**Components**:
+- [ ] `Form` - Form container with validation
+- [ ] `FormField` - Labeled input wrapper
+- [ ] `ValidationMessage` - Error display
+- [ ] `FormActions` - Submit/cancel buttons
+
+### 10.4 Theming System
+
+Geometric theming with smooth transitions:
+
+```rust
+/// Theme as a point in color/spacing geometric space
+pub struct Theme {
+    colors: ColorPalette,
+    spacing: SpacingScale,
+    typography: TypographyScale,
+    animations: AnimationCurves,
+}
+
+/// Switch themes via geometric interpolation
+pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavior<Theme>;
+```
+
+**Tasks**:
+- [ ] Define theme structure
+- [ ] Implement theme context
+- [ ] Add geometric theme transitions
+- [ ] Create default light/dark themes
+- [ ] Add theme customization API
+
+### Dependencies
+
+| Crate | Purpose |
+|-------|---------|
+| `cliffy-core` | FRP primitives, Component trait |
+| `cliffy-wasm` | DOM projection |
+
+---
+
+## Phase 11: Living UI Revival (cliffy-alive) → v0.4.0
 
 **Goal**: Resurrect the Living UI system where components are living cells that evolve based on user interaction, integrated with the new architecture.
 
-**🎯 Milestone: Living UI (v0.3.0)**
+**🎯 Milestone: Living UI (v0.4.0)**
 
 ### Background
 
@@ -1806,7 +2059,7 @@ The archived `cliffy-alive` crate implements a revolutionary paradigm: UI compon
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 10.1 Migration to New Architecture
+### 11.1 Migration to New Architecture
 
 Update `cliffy-alive` to use the refactored `cliffy-core` types:
 
@@ -1835,7 +2088,7 @@ pub trait LivingComponent: Component + Send + Sync {
 - [ ] Update tests for new API
 - [ ] Ensure 66 existing tests pass
 
-### 10.2 Integration with Component Model
+### 11.2 Integration with Component Model
 
 Living cells should compose with Phase 4's algebraic components:
 
@@ -1869,7 +2122,7 @@ fn create_organism() -> ComposedComponent<UIOrganismField, Vec<UICell>> {
 - [ ] Add composition with standard components
 - [ ] Create hybrid examples (living + static components)
 
-### 10.3 8D Geometric Embedding
+### 11.3 8D Geometric Embedding
 
 The 8-dimensional state space maps directly to CSS properties:
 
@@ -1910,7 +2163,7 @@ impl UICell {
 - [ ] Add geometric interpolation for smooth animations
 - [ ] Create SLERP-based cell movement
 
-### 10.4 Evolution Engine Refinement
+### 11.4 Evolution Engine Refinement
 
 Enhance the genetic algorithm with geometric fitness:
 
@@ -1948,7 +2201,7 @@ impl FitnessFunction {
 - [ ] Create fitness visualization tools
 - [ ] Benchmark evolution performance
 
-### 10.5 WASM Bindings
+### 11.5 WASM Bindings
 
 Expose Living UI to JavaScript:
 
@@ -1987,7 +2240,7 @@ document.addEventListener('click', (e) => {
 - [ ] Implement fitness feedback API
 - [ ] Create TypeScript type definitions
 
-### 10.6 Living UI Examples
+### 11.6 Living UI Examples
 
 Demonstrate the paradigm with compelling examples:
 
@@ -2007,221 +2260,29 @@ Demonstrate the paradigm with compelling examples:
 
 ---
 
-## Phase 11: Component Library (cliffy-components) → v0.4.0
-
-**Goal**: A standard library of geometric components built on Phase 4's foundation, optionally integrating with Living UI.
-
-**🎯 Milestone: Component Library (v0.4.0)**
-
-### 11.1 Core Components
-
-Standard UI primitives with geometric state:
-
-```rust
-/// Button with geometric state for animations
-pub struct Button {
-    label: Behavior<String>,
-    disabled: Behavior<bool>,
-    // 8D state: position, size, opacity, scale for hover/press
-    state: GeometricState,
-}
-
-impl Component for Button {
-    fn render(&self, state: &GA3) -> Element {
-        Element::tag("button")
-            .class("cliffy-button")
-            .class_if("disabled", self.disabled.sample())
-            .style("transform", self.state.to_transform())
-            .text(&self.label.sample())
-            .on("click", self.on_click.clone())
-    }
-}
-```
-
-**Components**:
-- [ ] `Button` - Click target with press/hover states
-- [ ] `Input` - Text input with validation state
-- [ ] `Select` - Dropdown with geometric transitions
-- [ ] `Checkbox` / `Radio` - Toggle controls
-- [ ] `Slider` - Range input with geometric thumb
-- [ ] `Modal` - Overlay with geometric entry/exit
-- [ ] `Tooltip` - Positioned overlay
-- [ ] `Tabs` - Tab navigation with transitions
-
-### 11.2 Layout Components
-
-Geometric layout primitives:
-
-```rust
-/// Flexbox-like layout with geometric spacing
-pub struct Stack {
-    direction: Behavior<Direction>,
-    spacing: Behavior<f64>,
-    children: Vec<Element>,
-}
-
-/// Grid layout with geometric cell sizing
-pub struct Grid {
-    columns: Behavior<usize>,
-    gap: Behavior<f64>,
-    children: Vec<Element>,
-}
-
-/// Absolute positioning in geometric space
-pub struct Canvas {
-    children: Vec<(GeometricState, Element)>,
-}
-```
-
-**Components**:
-- [ ] `Stack` - Vertical/horizontal stacking
-- [ ] `Grid` - Grid layout
-- [ ] `Canvas` - Absolute positioning
-- [ ] `Scroll` - Scrollable container
-- [ ] `Split` - Resizable split panes
-
-### 11.3 Data Display Components
-
-Components for displaying data:
-
-```rust
-/// Table with geometric row animations
-pub struct Table<T> {
-    data: Behavior<Vec<T>>,
-    columns: Vec<Column<T>>,
-    row_key: fn(&T) -> String,
-}
-
-/// List with geometric item transitions
-pub struct List<T> {
-    items: Behavior<Vec<T>>,
-    render_item: fn(&Behavior<T>) -> Element,
-    item_key: fn(&T) -> String,
-}
-```
-
-**Components**:
-- [ ] `Table` - Tabular data with sorting
-- [ ] `List` - Dynamic lists with transitions
-- [ ] `Tree` - Hierarchical data
-- [ ] `Chart` - Basic charts (bar, line, pie)
-- [ ] `Badge` - Status indicators
-
-### 11.4 Form Components
-
-Form handling with geometric validation:
-
-```rust
-/// Form with geometric validation feedback
-pub struct Form {
-    fields: Vec<FormField>,
-    validation: ValidationState,
-    on_submit: Event<FormData>,
-}
-
-/// Validation state as geometric distance from valid manifold
-pub struct ValidationState {
-    /// 0 = valid, >0 = distance from validity
-    error_distance: Behavior<f64>,
-    /// Error messages projected from validation manifold
-    errors: Behavior<Vec<ValidationError>>,
-}
-```
-
-**Components**:
-- [ ] `Form` - Form container with validation
-- [ ] `FormField` - Labeled input wrapper
-- [ ] `ValidationMessage` - Error display
-- [ ] `FormActions` - Submit/cancel buttons
-
-### 11.5 Living Component Variants
-
-Optional living versions of standard components:
-
-```rust
-/// A button that evolves based on user interaction
-pub struct LivingButton {
-    base: Button,
-    cell: UICell,
-}
-
-impl LivingComponent for LivingButton {
-    fn step(&mut self, dt: f64) {
-        self.cell.step(dt);
-        // Cell state influences button appearance
-        let energy = self.cell.energy_level();
-        self.base.state.set_scale(1.0 + energy * 0.1);
-    }
-}
-```
-
-**Components**:
-- [ ] `LivingButton` - Evolving button
-- [ ] `LivingList` - Items compete for space
-- [ ] `LivingNavigation` - Adaptive menu
-- [ ] `LivingDashboard` - Self-organizing widgets
-
-### 11.6 Theming System
-
-Geometric theming with smooth transitions:
-
-```rust
-/// Theme as a point in color/spacing geometric space
-pub struct Theme {
-    /// Color palette as points in color space
-    colors: ColorPalette,
-    /// Spacing scale
-    spacing: SpacingScale,
-    /// Typography scale
-    typography: TypographyScale,
-    /// Animation curves as geometric paths
-    animations: AnimationCurves,
-}
-
-/// Switch themes via geometric interpolation
-pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavior<Theme> {
-    // SLERP through theme space for smooth transition
-}
-```
-
-**Tasks**:
-- [ ] Define theme structure
-- [ ] Implement theme context
-- [ ] Add geometric theme transitions
-- [ ] Create default light/dark themes
-- [ ] Add theme customization API
-
-### Dependencies
-
-| Crate | Purpose |
-|-------|---------|
-| `cliffy-core` | FRP primitives, Component trait |
-| `cliffy-wasm` | DOM projection |
-| `cliffy-alive` | Living component variants (optional) |
-
----
-
 ## Success Criteria
 
-### Phase 0
-- [ ] `cliffy-test` crate compiles
-- [ ] `invariant!` macro generates property tests
-- [ ] Test failures include geometric error information
-- [ ] Tests compose via geometric product
-- [ ] Cross-layer homomorphism tests work
-- [ ] `amari-flynn` integrated for probabilistic contracts
-- [ ] `invariant_impossible!`, `invariant_rare!`, `emergent!` macros work
-- [ ] Monte Carlo verification runs for distributed properties
+### Phase 0 ✅ (Algebraic Testing Framework - COMPLETE)
+- [x] `cliffy-test` crate compiles (25 tests passing)
+- [x] `invariant!` macro generates property tests
+- [x] Test failures include geometric error information
+- [x] `invariant_impossible!`, `invariant_rare!`, `emergent!` macros work
+- [x] Manifold testing with constraints
+- [ ] Cross-layer homomorphism tests (partial)
+- [ ] Monte Carlo verification for distributed properties (partial)
 
 ### Phase 1
 - [ ] Geometric operations exposed in API
 - [ ] Projections from multivector to user types
 - [ ] WASM bindings work in browser
 
-### Phase 2
-- [ ] cliffy-protocols compiles and tests pass
-- [ ] Lattice operations with proven convergence
-- [ ] CRDT merge is correct and efficient
+### Phase 2 ✅ (Distributed State - COMPLETE)
+- [x] cliffy-protocols compiles and tests pass (42 tests)
+- [x] Lattice operations with proven convergence
+- [x] CRDT merge is correct and efficient
+- [x] Vector clocks for causal ordering
+- [x] Delta compression and batching
+- [x] Storage layer with snapshots
 
 ### Phase 3
 - [ ] P2P sync works across browsers
@@ -2233,65 +2294,78 @@ pub fn transition_theme(from: &Theme, to: &Theme, duration: Duration) -> Behavio
 - [ ] Direct DOM updates (no VDOM)
 - [ ] Build-time optimization works
 
-### Phase 5
-- [ ] WebGPU acceleration functional
+### Phase 5 (Edge Computing - PARTIAL)
+- [x] WebGPU acceleration functional (cliffy-gpu, 18 tests)
+- [x] SIMD fallback for non-GPU environments
+- [x] Benchmark suite with CPU vs GPU comparison (gpu-benchmark example)
 - [ ] Distributed compute across peers
-- [ ] 60fps with complex state
-- [ ] Benchmark suite covers CPU vs GPU vs distributed backends
+- [ ] 60fps with complex state (needs testing)
 - [ ] Performance regression tests integrated with CI
 - [ ] Documented batch size thresholds for GPU benefit
 
-### Phase 6
+### Phase 6 (Production Readiness - PARTIAL)
+- [x] Example applications functional (13 deployed to Netlify)
+- [x] CPU/GPU comparison demos (gpu-benchmark example)
+- [x] Load testing framework (cliffy-loadtest, 15 tests)
 - [ ] 10,000 concurrent users tested
 - [ ] Documentation complete
-- [ ] Example applications functional
 - [ ] Each example includes embedded performance benchmarks
-- [ ] CPU/GPU comparison demos show measurable speedups
 - [ ] Benchmark results exportable and reproducible
 
-### Phase 7
+### Phase 7 (Documentation - PARTIAL)
+- [x] CLAUDE.md with architecture and patterns
+- [x] README.md with quick start
+- [x] Algebraic TSX implementation documented in ROADMAP
+- [x] PureScript bindings documented
 - [ ] Full rustdoc coverage for all crates
 - [ ] Getting Started guide complete
-- [ ] Conceptual guides written for all major topics
+- [ ] Conceptual guides for all major topics
 - [ ] Interactive tutorials functional
 - [ ] Architecture documentation with ADRs
-- [ ] Developer tools documented
 
-### Phase 8 → v0.1.0 (First Public Release)
-- [ ] TypeScript examples complete and tested
-- [ ] JavaScript examples work without bundler
-- [ ] PureScript examples demonstrate FP patterns
-- [ ] CoffeeScript examples provide concise alternatives
-- [ ] Cross-language comparison guide written
-- [ ] All examples have CI testing
-- [ ] **Release**: Publish `@cliffy/core` v0.1.0 to npm
+### Phase 8 → v0.1.x ✅ (First Public Release - COMPLETE)
+- [x] TypeScript examples complete and tested (12 examples on Netlify)
+- [x] PureScript examples demonstrate FP patterns (2 examples)
+- [x] All examples have CI testing (GitHub Actions)
+- [x] **Released**: `@cliffy-ga/core` v0.1.3 on npm
+- [ ] JavaScript examples work without bundler (deferred to v0.2.0)
+- [ ] CoffeeScript examples (deferred to v0.2.0)
+- [ ] Cross-language comparison guide (deferred to v0.2.0)
 
-### Phase 9 → v0.2.0 (Mobile Support)
-- [ ] Same middleware code runs on both RN and Lynx
-- [ ] Zero hooks in application code
-- [ ] State machines compose algebraically
-- [ ] Animations use geometric interpolation
-- [ ] TypeScript API feels idiomatic
-- [ ] Performance matches or exceeds hooks-based equivalent
-- [ ] **Release**: Publish `@cliffy/trebek` v0.2.0 to npm
+### Phase 9 → v0.2.0 (P2P Sync + Tooling)
+- [x] WebRTC P2P sync implemented (PR #149)
+- [ ] P2P sync E2E tests passing
+- [ ] create-cliffy library mode working
+- [ ] create-cliffy documentation complete
+- [ ] Package references updated to `@cliffy-ga/core`
+- [ ] **Release**: Publish `@cliffy-ga/core` v0.2.0 to npm
 
-### Phase 10 → v0.3.0 (Living UI)
+### Phase 10 → v0.3.0 (Component Library)
+- [ ] Core component set implemented (Button, Input, Select, etc.)
+- [ ] Layout components working (Stack, Grid, Canvas)
+- [ ] Form components with validation
+- [ ] Theming system with geometric transitions
+- [ ] Component documentation complete
+- [ ] **Release**: Publish `@cliffy-ga/components` v0.3.0 to npm
+
+### Phase 11 → v0.4.0 (Living UI)
 - [ ] cliffy-alive migrated to new architecture
 - [ ] All 66 existing tests pass
 - [ ] UICell implements Component trait
 - [ ] 8D geometric embedding working
 - [ ] WASM bindings functional
 - [ ] Living UI examples demonstrate paradigm
-- [ ] **Release**: Publish `@cliffy/alive` v0.3.0 to npm
+- [ ] Living component variants integrated with component library
+- [ ] **Release**: Publish `@cliffy-ga/alive` v0.4.0 to npm
 
-### Phase 11 → v0.4.0 (Component Library)
-- [ ] Core component set implemented
-- [ ] Layout components working
-- [ ] Form components with validation
-- [ ] Living component variants available
-- [ ] Theming system with geometric transitions
-- [ ] Component documentation complete
-- [ ] **Release**: Publish `@cliffy/components` v0.4.0 to npm
+### Phase 12 → v0.5.0 (Mobile Support - Deferred)
+- [ ] Same middleware code runs on both RN and Lynx
+- [ ] Zero hooks in application code
+- [ ] State machines compose algebraically
+- [ ] Animations use geometric interpolation
+- [ ] TypeScript API feels idiomatic
+- [ ] Performance matches or exceeds hooks-based equivalent
+- [ ] **Release**: Publish `@cliffy-ga/trebek` v0.5.0 to npm
 
 ---
 

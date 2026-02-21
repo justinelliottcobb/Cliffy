@@ -1,0 +1,35 @@
+import { defineConfig } from 'vite';
+import { resolve } from 'path';
+import dts from 'vite-plugin-dts';
+
+export default defineConfig({
+  plugins: [
+    dts({
+      insertTypesEntry: true,
+    }),
+  ],
+
+  build: {
+    lib: {
+      entry: resolve(__dirname, 'src/index.ts'),
+      formats: ['es'],
+      fileName: 'index',
+    },
+    rollupOptions: {
+      // Don't bundle peer dependencies
+      external: ['@cliffy-ga/core'],
+      output: {
+        // Preserve module structure for tree-shaking
+        preserveModules: true,
+        preserveModulesRoot: 'src',
+      },
+    },
+    sourcemap: true,
+  },
+
+  resolve: {
+    alias: {
+      '@cliffy-ga/core': resolve(__dirname, 'node_modules/@cliffy-ga/core'),
+    },
+  },
+});

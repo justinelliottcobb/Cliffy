@@ -9,7 +9,8 @@
     ".": "./src/index.ts",
     "./benchmark": "./src/benchmark/index.ts",
     "./debug": "./src/debug/index.ts",
-    "./network": "./src/network/index.ts"
+    "./network": "./src/network/index.ts",
+    "./webrtc": "./src/webrtc/index.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

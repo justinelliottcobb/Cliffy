@@ -1,7 +1,7 @@
 {
-  "name": "cliffy-tsukoshi",
-  "version": "0.1.0",
-  "description": "Minimal geometric state management - pure TypeScript, zero dependencies",
+  "name": "@cliffy-ga/tsukoshi",
+  "version": "0.2.0",
+  "description": "Minimal geometric state management with distributed protocols - pure TypeScript, zero dependencies",
   "type": "module",
   "main": "./dist/index.cjs",
   "module": "./dist/index.js",
@@ -11,6 +11,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./protocols": {
+      "types": "./dist/protocols/index.d.ts",
+      "import": "./dist/protocols/index.js",
+      "require": "./dist/protocols/index.cjs"
     }
   },
   "files": [
@@ -18,8 +23,8 @@
     "src"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format esm,cjs --dts --clean",
-    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "build": "tsup src/index.ts src/protocols/index.ts --format esm,cjs --dts --clean",
+    "dev": "tsup src/index.ts src/protocols/index.ts --format esm,cjs --dts --watch",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
@@ -32,6 +37,9 @@
     "slerp",
     "rotor",
     "transforms",
+    "crdt",
+    "distributed",
+    "consensus",
     "react-native",
     "mobile"
   ],
@@ -43,6 +51,7 @@
     "directory": "cliffy-tsukoshi"
   },
   "devDependencies": {
+    "@cliffy-ga/core": "file:../cliffy-wasm/pkg",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
     "vitest": "^1.0.0"

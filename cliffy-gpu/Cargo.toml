@@ -1,12 +1,16 @@
 [package]
 name = "cliffy-gpu"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "WebGPU compute shaders for geometric algebra operations"
 license = "MIT"
+repository = "https://github.com/justinelliottcobb/Cliffy"
+readme = "README.md"
+keywords = ["gpu", "webgpu", "geometric-algebra", "simd", "wasm"]
+categories = ["graphics", "mathematics", "wasm"]
 
 [dependencies]
-cliffy-core = { path = "../cliffy-core" }
+cliffy-core = { version = "0.2.0", path = "../cliffy-core" }
 amari-core = { workspace = true }
 wgpu = { version = "24.0", default-features = false, features = ["wgsl"] }
 bytemuck = { version = "1.21", features = ["derive"] }

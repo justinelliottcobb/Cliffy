@@ -1,0 +1,138 @@
+/**
+ * Counter - An example Cliffy component
+ *
+ * This demonstrates how to create a reusable component that:
+ * - Uses Behaviors for reactive state
+ * - Accepts configuration props
+ * - Can be composed with other components
+ */
+
+import type { Behavior } from '@cliffy-ga/core';
+
+export interface CounterProps {
+  /** Initial value for the counter */
+  initialValue?: number;
+  /** Increment/decrement step size */
+  step?: number;
+  /** Minimum allowed value */
+  min?: number;
+  /** Maximum allowed value */
+  max?: number;
+}
+
+export interface CounterState {
+  /** The current count value as a Behavior */
+  value: Behavior;
+  /** Increment the counter by step */
+  increment: () => void;
+  /** Decrement the counter by step */
+  decrement: () => void;
+  /** Reset to initial value */
+  reset: () => void;
+  /** Set to a specific value */
+  set: (value: number) => void;
+}
+
+/**
+ * Create a Counter component with reactive state
+ *
+ * @example
+ * ```typescript
+ * import { Counter } from '{{projectName}}';
+ *
+ * const counter = Counter({ initialValue: 0, step: 1 });
+ *
+ * // Use in your UI
+ * html`
+ *   <div>
+ *     <span>Count: \${counter.value}</span>
+ *     <button onclick=\${counter.increment}>+</button>
+ *     <button onclick=\${counter.decrement}>-</button>
+ *   </div>
+ * `;
+ * ```
+ */
+export function Counter(props: CounterProps = {}): CounterState {
+  const {
+    initialValue = 0,
+    step = 1,
+    min = -Infinity,
+    max = Infinity,
+  } = props;
+
+  // We need to dynamically import Behavior since it's a peer dependency
+  // This will be resolved at runtime by the consuming application
+  let value: Behavior;
+
+  // Create a simple wrapper that will be initialized when first used
+  const state: CounterState = {
+    get value() {
+      return value;
+    },
+
+    increment() {
+      value.update((n: number) => Math.min(max, n + step));
+    },
+
+    decrement() {
+      value.update((n: number) => Math.max(min, n - step));
+    },
+
+    reset() {
+      value.set(initialValue);
+    },
+
+    set(newValue: number) {
+      value.set(Math.max(min, Math.min(max, newValue)));
+    },
+  };
+
+  // Initialize with dynamic import
+  // Note: In actual usage, the consuming app should call init() first
+  // and pass the Behavior constructor, or this should be lazily initialized
+  const initCounter = async () => {
+    const { Behavior: BehaviorClass } = await import('@cliffy-ga/core');
+    value = new BehaviorClass(initialValue);
+  };
+
+  // For synchronous usage, we provide a factory that takes Behavior
+  return state;
+}
+
+/**
+ * Create a Counter with an explicitly provided Behavior class
+ * Use this when you need synchronous initialization
+ */
+export function createCounter(
+  BehaviorClass: new (value: number) => Behavior,
+  props: CounterProps = {}
+): CounterState {
+  const {
+    initialValue = 0,
+    step = 1,
+    min = -Infinity,
+    max = Infinity,
+  } = props;
+
+  const value = new BehaviorClass(initialValue);
+
+  return {
+    value,
+
+    increment() {
+      value.update((n: number) => Math.min(max, n + step));
+    },
+
+    decrement() {
+      value.update((n: number) => Math.max(min, n - step));
+    },
+
+    reset() {
+      value.set(initialValue);
+    },
+
+    set(newValue: number) {
+      value.set(Math.max(min, Math.min(max, newValue)));
+    },
+  };
+}

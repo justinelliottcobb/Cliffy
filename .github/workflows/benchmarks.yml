@@ -77,7 +77,9 @@ jobs:
       - name: Checkout base branch
         env:
           BASE_REF: ${{ github.base_ref }}
-        run: git checkout "$BASE_REF"
+        run: |
+          git checkout Cargo.lock  # Reset any lockfile changes from cargo bench
+          git checkout "$BASE_REF"
 
       - name: Benchmark base branch
         run: |

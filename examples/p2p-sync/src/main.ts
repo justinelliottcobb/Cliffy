@@ -2,289 +2,390 @@
  * Cliffy P2P Sync Demo
  *
  * Demonstrates:
- * - Simulated WebRTC-style peer discovery
- * - Real-time state synchronization across peers
+ * - Real WebRTC peer-to-peer connections
+ * - Real-time state synchronization across browsers
  * - Delta compression and efficient state transfer
  * - Network partition handling and recovery
  * - Vector clock-based causal ordering
+ *
+ * To run:
+ * 1. Start the signaling server: npm run signaling (from examples/)
+ * 2. Start this demo: npm run dev:p2p (from examples/)
+ * 3. Open two browser tabs to the same URL
  */
 
 import init, {
   behavior,
+  Behavior,
   GeometricCRDT,
-  VectorClock,
-  OperationType,
+  VectorClock as WasmVectorClock,
   generateNodeId,
 } from '@cliffy-ga/core';
+
+import {
+  PeerManager,
+  type PeerManagerConfig,
+  type SyncMessage,
+  type ConnectedPeer,
+  type VectorClock,
+  createDeltaBatch,
+  type StateDelta,
+} from '@cliffy/shared/webrtc';
+
+// =============================================================================
+// Configuration
+// =============================================================================
+
+const SIGNALING_SERVER_URL = 'ws://localhost:8080';
+const ROOM_ID = 'cliffy-p2p-demo';
 
 // =============================================================================
 // Types
 // =============================================================================
 
-interface Peer {
-  id: string;
-  name: string;
-  color: string;
-  position: { x: number; y: number };
-  crdt: GeometricCRDT;
-  clock: VectorClock;
-  status: 'connected' | 'syncing' | 'offline';
-  isLocal: boolean;
-  isPartitioned: boolean;
-  lastSync: number;
-  operationCount: number;
-}
-
-interface Connection {
-  from: string;
-  to: string;
-  active: boolean;
-  syncing: boolean;
-}
-
-interface Delta {
-  id: string;
-  from: string;
-  to: string;
-  direction: 'outgoing' | 'incoming';
-  size: number;
-  timestamp: number;
-  operations: number;
-}
-
-interface SyncState {
-  peers: Map<string, Peer>;
-  connections: Connection[];
-  deltas: Delta[];
+interface AppState {
   localPeerId: string;
-  totalSyncs: number;
-  totalBytesTransferred: number;
+  peerManager: PeerManager | null;
+  crdt: GeometricCRDT | null;
+  clock: WasmVectorClock | null;
   sharedCounter: number;
+  localOperationCount: number;
+  connectedPeers: ConnectedPeer[];
+  syncLog: SyncLogEntry[];
+  stats: SyncStats;
+  connectionStatus: 'disconnected' | 'connecting' | 'connected';
+  error: string | null;
+  mode: 'webrtc' | 'simulation';
+}
+
+interface SyncLogEntry {
+  id: string;
+  type: 'sent' | 'received';
+  peerId: string;
+  peerName?: string;
+  messageType: string;
+  timestamp: number;
+  size: number;
+}
+
+interface SyncStats {
+  totalSyncs: number;
+  totalBytesSent: number;
+  totalBytesReceived: number;
+  avgRtt: number | null;
 }
 
 // =============================================================================
 // State Management
 // =============================================================================
 
-const state: SyncState = {
-  peers: new Map(),
-  connections: [],
-  deltas: [],
+const state: AppState = {
   localPeerId: '',
-  totalSyncs: 0,
-  totalBytesTransferred: 0,
+  peerManager: null,
+  crdt: null,
+  clock: null,
   sharedCounter: 0,
+  localOperationCount: 0,
+  connectedPeers: [],
+  syncLog: [],
+  stats: {
+    totalSyncs: 0,
+    totalBytesSent: 0,
+    totalBytesReceived: 0,
+    avgRtt: null,
+  },
+  connectionStatus: 'disconnected',
+  error: null,
+  mode: 'webrtc',
 };
 
 // FRP Behaviors (initialized after WASM init)
-let counterBehavior: ReturnType<typeof behavior<number>>;
-let syncStatusBehavior: ReturnType<typeof behavior<string>>;
-
-// Peer colors
-const PEER_COLORS = ['#ff6b6b', '#4ecdc4', '#ffe66d', '#a855f7'];
+let counterBehavior: Behavior;
+let statusBehavior: Behavior;
 
 // =============================================================================
-// Peer Management
+// WebRTC Connection
 // =============================================================================
 
-function createPeer(id: string, name: string, isLocal: boolean, index: number): Peer {
-  // Position peers in a circle
-  const angle = (index * Math.PI * 2) / 4 + Math.PI / 4;
-  const radius = 120;
-  const centerX = 300;
-  const centerY = 150;
-
-  return {
-    id,
-    name,
-    color: PEER_COLORS[index % PEER_COLORS.length],
-    position: {
-      x: centerX + Math.cos(angle) * radius,
-      y: centerY + Math.sin(angle) * radius,
-    },
-    crdt: new GeometricCRDT(id),
-    clock: new VectorClock(id),
-    status: 'connected',
-    isLocal,
-    isPartitioned: false,
-    lastSync: Date.now(),
-    operationCount: 0,
-  };
-}
-
-function initializePeers(): void {
-  state.peers.clear();
-  state.connections = [];
-
-  // Create local peer
-  state.localPeerId = generateNodeId();
-  const localPeer = createPeer(state.localPeerId, 'Local', true, 0);
-  state.peers.set(state.localPeerId, localPeer);
-
-  // Create remote peers
-  const remoteNames = ['Peer A', 'Peer B', 'Peer C'];
-  for (let i = 0; i < remoteNames.length; i++) {
-    const id = generateNodeId();
-    const peer = createPeer(id, remoteNames[i], false, i + 1);
-    state.peers.set(id, peer);
+async function connectWebRTC(): Promise<void> {
+  if (state.peerManager) {
+    state.peerManager.leave();
   }
 
-  // Create mesh connections
-  const peerIds = Array.from(state.peers.keys());
-  for (let i = 0; i < peerIds.length; i++) {
-    for (let j = i + 1; j < peerIds.length; j++) {
-      state.connections.push({
-        from: peerIds[i],
-        to: peerIds[j],
-        active: true,
-        syncing: false,
-      });
+  state.connectionStatus = 'connecting';
+  state.error = null;
+
+  const config: PeerManagerConfig = {
+    peerId: state.localPeerId,
+    peerName: `User ${state.localPeerId.substring(0, 4)}`,
+    signaling: {
+      serverUrl: SIGNALING_SERVER_URL,
+    },
+    autoConnect: true,
+    heartbeatInterval: 5000,
+  };
+
+  const peerManager = new PeerManager(config);
+
+  peerManager.onReady(() => {
+    state.connectionStatus = 'connected';
+    statusBehavior.set('connected');
+    console.log('[P2P] Connected to signaling server');
+  });
+
+  peerManager.onPeerConnected((peerId, peerInfo) => {
+    console.log(`[P2P] Peer connected: ${peerId} (${peerInfo.name})`);
+    updatePeerList();
+
+    // Request full state from new peer
+    peerManager.requestFullState(peerId);
+  });
+
+  peerManager.onPeerDisconnected((peerId) => {
+    console.log(`[P2P] Peer disconnected: ${peerId}`);
+    updatePeerList();
+  });
+
+  peerManager.onSyncMessage((peerId, message) => {
+    handleSyncMessage(peerId, message);
+  });
+
+  peerManager.onError((error) => {
+    console.error('[P2P] Error:', error);
+    state.error = error.message;
+  });
+
+  try {
+    await peerManager.join(ROOM_ID);
+    state.peerManager = peerManager;
+  } catch (error) {
+    state.connectionStatus = 'disconnected';
+    state.error = `Failed to connect: ${(error as Error).message}`;
+    console.error('[P2P] Connection failed:', error);
+  }
+}
+
+function disconnect(): void {
+  if (state.peerManager) {
+    state.peerManager.leave();
+    state.peerManager = null;
+  }
+  state.connectionStatus = 'disconnected';
+  state.connectedPeers = [];
+  statusBehavior.set('disconnected');
+}
+
+function updatePeerList(): void {
+  if (state.peerManager) {
+    state.connectedPeers = state.peerManager.getConnectedPeers();
+
+    // Calculate average RTT
+    const rtts = state.connectedPeers
+      .map(p => p.rtt)
+      .filter((rtt): rtt is number => rtt !== null);
+    state.stats.avgRtt = rtts.length > 0
+      ? rtts.reduce((a, b) => a + b, 0) / rtts.length
+      : null;
+  }
+}
+
+// =============================================================================
+// Sync Message Handling
+// =============================================================================
+
+function handleSyncMessage(peerId: string, message: SyncMessage): void {
+  const peerName = state.connectedPeers.find(p => p.id === peerId)?.name;
+
+  // Log the message
+  addSyncLog({
+    type: 'received',
+    peerId,
+    peerName,
+    messageType: message.payload.type,
+    size: estimateMessageSize(message),
+  });
+
+  switch (message.payload.type) {
+    case 'DeltaRequest':
+      // Respond with current state
+      sendFullState(peerId);
+      break;
+
+    case 'FullState':
+      // Apply full state from peer
+      applyFullState(message.payload.state, message.payload.clock);
+      break;
+
+    case 'DeltaResponse':
+      // Apply deltas
+      applyDeltas(message.payload.deltas.deltas);
+      break;
+
+    case 'Hello':
+    case 'Heartbeat':
+    case 'Goodbye':
+    case 'Ack':
+      // Handled by PeerManager
+      break;
+  }
+
+  state.stats.totalSyncs++;
+}
+
+function sendFullState(peerId: string): void {
+  if (!state.peerManager || !state.crdt || !state.clock) return;
+
+  // Get state as array (GA3 has 8 coefficients)
+  const stateArray = [state.sharedCounter, 0, 0, 0, 0, 0, 0, 0];
+
+  const clock: VectorClock = {
+    entries: { [state.localPeerId]: state.clock.getTime(state.localPeerId) },
+  };
+
+  state.peerManager.send(peerId, {
+    type: 'FullState',
+    state: stateArray,
+    clock,
+  });
+
+  const peerName = state.connectedPeers.find(p => p.id === peerId)?.name;
+  addSyncLog({
+    type: 'sent',
+    peerId,
+    peerName,
+    messageType: 'FullState',
+    size: stateArray.length * 8 + 64,
+  });
+}
+
+function applyFullState(stateArray: number[], clock: VectorClock): void {
+  if (!state.crdt || !state.clock) return;
+
+  // Extract counter value (first coefficient)
+  const newCounter = Math.round(stateArray[0]);
+
+  // Only update if newer
+  if (newCounter > state.sharedCounter) {
+    state.sharedCounter = newCounter;
+    counterBehavior.set(state.sharedCounter);
+  }
+
+  // Merge clocks
+  for (const [nodeId, time] of Object.entries(clock.entries)) {
+    const currentTime = state.clock.getTime(nodeId);
+    if (time > currentTime) {
+      // Update clock (simplified - real impl would update internal state)
     }
   }
 }
 
+function applyDeltas(deltas: StateDelta[]): void {
+  for (const delta of deltas) {
+    // Apply delta transform (first coefficient is counter change)
+    const change = Math.round(delta.transform[0]);
+    state.sharedCounter += change;
+  }
+  counterBehavior.set(state.sharedCounter);
+}
+
 // =============================================================================
-// Sync Operations
+// Local Operations
 // =============================================================================
 
 function localIncrement(): void {
-  const localPeer = state.peers.get(state.localPeerId);
-  if (!localPeer) return;
+  if (!state.crdt || !state.clock) return;
 
   state.sharedCounter++;
-  localPeer.operationCount++;
-  localPeer.clock.increment();
+  state.localOperationCount++;
+  state.clock.tick(state.localPeerId);
 
-  localPeer.crdt.addOperation(
-    OperationType.Insert,
-    state.sharedCounter,
-    1,
-    0
-  );
+  // Use the CRDT's add operation
+  state.crdt.add(1);
 
   counterBehavior.set(state.sharedCounter);
 
-  // Trigger sync to connected peers
-  triggerSync(state.localPeerId);
+  // Broadcast to peers
+  broadcastUpdate();
 }
 
-function triggerSync(fromPeerId: string): void {
-  const fromPeer = state.peers.get(fromPeerId);
-  if (!fromPeer || fromPeer.isPartitioned) return;
+function broadcastUpdate(): void {
+  if (!state.peerManager || !state.clock) return;
 
-  syncStatusBehavior.set('syncing');
-
-  // Find connected peers and sync
-  for (const conn of state.connections) {
-    if (!conn.active) continue;
-
-    let targetId = '';
-    if (conn.from === fromPeerId) targetId = conn.to;
-    else if (conn.to === fromPeerId) targetId = conn.from;
-    else continue;
-
-    const targetPeer = state.peers.get(targetId);
-    if (!targetPeer || targetPeer.isPartitioned) continue;
-
-    // Mark connection as syncing
-    conn.syncing = true;
-
-    // Simulate network delay
-    setTimeout(() => {
-      performSync(fromPeerId, targetId);
-      conn.syncing = false;
-    }, 100 + Math.random() * 200);
-  }
-
-  setTimeout(() => {
-    syncStatusBehavior.set('idle');
-  }, 500);
-}
-
-function performSync(fromId: string, toId: string): void {
-  const fromPeer = state.peers.get(fromId);
-  const toPeer = state.peers.get(toId);
-
-  if (!fromPeer || !toPeer) return;
-  if (fromPeer.isPartitioned || toPeer.isPartitioned) return;
-
-  // Simulate delta calculation
-  const opsDiff = Math.abs(fromPeer.operationCount - toPeer.operationCount);
-  const deltaSize = opsDiff * 24 + 8; // Simulated byte size
-
-  // Record delta
-  const delta: Delta = {
-    id: generateNodeId(),
-    from: fromId,
-    to: toId,
-    direction: fromId === state.localPeerId ? 'outgoing' : 'incoming',
-    size: deltaSize,
-    timestamp: Date.now(),
-    operations: opsDiff,
+  const clock: VectorClock = {
+    entries: { [state.localPeerId]: state.clock.getTime(state.localPeerId) },
   };
 
-  state.deltas.unshift(delta);
-  if (state.deltas.length > 15) {
-    state.deltas.pop();
-  }
+  // Create delta batch with our latest change
+  const batch = createDeltaBatch();
+  batch.deltas.push({
+    transform: [1, 0, 0, 0, 0, 0, 0, 0], // +1 increment
+    encoding: 'Additive',
+    fromClock: clock,
+    toClock: clock,
+    sourceNode: state.localPeerId,
+  });
+  batch.combinedClock = clock;
 
-  // Merge states
-  const maxOps = Math.max(fromPeer.operationCount, toPeer.operationCount);
-  fromPeer.operationCount = maxOps;
-  toPeer.operationCount = maxOps;
+  state.peerManager.broadcast({
+    type: 'DeltaResponse',
+    deltas: batch,
+    hasMore: false,
+  });
 
-  // Update clocks
-  fromPeer.clock.merge(toPeer.clock);
-  toPeer.clock.merge(fromPeer.clock);
-
-  // Merge CRDTs
-  fromPeer.crdt.merge(toPeer.crdt);
-  toPeer.crdt.merge(fromPeer.crdt);
-
-  // Update sync stats
-  fromPeer.lastSync = Date.now();
-  toPeer.lastSync = Date.now();
-  fromPeer.status = 'connected';
-  toPeer.status = 'connected';
-
-  state.totalSyncs++;
-  state.totalBytesTransferred += deltaSize;
-}
-
-function togglePartition(peerId: string): void {
-  const peer = state.peers.get(peerId);
-  if (!peer || peer.isLocal) return;
-
-  peer.isPartitioned = !peer.isPartitioned;
-  peer.status = peer.isPartitioned ? 'offline' : 'connected';
-
-  // Update connections
-  for (const conn of state.connections) {
-    if (conn.from === peerId || conn.to === peerId) {
-      conn.active = !peer.isPartitioned;
-    }
+  for (const peer of state.connectedPeers) {
+    addSyncLog({
+      type: 'sent',
+      peerId: peer.id,
+      peerName: peer.name,
+      messageType: 'DeltaResponse',
+      size: 96,
+    });
   }
 }
 
-function simulateRemoteActivity(): void {
-  for (const peer of state.peers.values()) {
-    if (peer.isLocal || peer.isPartitioned) continue;
+// =============================================================================
+// Utilities
+// =============================================================================
 
-    // Random chance of activity
-    if (Math.random() < 0.02) {
-      peer.operationCount++;
-      peer.clock.increment();
-      peer.crdt.addOperation(
-        OperationType.Insert,
-        peer.operationCount,
-        1,
-        0
-      );
+function addSyncLog(entry: Omit<SyncLogEntry, 'id' | 'timestamp'>): void {
+  state.syncLog.unshift({
+    ...entry,
+    id: Math.random().toString(36).substring(7),
+    timestamp: Date.now(),
+  });
 
-      // Trigger sync from this peer
-      triggerSync(peer.id);
-    }
+  if (state.syncLog.length > 20) {
+    state.syncLog.pop();
   }
+
+  if (entry.type === 'sent') {
+    state.stats.totalBytesSent += entry.size;
+  } else {
+    state.stats.totalBytesReceived += entry.size;
+  }
+}
+
+function estimateMessageSize(message: SyncMessage): number {
+  // Rough estimate based on payload type
+  const baseSize = 64; // Header
+  switch (message.payload.type) {
+    case 'Hello': return baseSize + 128;
+    case 'FullState': return baseSize + 64 + 8 * 8;
+    case 'DeltaResponse': return baseSize + 96;
+    case 'Heartbeat': return baseSize;
+    default: return baseSize + 32;
+  }
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes}B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+}
+
+function formatRtt(rtt: number | null): string {
+  if (rtt === null) return '-';
+  return `${Math.round(rtt)}ms`;
 }
 
 // =============================================================================
@@ -317,271 +418,208 @@ function createElement(
 function renderApp(): HTMLElement {
   const container = createElement('div', { class: 'app-container' });
 
-  // Network visualization
-  const networkView = createElement('div', { class: 'network-view' });
+  // Header with connection controls
+  const header = createElement('div', { class: 'header' });
 
-  // Controls
+  const title = createElement('h1', {}, ['P2P Sync Demo']);
+  header.appendChild(title);
+
   const controls = createElement('div', { class: 'controls' });
 
-  const incrementBtn = createElement('button', { class: 'primary' }, ['Increment Counter']);
+  // Connection status indicator
+  const statusIndicator = createElement('div', {
+    class: `status-indicator ${state.connectionStatus}`,
+  });
+  const statusDot = createElement('div', { class: 'status-dot' });
+  statusIndicator.appendChild(statusDot);
+  statusIndicator.appendChild(
+    document.createTextNode(state.connectionStatus.charAt(0).toUpperCase() + state.connectionStatus.slice(1))
+  );
+  controls.appendChild(statusIndicator);
+
+  // Connect/Disconnect button
+  if (state.connectionStatus === 'disconnected') {
+    const connectBtn = createElement('button', { class: 'primary' }, ['Connect']);
+    connectBtn.onclick = connectWebRTC;
+    controls.appendChild(connectBtn);
+  } else if (state.connectionStatus === 'connected') {
+    const disconnectBtn = createElement('button', { class: 'danger' }, ['Disconnect']);
+    disconnectBtn.onclick = disconnect;
+    controls.appendChild(disconnectBtn);
+  } else {
+    const connectingBtn = createElement('button', { disabled: 'true' }, ['Connecting...']);
+    controls.appendChild(connectingBtn);
+  }
+
+  header.appendChild(controls);
+  container.appendChild(header);
+
+  // Error message
+  if (state.error) {
+    const errorBox = createElement('div', { class: 'error-box' }, [state.error]);
+    container.appendChild(errorBox);
+  }
+
+  // Main content
+  const main = createElement('div', { class: 'main-content' });
+
+  // Left panel: Counter and local info
+  const leftPanel = createElement('div', { class: 'panel' });
+
+  const counterSection = createElement('div', { class: 'counter-section' });
+  counterSection.appendChild(createElement('h2', {}, ['Shared Counter']));
+
+  const counterDisplay = createElement('div', { class: 'counter-display' }, [
+    String(state.sharedCounter),
+  ]);
+  counterSection.appendChild(counterDisplay);
+
+  const incrementBtn = createElement('button', { class: 'primary large' }, ['Increment (+1)']) as HTMLButtonElement;
   incrementBtn.onclick = localIncrement;
-  controls.appendChild(incrementBtn);
+  if (state.connectionStatus !== 'connected') {
+    incrementBtn.disabled = true;
+  }
+  counterSection.appendChild(incrementBtn);
 
-  const syncAllBtn = createElement('button', {}, ['Force Sync All']);
-  syncAllBtn.onclick = () => triggerSync(state.localPeerId);
-  controls.appendChild(syncAllBtn);
+  leftPanel.appendChild(counterSection);
 
-  const resetBtn = createElement('button', {}, ['Reset Network']);
-  resetBtn.onclick = () => {
-    initializePeers();
-    state.deltas = [];
-    state.totalSyncs = 0;
-    state.totalBytesTransferred = 0;
-    state.sharedCounter = 0;
-    counterBehavior.set(0);
-  };
-  controls.appendChild(resetBtn);
+  // Local peer info
+  const localInfo = createElement('div', { class: 'local-info' });
+  localInfo.appendChild(createElement('h3', {}, ['Local Peer']));
+  localInfo.appendChild(createElement('div', { class: 'info-row' }, [
+    createElement('span', { class: 'label' }, ['ID:']),
+    createElement('span', { class: 'value' }, [state.localPeerId.substring(0, 8) + '...']),
+  ]));
+  localInfo.appendChild(createElement('div', { class: 'info-row' }, [
+    createElement('span', { class: 'label' }, ['Operations:']),
+    createElement('span', { class: 'value' }, [String(state.localOperationCount)]),
+  ]));
+  localInfo.appendChild(createElement('div', { class: 'info-row' }, [
+    createElement('span', { class: 'label' }, ['Clock:']),
+    createElement('span', { class: 'value' }, [
+      state.clock ? String(state.clock.getTime(state.localPeerId)) : '0',
+    ]),
+  ]));
+  leftPanel.appendChild(localInfo);
 
-  const counterDisplay = createElement('span', {
-    style: 'margin-left: auto; font-size: 1.2em; color: var(--primary);',
-  }, [`Counter: ${state.sharedCounter}`]);
-  controls.appendChild(counterDisplay);
+  main.appendChild(leftPanel);
 
-  networkView.appendChild(controls);
+  // Center panel: Connected peers
+  const centerPanel = createElement('div', { class: 'panel' });
+  centerPanel.appendChild(createElement('h2', {}, ['Connected Peers']));
 
-  // Canvas for peer visualization
-  const canvas = createElement('div', { class: 'network-canvas' });
+  if (state.connectedPeers.length === 0) {
+    const emptyState = createElement('div', { class: 'empty-state' }, [
+      state.connectionStatus === 'connected'
+        ? 'Waiting for peers to connect...'
+        : 'Connect to start syncing',
+    ]);
+    centerPanel.appendChild(emptyState);
+  } else {
+    const peerList = createElement('div', { class: 'peer-list' });
 
-  // Draw connections first (so they appear behind nodes)
-  for (const conn of state.connections) {
-    const fromPeer = state.peers.get(conn.from);
-    const toPeer = state.peers.get(conn.to);
-    if (!fromPeer || !toPeer) continue;
+    for (const peer of state.connectedPeers) {
+      const peerItem = createElement('div', { class: `peer-item ${peer.connected ? 'connected' : 'disconnected'}` });
 
-    const dx = toPeer.position.x - fromPeer.position.x;
-    const dy = toPeer.position.y - fromPeer.position.y;
-    const length = Math.sqrt(dx * dx + dy * dy);
-    const angle = Math.atan2(dy, dx);
+      const peerAvatar = createElement('div', { class: 'peer-avatar' }, [
+        (peer.name || peer.id).charAt(0).toUpperCase(),
+      ]);
+      peerItem.appendChild(peerAvatar);
 
-    const line = createElement('div', { class: 'connection-line' });
-    line.style.left = `${fromPeer.position.x}px`;
-    line.style.top = `${fromPeer.position.y}px`;
-    line.style.width = `${length}px`;
-    line.style.transform = `rotate(${angle}rad)`;
+      const peerInfo = createElement('div', { class: 'peer-info' });
+      peerInfo.appendChild(createElement('div', { class: 'peer-name' }, [
+        peer.name || `Peer ${peer.id.substring(0, 8)}`,
+      ]));
+      peerInfo.appendChild(createElement('div', { class: 'peer-meta' }, [
+        `RTT: ${formatRtt(peer.rtt)} | ${peer.connected ? 'Connected' : 'Disconnected'}`,
+      ]));
+      peerItem.appendChild(peerInfo);
 
-    if (conn.syncing) {
-      line.classList.add('syncing');
-    } else if (conn.active) {
-      line.classList.add('active');
+      peerList.appendChild(peerItem);
     }
 
-    canvas.appendChild(line);
+    centerPanel.appendChild(peerList);
   }
 
-  // Draw peer nodes
-  for (const peer of state.peers.values()) {
-    const node = createElement('div', { class: 'peer-node' });
-    node.style.left = `${peer.position.x}px`;
-    node.style.top = `${peer.position.y}px`;
-    node.style.backgroundColor = peer.color;
+  main.appendChild(centerPanel);
 
-    if (peer.isLocal) {
-      node.classList.add('local');
-    }
-    if (peer.isPartitioned) {
-      node.classList.add('partitioned');
-    }
+  // Right panel: Sync log and stats
+  const rightPanel = createElement('div', { class: 'panel' });
 
-    // Status dot
-    const statusDot = createElement('div', { class: 'status-dot' });
-    statusDot.classList.add(peer.status);
-    node.appendChild(statusDot);
+  // Stats
+  const statsSection = createElement('div', { class: 'stats-section' });
+  statsSection.appendChild(createElement('h2', {}, ['Statistics']));
 
-    // Name
-    node.appendChild(createElement('span', {}, [peer.name]));
-
-    // Ops count
-    const opsSpan = createElement('span', { style: 'font-size: 0.7em; opacity: 0.7;' });
-    opsSpan.textContent = `${peer.operationCount} ops`;
-    node.appendChild(opsSpan);
-
-    // Click handler for partition toggle
-    if (!peer.isLocal) {
-      node.onclick = () => togglePartition(peer.id);
-      node.title = 'Click to toggle network partition';
-    }
-
-    canvas.appendChild(node);
-  }
-
-  networkView.appendChild(canvas);
-
-  // Legend
-  const legend = createElement('div', { class: 'network-legend' });
-
-  const addLegendItem = (color: string, label: string) => {
-    const item = createElement('div', { class: 'legend-item' });
-    const dot = createElement('div', { class: 'legend-dot' });
-    dot.style.backgroundColor = color;
-    item.appendChild(dot);
-    item.appendChild(document.createTextNode(label));
-    legend.appendChild(item);
-  };
-
-  addLegendItem('#44ff88', 'Connected');
-  addLegendItem('#ffaa00', 'Syncing');
-  addLegendItem('#ff4444', 'Partitioned');
-  addLegendItem('white', 'Local Peer');
-
-  networkView.appendChild(legend);
-  container.appendChild(networkView);
-
-  // Panels
-  const panels = createElement('div', { class: 'panels' });
-
-  // Peers panel
-  const peersPanel = createElement('div', { class: 'panel' });
-  peersPanel.appendChild(createElement('h2', {}, ['Network Peers']));
-  const peerList = createElement('div', { class: 'peer-list' });
-
-  for (const peer of state.peers.values()) {
-    const item = createElement('div', { class: 'peer-item' });
-
-    const avatar = createElement('div', { class: 'peer-avatar' });
-    avatar.style.backgroundColor = peer.color;
-    avatar.textContent = peer.name[0];
-    item.appendChild(avatar);
-
-    const info = createElement('div', { class: 'peer-info' });
-    info.appendChild(
-      createElement('div', { class: 'peer-name' }, [
-        peer.name + (peer.isLocal ? ' (You)' : ''),
-      ])
-    );
-
-    const clockTime = peer.clock.getTime(peer.id);
-    info.appendChild(
-      createElement('div', { class: 'peer-meta' }, [
-        `Clock: ${clockTime} | Ops: ${peer.operationCount}`,
-      ])
-    );
-
-    item.appendChild(info);
-
-    // Actions for remote peers
-    if (!peer.isLocal) {
-      const actions = createElement('div', { class: 'peer-actions' });
-      const partitionBtn = createElement(
-        'button',
-        { class: peer.isPartitioned ? 'primary' : 'danger' },
-        [peer.isPartitioned ? 'Reconnect' : 'Partition']
-      );
-      partitionBtn.onclick = (e) => {
-        e.stopPropagation();
-        togglePartition(peer.id);
-      };
-      actions.appendChild(partitionBtn);
-      item.appendChild(actions);
-    }
-
-    peerList.appendChild(item);
-  }
-
-  peersPanel.appendChild(peerList);
-  panels.appendChild(peersPanel);
-
-  // Stats panel
-  const statsPanel = createElement('div', { class: 'panel' });
-  statsPanel.appendChild(createElement('h2', {}, ['Sync Statistics']));
   const statsGrid = createElement('div', { class: 'stats-grid' });
 
-  const addStat = (value: string, label: string) => {
-    const item = createElement('div', { class: 'stat-item' });
-    item.appendChild(createElement('div', { class: 'stat-value' }, [value]));
-    item.appendChild(createElement('div', { class: 'stat-label' }, [label]));
-    statsGrid.appendChild(item);
+  const addStat = (label: string, value: string) => {
+    const stat = createElement('div', { class: 'stat' });
+    stat.appendChild(createElement('div', { class: 'stat-value' }, [value]));
+    stat.appendChild(createElement('div', { class: 'stat-label' }, [label]));
+    statsGrid.appendChild(stat);
   };
 
-  addStat(String(state.totalSyncs), 'Total Syncs');
-  addStat(`${(state.totalBytesTransferred / 1024).toFixed(1)}KB`, 'Data Sent');
-  addStat(String(state.peers.size), 'Peers');
-  addStat(String(state.connections.filter(c => c.active).length), 'Active Links');
+  addStat('Total Syncs', String(state.stats.totalSyncs));
+  addStat('Sent', formatBytes(state.stats.totalBytesSent));
+  addStat('Received', formatBytes(state.stats.totalBytesReceived));
+  addStat('Avg RTT', formatRtt(state.stats.avgRtt));
 
-  statsPanel.appendChild(statsGrid);
+  statsSection.appendChild(statsGrid);
+  rightPanel.appendChild(statsSection);
 
-  // State display
-  const stateDisplay = createElement('div', { class: 'state-display', style: 'margin-top: 12px;' });
-  const localPeer = state.peers.get(state.localPeerId);
-  if (localPeer) {
-    // Build state display using safe DOM methods
-    const counterKey = createElement('span', { class: 'key' }, ['counter:']);
-    const counterVal = createElement('span', { class: 'value' }, [` ${state.sharedCounter}`]);
-    stateDisplay.appendChild(counterKey);
-    stateDisplay.appendChild(counterVal);
-    stateDisplay.appendChild(document.createElement('br'));
+  // Sync log
+  const logSection = createElement('div', { class: 'log-section' });
+  logSection.appendChild(createElement('h3', {}, ['Sync Log']));
 
-    const opsKey = createElement('span', { class: 'key' }, ['local_ops:']);
-    const opsVal = createElement('span', { class: 'value' }, [` ${localPeer.operationCount}`]);
-    stateDisplay.appendChild(opsKey);
-    stateDisplay.appendChild(opsVal);
-    stateDisplay.appendChild(document.createElement('br'));
+  const logList = createElement('div', { class: 'log-list' });
 
-    const crdtKey = createElement('span', { class: 'key' }, ['crdt_ops:']);
-    const crdtVal = createElement('span', { class: 'value' }, [` ${localPeer.crdt.operationCount}`]);
-    stateDisplay.appendChild(crdtKey);
-    stateDisplay.appendChild(crdtVal);
-  }
-  statsPanel.appendChild(stateDisplay);
+  for (const entry of state.syncLog.slice(0, 10)) {
+    const logItem = createElement('div', { class: `log-item ${entry.type}` });
 
-  panels.appendChild(statsPanel);
+    const arrow = createElement('span', { class: 'arrow' }, [
+      entry.type === 'sent' ? '\u2192' : '\u2190',
+    ]);
+    logItem.appendChild(arrow);
 
-  // Delta log panel
-  const deltaPanel = createElement('div', { class: 'panel' });
-  deltaPanel.appendChild(createElement('h2', {}, ['Delta History']));
-  const deltaLog = createElement('div', { class: 'delta-log' });
+    const peerName = entry.peerName || entry.peerId.substring(0, 8);
+    logItem.appendChild(createElement('span', { class: 'peer' }, [peerName]));
+    logItem.appendChild(createElement('span', { class: 'type' }, [entry.messageType]));
+    logItem.appendChild(createElement('span', { class: 'size' }, [formatBytes(entry.size)]));
 
-  for (const delta of state.deltas.slice(0, 10)) {
-    const fromPeer = state.peers.get(delta.from);
-    const toPeer = state.peers.get(delta.to);
-
-    const item = createElement('div', { class: `delta-item ${delta.direction}` });
-
-    const direction = createElement('span', { class: 'direction' });
-    direction.textContent = delta.direction === 'outgoing' ? '→' : '←';
-    item.appendChild(direction);
-
-    const text = createElement('span', {});
-    text.textContent = `${fromPeer?.name || '?'} → ${toPeer?.name || '?'}`;
-    item.appendChild(text);
-
-    const size = createElement('span', { class: 'size' });
-    size.textContent = `${delta.size}B`;
-    item.appendChild(size);
-
-    deltaLog.appendChild(item);
+    logList.appendChild(logItem);
   }
 
-  if (state.deltas.length === 0) {
-    deltaLog.appendChild(createElement('div', { class: 'delta-item' }, ['No syncs yet']));
+  if (state.syncLog.length === 0) {
+    logList.appendChild(createElement('div', { class: 'empty-state' }, ['No sync activity yet']));
   }
 
-  deltaPanel.appendChild(deltaLog);
-  panels.appendChild(deltaPanel);
+  logSection.appendChild(logList);
+  rightPanel.appendChild(logSection);
 
-  // Concept box
-  const conceptPanel = createElement('div', { class: 'panel' });
-  const conceptBox = createElement('div', { class: 'concept-box' });
-  conceptBox.appendChild(createElement('h3', {}, ['P2P State Synchronization']));
-  const conceptP = createElement('p', {});
-  conceptP.textContent =
-    'Each peer maintains a GeometricCRDT and VectorClock. When state changes, deltas are computed ' +
-    'and sent to connected peers. Vector clocks ensure causal ordering, while geometric merge ' +
-    'guarantees eventual consistency. Click on remote peers to simulate network partitions.';
-  conceptBox.appendChild(conceptP);
-  conceptPanel.appendChild(conceptBox);
-  panels.appendChild(conceptPanel);
+  main.appendChild(rightPanel);
+  container.appendChild(main);
 
-  container.appendChild(panels);
+  // Instructions
+  const instructions = createElement('div', { class: 'instructions' });
+  instructions.appendChild(createElement('h3', {}, ['How to Test']));
+  const instructionsList = createElement('ol', {});
+  instructionsList.appendChild(createElement('li', {}, [
+    'Start signaling server: ',
+    createElement('code', {}, ['npm run signaling']),
+    ' (from examples/)',
+  ]));
+  instructionsList.appendChild(createElement('li', {}, [
+    'Open this page in two browser tabs',
+  ]));
+  instructionsList.appendChild(createElement('li', {}, [
+    'Click "Connect" in both tabs',
+  ]));
+  instructionsList.appendChild(createElement('li', {}, [
+    'Click "Increment" in one tab and watch it sync to the other',
+  ]));
+  instructions.appendChild(instructionsList);
+  container.appendChild(instructions);
+
   return container;
 }
 
@@ -589,16 +627,433 @@ function renderApp(): HTMLElement {
 // Main Loop
 // =============================================================================
 
-function mainLoop(): void {
-  simulateRemoteActivity();
+// Track state for change detection
+let lastRenderState = {
+  connectionStatus: '',
+  connectedPeersCount: 0,
+  sharedCounter: 0,
+  syncLogLength: 0,
+  error: null as string | null,
+  totalSyncs: 0,
+};
 
+function stateHasChanged(): boolean {
+  return (
+    lastRenderState.connectionStatus !== state.connectionStatus ||
+    lastRenderState.connectedPeersCount !== state.connectedPeers.length ||
+    lastRenderState.sharedCounter !== state.sharedCounter ||
+    lastRenderState.syncLogLength !== state.syncLog.length ||
+    lastRenderState.error !== state.error ||
+    lastRenderState.totalSyncs !== state.stats.totalSyncs
+  );
+}
+
+function updateLastRenderState(): void {
+  lastRenderState = {
+    connectionStatus: state.connectionStatus,
+    connectedPeersCount: state.connectedPeers.length,
+    sharedCounter: state.sharedCounter,
+    syncLogLength: state.syncLog.length,
+    error: state.error,
+    totalSyncs: state.stats.totalSyncs,
+  };
+}
+
+function render(): void {
   const app = document.getElementById('app');
   if (app) {
     app.textContent = '';
     app.appendChild(renderApp());
   }
+  updateLastRenderState();
+}
+
+function mainLoop(): void {
+  updatePeerList();
+
+  // Only re-render if state has changed
+  if (stateHasChanged()) {
+    render();
+  }
 
   setTimeout(mainLoop, 100);
+}
+
+// =============================================================================
+// Styles
+// =============================================================================
+
+function injectStyles(): void {
+  const style = document.createElement('style');
+  style.textContent = `
+    :root {
+      --bg: #0f0f14;
+      --bg-secondary: #1a1a24;
+      --bg-tertiary: #252532;
+      --text: #e0e0e8;
+      --text-muted: #8888a0;
+      --primary: #6366f1;
+      --primary-hover: #818cf8;
+      --success: #22c55e;
+      --warning: #f59e0b;
+      --danger: #ef4444;
+      --border: #3f3f5a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 20px;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-indicator {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 12px;
+      border-radius: 20px;
+      background: var(--bg-secondary);
+      font-size: 0.85rem;
+    }
+
+    .status-indicator .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+
+    .status-indicator.disconnected .status-dot { background: var(--danger); }
+    .status-indicator.connecting .status-dot { background: var(--warning); animation: pulse 1s infinite; }
+    .status-indicator.connected .status-dot { background: var(--success); }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
+    }
+
+    button {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      background: var(--bg-tertiary);
+      color: var(--text);
+      transition: background 0.2s;
+    }
+
+    button:hover:not(:disabled) {
+      background: var(--border);
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    button.primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    button.primary:hover:not(:disabled) {
+      background: var(--primary-hover);
+    }
+
+    button.danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    button.large {
+      padding: 12px 24px;
+      font-size: 1rem;
+    }
+
+    .error-box {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--danger);
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 20px;
+      color: var(--danger);
+    }
+
+    .main-content {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+
+    .panel {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .panel h2 {
+      font-size: 1rem;
+      margin-bottom: 16px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    .panel h3 {
+      font-size: 0.9rem;
+      margin-bottom: 12px;
+      color: var(--text-muted);
+    }
+
+    .counter-section {
+      text-align: center;
+    }
+
+    .counter-display {
+      font-size: 4rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin: 20px 0;
+      font-family: monospace;
+    }
+
+    .local-info {
+      margin-top: 24px;
+      padding-top: 20px;
+      border-top: 1px solid var(--border);
+    }
+
+    .info-row {
+      display: flex;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 0.9rem;
+    }
+
+    .info-row .label {
+      color: var(--text-muted);
+    }
+
+    .info-row .value {
+      font-family: monospace;
+    }
+
+    .empty-state {
+      text-align: center;
+      color: var(--text-muted);
+      padding: 40px 20px;
+      font-size: 0.9rem;
+    }
+
+    .peer-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .peer-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px;
+      background: var(--bg-tertiary);
+      border-radius: 8px;
+    }
+
+    .peer-item.disconnected {
+      opacity: 0.5;
+    }
+
+    .peer-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      color: white;
+    }
+
+    .peer-info {
+      flex: 1;
+    }
+
+    .peer-name {
+      font-weight: 500;
+      margin-bottom: 4px;
+    }
+
+    .peer-meta {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    .stat {
+      background: var(--bg-tertiary);
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 1.5rem;
+      font-weight: 600;
+      font-family: monospace;
+      color: var(--primary);
+    }
+
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+
+    .log-section {
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+    }
+
+    .log-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .log-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px;
+      font-size: 0.8rem;
+      font-family: monospace;
+      border-radius: 4px;
+      margin-bottom: 4px;
+    }
+
+    .log-item.sent {
+      background: rgba(99, 102, 241, 0.1);
+    }
+
+    .log-item.received {
+      background: rgba(34, 197, 94, 0.1);
+    }
+
+    .log-item .arrow {
+      font-weight: bold;
+    }
+
+    .log-item.sent .arrow {
+      color: var(--primary);
+    }
+
+    .log-item.received .arrow {
+      color: var(--success);
+    }
+
+    .log-item .peer {
+      color: var(--text-muted);
+      width: 80px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .log-item .type {
+      flex: 1;
+    }
+
+    .log-item .size {
+      color: var(--text-muted);
+    }
+
+    .instructions {
+      background: var(--bg-secondary);
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid var(--border);
+    }
+
+    .instructions h3 {
+      margin-bottom: 12px;
+    }
+
+    .instructions ol {
+      padding-left: 24px;
+    }
+
+    .instructions li {
+      margin-bottom: 8px;
+      line-height: 1.5;
+    }
+
+    .instructions code {
+      background: var(--bg-tertiary);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 0.9em;
+    }
+
+    @media (max-width: 1200px) {
+      .main-content {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .main-content {
+        grid-template-columns: 1fr;
+      }
+
+      .header {
+        flex-direction: column;
+        gap: 12px;
+      }
+    }
+  `;
+  document.head.appendChild(style);
 }
 
 // =============================================================================
@@ -608,21 +1063,23 @@ function mainLoop(): void {
 async function main() {
   await init();
 
-  // Initialize FRP Behaviors after WASM is ready
+  injectStyles();
+
+  // Initialize local peer
+  state.localPeerId = generateNodeId();
+  state.crdt = new GeometricCRDT(state.localPeerId, 0);
+  state.clock = new WasmVectorClock();
+
+  // Initialize FRP Behaviors
   counterBehavior = behavior(0);
-  syncStatusBehavior = behavior('idle');
+  statusBehavior = behavior('disconnected');
 
-  initializePeers();
-
-  const app = document.getElementById('app');
-  if (app) {
-    app.appendChild(renderApp());
-  }
+  // Initial render
+  render();
 
   console.log('Cliffy P2P Sync Demo initialized');
-  console.log('Using GeometricCRDT for distributed state');
-  console.log('VectorClocks for causal ordering');
-  console.log('Click peers to simulate network partitions');
+  console.log('Local peer ID:', state.localPeerId);
+  console.log('Using real WebRTC for peer connections');
 
   mainLoop();
 }
