@@ -13,7 +13,7 @@ pub mod renderer;
 pub mod ui_cell;
 pub mod ui_organism;
 
-use cliffy_core::{GeometricState, GA3};
+use cliffy_core::GeometricState;
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -107,6 +107,7 @@ impl Default for AliveConfig {
 /// Main entry point for creating living UIs
 pub struct AliveUI {
     organism: UIOrganismField,
+    #[allow(dead_code)]
     config: AliveConfig,
     time: UITime,
     renderer: Box<dyn UIRenderer>,
@@ -259,7 +260,7 @@ pub fn create_living_ui() -> AliveUI {
 }
 
 /// Convenience function to create a living button that grows and adapts
-pub fn create_living_button(text: &str) -> AliveUI {
+pub fn create_living_button(_text: &str) -> AliveUI {
     let mut ui = AliveUI::new();
 
     // Plant seeds in a button-like pattern

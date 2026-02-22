@@ -438,7 +438,7 @@ impl UIOrganismField {
         }
 
         // Apply connections
-        for (x, y, cell_id, neighbor_id, strength) in connections_to_update {
+        for (x, y, _cell_id, neighbor_id, strength) in connections_to_update {
             if let Some(cell) = &mut self.grid[y][x] {
                 cell.connect_to(neighbor_id, strength);
             }

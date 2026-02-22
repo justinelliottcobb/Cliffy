@@ -532,7 +532,7 @@ impl PhysicsEngine {
     }
 
     /// Calculate and apply forces to all cells
-    fn calculate_forces(&mut self, dt: UITime) {
+    fn calculate_forces(&mut self, _dt: UITime) {
         let cell_positions: HashMap<Uuid, GA3> = self
             .cell_physics
             .iter()
@@ -573,7 +573,7 @@ impl PhysicsEngine {
     }
 
     /// Apply spring forces for connected cells
-    fn apply_connection_forces(&mut self, dt: UITime) {
+    fn apply_connection_forces(&mut self, _dt: UITime) {
         // This would iterate through cell connections and apply spring forces
         // For now, we'll implement a simplified version
 

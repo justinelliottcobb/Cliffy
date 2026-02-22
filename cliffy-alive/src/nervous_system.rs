@@ -257,7 +257,7 @@ impl Neuron {
     pub fn update(&mut self, dt: UITime) {
         // Calculate total input
         let mut total_input = 0.0;
-        for (input_id, weight) in &self.inputs {
+        for (_input_id, weight) in &self.inputs {
             // Would need access to other neurons to get their activation
             // For now, use a simplified calculation
             total_input += weight * 0.5; // Placeholder
@@ -730,6 +730,7 @@ pub struct NervousSystem {
     stimulus_queue: Vec<Stimulus>,
 
     /// System-wide configuration
+    #[allow(dead_code)]
     config: NetworkConfig,
 
     /// Global memory shared across cells

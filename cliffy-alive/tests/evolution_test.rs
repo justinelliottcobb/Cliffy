@@ -1,5 +1,5 @@
-use cliffy_alive::evolution::{EvolutionEngine, EvolutionStrategy, MutationType};
-use cliffy_alive::ui_cell::{CellGenome, UICell, UICellType};
+use cliffy_alive::evolution::{EvolutionEngine, MutationType};
+use cliffy_alive::ui_cell::{CellGenome, UICellType};
 use std::collections::HashMap;
 
 #[test]
@@ -82,7 +82,7 @@ fn test_mutation_types() {
 
 #[test]
 fn test_genome_similarity() {
-    let mut genome1 = CellGenome::new();
+    let genome1 = CellGenome::new();
     let mut genome2 = CellGenome::new();
 
     // Identical genomes should have high similarity

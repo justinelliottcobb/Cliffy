@@ -37,6 +37,7 @@ pub trait UIRenderer: Send + Sync {
 /// DOM-based renderer for web browsers
 #[derive(Debug, Clone)]
 pub struct DOMRenderer {
+    #[allow(dead_code)]
     container_id: String,
 }
 
@@ -61,7 +62,7 @@ impl Default for DOMRenderer {
 }
 
 impl UIRenderer for DOMRenderer {
-    fn render_cell(&self, cell: &UICell, position: UICoordinates) -> Result<(), RenderError> {
+    fn render_cell(&self, _cell: &UICell, _position: UICoordinates) -> Result<(), RenderError> {
         // Stub implementation
         // TODO: Implement actual DOM rendering using web-sys
         Ok(())
@@ -80,6 +81,7 @@ impl UIRenderer for DOMRenderer {
 
 /// Canvas-based renderer for 2D graphics
 #[derive(Debug, Clone)]
+#[allow(dead_code)]
 pub struct CanvasRenderer {
     canvas_id: String,
     width: u32,
@@ -98,7 +100,7 @@ impl CanvasRenderer {
 }
 
 impl UIRenderer for CanvasRenderer {
-    fn render_cell(&self, cell: &UICell, position: UICoordinates) -> Result<(), RenderError> {
+    fn render_cell(&self, _cell: &UICell, _position: UICoordinates) -> Result<(), RenderError> {
         // Stub implementation
         // TODO: Implement canvas rendering
         Ok(())

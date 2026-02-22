@@ -165,8 +165,8 @@ pub struct UICell {
     /// Fitness value for evolution
     fitness: f64,
 
-    /// Cell vitals tracking
-    vitals: CellVitals,
+    /// Cell interaction state tracking
+    interaction_state: CellInteractionState,
 
     /// Interaction history for fitness calculation
     interaction_history: HashMap<String, f64>,
@@ -229,14 +229,14 @@ impl Force2D {
     }
 }
 
-/// Cell vitals for health tracking
+/// Cell interaction state for stress and interaction tracking
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct CellVitals {
+pub struct CellInteractionState {
     pub stress_level: f64,
     pub interaction_count: u32,
 }
 
-impl CellVitals {
+impl CellInteractionState {
     pub fn new() -> Self {
         Self {
             stress_level: 0.0,
@@ -490,7 +490,7 @@ impl UICell {
             age: 0.0,
             dna: CellGenome::new(),
             fitness: 0.0,
-            vitals: CellVitals::new(),
+            interaction_state: CellInteractionState::new(),
             interaction_history: HashMap::new(),
             connections: HashMap::new(),
             visual_properties: visual_props,
@@ -715,14 +715,14 @@ impl UICell {
     /// Receive click interaction
     pub fn receive_click(&mut self) {
         self.energy += 15.0;
-        self.vitals.interaction_count += 1;
+        self.interaction_state.interaction_count += 1;
         self.interaction_history.insert("click".to_string(), 1.0);
     }
 
     /// Receive hover interaction
     pub fn receive_hover(&mut self) {
         self.energy += 5.0;
-        self.vitals.interaction_count += 1;
+        self.interaction_state.interaction_count += 1;
         self.interaction_history.insert("hover".to_string(), 0.5);
     }
 
@@ -735,7 +735,7 @@ impl UICell {
 
     /// Check if cell should die
     pub fn should_die(&self) -> bool {
-        self.energy < 1.0 || self.vitals.stress_level > 0.9
+        self.energy < 1.0 || self.interaction_state.stress_level > 0.9
     }
 
     /// Check if cell is focused
@@ -762,12 +762,13 @@ impl UICell {
 
     /// Apply stress to the cell
     pub fn apply_stress(&mut self, stress_amount: f64) {
-        self.vitals.stress_level = (self.vitals.stress_level + stress_amount).min(1.0);
+        self.interaction_state.stress_level =
+            (self.interaction_state.stress_level + stress_amount).min(1.0);
     }
 
-    /// Get cell vitals
-    pub fn get_vitals(&self) -> &CellVitals {
-        &self.vitals
+    /// Get cell interaction state
+    pub fn get_interaction_state(&self) -> &CellInteractionState {
+        &self.interaction_state
     }
 
     /// Get cell genome
@@ -1011,7 +1012,7 @@ mod tests {
         assert!(offspring_value == 0.8 || offspring_value == 0.2);
 
         // Test mutation
-        let original_value = genome1.get_gene("growth_rate");
+        let _original_value = genome1.get_gene("growth_rate");
         genome1.mutate(1.0); // 100% mutation rate
         let mutated_value = genome1.get_gene("growth_rate");
 
