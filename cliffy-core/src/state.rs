@@ -102,16 +102,28 @@ impl GeometricState {
         self.get(0)
     }
 
-    /// Get the vector components (e1, e2, e3)
+    /// Get the vector components (e1, e2, e3) as a tuple
     pub fn as_vector(&self) -> (f64, f64, f64) {
         let mv = self.inner.lock().unwrap();
         (mv.get(1), mv.get(2), mv.get(4))
     }
 
-    /// Get the bivector components (e12, e13, e23)
+    /// Get the vector components as a typed `Vector<3,0,0>`
+    pub fn as_typed_vector(&self) -> Vector<3, 0, 0> {
+        let mv = self.inner.lock().unwrap();
+        Vector::from_components(mv.get(1), mv.get(2), mv.get(4))
+    }
+
+    /// Get the bivector components (e12, e13, e23) as a tuple
     pub fn as_bivector(&self) -> (f64, f64, f64) {
         let mv = self.inner.lock().unwrap();
         (mv.get(3), mv.get(5), mv.get(6))
+    }
+
+    /// Get the bivector components as a typed `Bivector<3,0,0>`
+    pub fn as_typed_bivector(&self) -> Bivector<3, 0, 0> {
+        let mv = self.inner.lock().unwrap();
+        Bivector::from_components(mv.get(3), mv.get(5), mv.get(6))
     }
 
     /// Get the magnitude (norm) of the state
@@ -139,10 +151,20 @@ impl GeometricState {
         self.set(GA3::scalar(value));
     }
 
-    /// Set the vector value
+    /// Set the vector value from components
     pub fn set_vector(&self, x: f64, y: f64, z: f64) {
         let v = Vector::<3, 0, 0>::from_components(x, y, z);
         self.set(GA3::from_vector(&v));
+    }
+
+    /// Set the vector value from a typed `Vector<3,0,0>`
+    pub fn set_typed_vector(&self, v: &Vector<3, 0, 0>) {
+        self.set(GA3::from_vector(v));
+    }
+
+    /// Set the bivector value from a typed `Bivector<3,0,0>`
+    pub fn set_typed_bivector(&self, b: &Bivector<3, 0, 0>) {
+        self.set(GA3::from_bivector(b));
     }
 
     /// Update the state by applying a function
@@ -449,6 +471,37 @@ mod tests {
         state.set_scalar(2.0);
 
         assert_eq!(call_count.load(Ordering::SeqCst), 2);
+    }
+
+    #[test]
+    fn test_typed_vector_accessors() {
+        let state = GeometricState::from_vector(1.0, 2.0, 3.0);
+        let v = state.as_typed_vector();
+        // GA3 vector indices: 1=e1, 2=e2, 4=e3
+        assert!((v.mv.get(1) - 1.0).abs() < 1e-10);
+        assert!((v.mv.get(2) - 2.0).abs() < 1e-10);
+        assert!((v.mv.get(4) - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_typed_bivector_accessors() {
+        let state = GeometricState::from_bivector(0.5, 0.3, 0.1);
+        let b = state.as_typed_bivector();
+        assert!((b.get(0) - 0.5).abs() < 1e-10);
+        assert!((b.get(1) - 0.3).abs() < 1e-10);
+        assert!((b.get(2) - 0.1).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_set_typed_vector() {
+        let state = GeometricState::zero();
+        let v = Vector::<3, 0, 0>::from_components(4.0, 5.0, 6.0);
+        state.set_typed_vector(&v);
+        let result = state.as_typed_vector();
+        // GA3 vector indices: 1=e1, 2=e2, 4=e3
+        assert!((result.mv.get(1) - 4.0).abs() < 1e-10);
+        assert!((result.mv.get(2) - 5.0).abs() < 1e-10);
+        assert!((result.mv.get(4) - 6.0).abs() < 1e-10);
     }
 
     #[test]
