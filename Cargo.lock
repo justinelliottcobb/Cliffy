@@ -13,9 +13,9 @@ dependencies = [
 
 [[package]]
 name = "amari-core"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6caa57d227ad2b1695db673e0901c3a6d2ac7d94872793349775c226616dd776"
+checksum = "bd9845d2f84a6f9dc296d3fae7b852d307d551daf384dced6966f933998a3e9d"
 dependencies = [
  "approx",
  "bytemuck",
@@ -27,9 +27,9 @@ dependencies = [
 
 [[package]]
 name = "amari-flynn"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3ec251e119a2fe7178049a341e8bebd00573091122b90a573a245da66d059c93"
+checksum = "2b109a49290c1daa72d2bbf98987ddcba68a0aeb8263cb793e9f4be9885941f8"
 dependencies = [
  "amari-flynn-macros",
  "rand 0.8.5",
@@ -39,9 +39,9 @@ dependencies = [
 
 [[package]]
 name = "amari-flynn-macros"
-version = "0.18.1"
+version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "21e61eea1be7c8bc87f13f3a5d80a26ea72590c03c7d884172621c8de45d23cc"
+checksum = "576d51faf131aef3d1baedbafc5351dd466d5aa8fca497fd3433e2bbae5b2bbb"
 dependencies = [
  "proc-macro2",
  "quote",

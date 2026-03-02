@@ -79,7 +79,8 @@ pub use geometric::{FromGeometric, IntoGeometric, GA3};
 pub use projection::{
     BivectorProjection, BoolProjection, ColorAlphaProjection, ColorProjection, CustomProjection,
     IntProjection, MagnitudeProjection, MappedProjection, Position2DProjection,
-    Position3DProjection, Projection, RotorAngleProjection, ScalarProjection, VectorProjection,
+    Position3DProjection, Projection, RotorAngleProjection, ScalarProjection,
+    TypedBivectorProjection, TypedVectorProjection, VectorProjection,
 };
 pub use state::{GeometricState, GeometricSubscription};
 pub use transforms::{Rotor, Transform, Translation, Versor};

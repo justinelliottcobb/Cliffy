@@ -9,7 +9,7 @@
 //! rather than hiding all geometry behind scalar updates.
 
 use crate::geometric::GA3;
-use amari_core::{Bivector, Vector};
+use amari_core::{Bivector, Rotor as AmariRotor, Vector};
 
 /// A rotor represents a rotation in geometric algebra.
 ///
@@ -143,6 +143,36 @@ impl Rotor {
         // The scalar part is cos(θ/2)
         let scalar = self.inner.get(0);
         2.0 * scalar.clamp(-1.0, 1.0).acos()
+    }
+
+    /// Convert to an amari-core `Rotor<3,0,0>`
+    ///
+    /// This enables interop with amari-core's typed rotor operations
+    /// (slerp, compose, logarithm, power, etc.)
+    pub fn to_amari_rotor(&self) -> AmariRotor<3, 0, 0> {
+        // Extract and normalize the bivector plane
+        let e12 = self.inner.get(3);
+        let e13 = self.inner.get(5);
+        let e23 = self.inner.get(6);
+        let biv_mag = (e12 * e12 + e13 * e13 + e23 * e23).sqrt();
+
+        if biv_mag < 1e-10 {
+            // Identity or near-identity rotor
+            return AmariRotor::identity();
+        }
+
+        // Create unit bivector (negate to match amari convention;
+        // cliffy negates bivector components in from_bivector_angle)
+        let biv =
+            Bivector::<3, 0, 0>::from_components(-e12 / biv_mag, -e13 / biv_mag, -e23 / biv_mag);
+        AmariRotor::from_bivector(&biv, self.angle())
+    }
+
+    /// Create from an amari-core `Rotor<3,0,0>`
+    pub fn from_amari_rotor(rotor: &AmariRotor<3, 0, 0>) -> Self {
+        Self {
+            inner: rotor.as_multivector().clone(),
+        }
     }
 
     /// Spherical linear interpolation between identity and this rotor
@@ -591,5 +621,27 @@ mod tests {
         // Then translate by (1,0,0) -> (1,1,0)
         assert!((result.get(1) - 1.0).abs() < 1e-10);
         assert!((result.get(2) - 1.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_amari_rotor_roundtrip() {
+        let r = Rotor::xy(PI / 3.0);
+        let amari_r = r.to_amari_rotor();
+
+        // The amari rotor should have the same angle
+        let scalar = amari_r.as_multivector().get(0);
+        let angle = scalar.clamp(-1.0, 1.0).acos() * 2.0;
+        assert!((angle - PI / 3.0).abs() < 1e-10);
+
+        // Roundtrip: convert back
+        let r2 = Rotor::from_amari_rotor(&amari_r);
+        let v = GA3::from_vector(&Vector::from_components(1.0, 0.0, 0.0));
+
+        let result1 = r.transform(&v);
+        let result2 = r2.transform(&v);
+
+        assert!((result1.get(1) - result2.get(1)).abs() < 1e-10);
+        assert!((result1.get(2) - result2.get(2)).abs() < 1e-10);
+        assert!((result1.get(4) - result2.get(4)).abs() < 1e-10);
     }
 }
