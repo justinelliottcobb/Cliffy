@@ -253,7 +253,7 @@ impl Force {
         Self {
             force_type,
             strength,
-            direction: direction.normalize().unwrap_or_else(|| Multivector::zero()),
+            direction: direction.normalize().unwrap_or_else(Multivector::zero),
             range: force_type.range(),
             is_active: true,
         }
@@ -412,7 +412,7 @@ impl SpatialGrid {
 
     fn insert(&mut self, id: Uuid, position: &GA3) {
         let grid_pos = self.world_to_grid(position);
-        self.grid.entry(grid_pos).or_insert_with(Vec::new).push(id);
+        self.grid.entry(grid_pos).or_default().push(id);
     }
 
     fn get_neighbors(&self, position: &GA3, radius: f64) -> Vec<Uuid> {
@@ -453,7 +453,7 @@ impl PhysicsEngine {
     }
 
     /// Create a physics engine with default configuration
-    pub fn default() -> Self {
+    pub fn with_default_config() -> Self {
         Self::new(PhysicsConfig::default())
     }
 
@@ -599,7 +599,7 @@ impl PhysicsEngine {
                                 self.config.connection_spring_strength * (3.0 - distance) / 3.0;
                             let spring_force = distance_vector
                                 .normalize()
-                                .unwrap_or_else(|| Multivector::zero())
+                                .unwrap_or_else(Multivector::zero)
                                 * spring_constant;
 
                             physics.apply_force(spring_force);
@@ -671,7 +671,7 @@ impl PhysicsEngine {
         // Collision normal
         let normal = (pos_b - pos_a)
             .normalize()
-            .unwrap_or_else(|| Multivector::zero());
+            .unwrap_or_else(Multivector::zero);
 
         // Separate objects
         let overlap = collision_distance - distance;
@@ -720,7 +720,7 @@ impl PhysicsEngine {
                 physics.velocity = physics
                     .velocity
                     .normalize()
-                    .unwrap_or_else(|| Multivector::zero())
+                    .unwrap_or_else(Multivector::zero)
                     * self.config.max_velocity;
             }
 
@@ -730,7 +730,7 @@ impl PhysicsEngine {
                 physics.acceleration = physics
                     .acceleration
                     .normalize()
-                    .unwrap_or_else(|| Multivector::zero())
+                    .unwrap_or_else(Multivector::zero)
                     * self.config.max_acceleration;
             }
         }
@@ -807,7 +807,7 @@ mod tests {
 
     #[test]
     fn test_physics_engine() {
-        let mut engine = PhysicsEngine::default();
+        let mut engine = PhysicsEngine::with_default_config();
         let position = vector3(0.0, 0.0, 0.0);
         let cell = UICell::new_at_position(UICellType::ButtonCore, position);
 

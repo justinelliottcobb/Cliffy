@@ -12,6 +12,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "amari-automata"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "69718e33d391204de17e796f5e2c72eeeb85f1be29ba0ce19b426337f84ce275"
+dependencies = [
+ "amari-core",
+ "amari-dual",
+ "amari-tropical",
+ "num-traits",
+]
+
+[[package]]
 name = "amari-core"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -22,6 +34,17 @@ dependencies = [
  "dashu-float",
  "num-traits",
  "serde",
+ "thiserror 1.0.69",
+]
+
+[[package]]
+name = "amari-dual"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e2676f143cc16ee8f7b7f27c6d96b597d5c57f839221759cb3a4380b9677e169"
+dependencies = [
+ "amari-core",
+ "num-traits",
  "thiserror 1.0.69",
 ]
 
@@ -46,6 +69,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "amari-tropical"
+version = "0.19.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6fbb2f9c2f7f98b2d605bbd77df2879fd70bc5e063a30182d5ef8de4821938aa"
+dependencies = [
+ "amari-core",
+ "num-traits",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -262,12 +296,15 @@ checksum = "3a822ea5bc7590f9d40f1ba12c0dc3c2760f3482c6984db1573ad11031420831"
 name = "cliffy-alive"
 version = "0.1.0"
 dependencies = [
+ "amari-automata",
  "amari-core",
  "cliffy-core",
  "js-sys",
  "log",
- "rand",
+ "rand 0.8.5",
  "serde",
+ "serde-wasm-bindgen",
+ "serde_json",
  "tokio",
  "uuid",
  "wasm-bindgen",
@@ -1413,6 +1450,17 @@ checksum = "9a8e94ea7f378bd32cbbd37198a4a91436180c5bb472411e48b5ec2e2124ae9e"
 dependencies = [
  "serde_core",
  "serde_derive",
+]
+
+[[package]]
+name = "serde-wasm-bindgen"
+version = "0.6.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "8302e169f0eddcc139c70f139d19d6467353af16f9fce27e8c30158036a1e16b"
+dependencies = [
+ "js-sys",
+ "serde",
+ "wasm-bindgen",
 ]
 
 [[package]]

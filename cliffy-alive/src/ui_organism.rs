@@ -6,7 +6,7 @@
 
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule}; // Not yet published
 use amari_core::Vector;
-use cliffy_core::GA3;
+use cliffy_core::{Component, Element, GA3};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -358,12 +358,10 @@ impl UIOrganismField {
     /// Reward cells with high values for a specific gene
     fn reward_gene(&mut self, gene_name: &str, dt: UITime) {
         for row in &mut self.grid {
-            for cell_opt in row {
-                if let Some(cell) = cell_opt {
-                    let gene_value = cell.genome().get_gene(gene_name);
-                    let reward = gene_value * self.config.learning_rate * dt * 10.0;
-                    cell.add_energy(reward);
-                }
+            for cell in row.iter_mut().flatten() {
+                let gene_value = cell.genome().get_gene(gene_name);
+                let reward = gene_value * self.config.learning_rate * dt * 10.0;
+                cell.add_energy(reward);
             }
         }
     }
@@ -371,13 +369,11 @@ impl UIOrganismField {
     /// Reward cells with gene values close to target
     fn reward_gene_toward_target(&mut self, gene_name: &str, target: f64, dt: UITime) {
         for row in &mut self.grid {
-            for cell_opt in row {
-                if let Some(cell) = cell_opt {
-                    let gene_value = cell.genome().get_gene(gene_name);
-                    let distance = (gene_value - target).abs();
-                    let reward = (1.0 - distance) * self.config.learning_rate * dt * 10.0;
-                    cell.add_energy(reward);
-                }
+            for cell in row.iter_mut().flatten() {
+                let gene_value = cell.genome().get_gene(gene_name);
+                let distance = (gene_value - target).abs();
+                let reward = (1.0 - distance) * self.config.learning_rate * dt * 10.0;
+                cell.add_energy(reward);
             }
         }
     }
@@ -455,31 +451,29 @@ impl UIOrganismField {
         let mut gene_values: HashMap<String, Vec<f64>> = HashMap::new();
 
         for row in &self.grid {
-            for cell_opt in row {
-                if let Some(cell) = cell_opt {
-                    total_cells += 1;
+            for cell in row.iter().flatten() {
+                total_cells += 1;
 
-                    if cell.is_alive() {
-                        living_cells += 1;
-                        total_energy += cell.energy_level();
-                        total_age += cell.age();
+                if cell.is_alive() {
+                    living_cells += 1;
+                    total_energy += cell.energy_level();
+                    total_age += cell.age();
 
-                        *cell_type_counts.entry(cell.cell_type()).or_insert(0) += 1;
+                    *cell_type_counts.entry(cell.cell_type()).or_insert(0) += 1;
 
-                        // Collect gene values for diversity calculation
-                        for gene_name in [
-                            "growth_rate",
-                            "energy_efficiency",
-                            "cooperation",
-                            "adaptability",
-                            "visual_appeal",
-                            "responsiveness",
-                        ] {
-                            gene_values
-                                .entry(gene_name.to_string())
-                                .or_insert_with(Vec::new)
-                                .push(cell.genome().get_gene(gene_name));
-                        }
+                    // Collect gene values for diversity calculation
+                    for gene_name in [
+                        "growth_rate",
+                        "energy_efficiency",
+                        "cooperation",
+                        "adaptability",
+                        "visual_appeal",
+                        "responsiveness",
+                    ] {
+                        gene_values
+                            .entry(gene_name.to_string())
+                            .or_default()
+                            .push(cell.genome().get_gene(gene_name));
                     }
                 }
             }
@@ -648,6 +642,46 @@ impl UIOrganismField {
     }
 }
 
+impl Component for UIOrganismField {
+    fn render(&self, _state: &GA3) -> Element {
+        let mut children = Vec::new();
+
+        for y in 0..self.dimensions.1 {
+            for x in 0..self.dimensions.0 {
+                if let Some(cell) = &self.grid[y][x] {
+                    let cell_state = cell.initial_state();
+                    children.push(cell.render(&cell_state));
+                }
+            }
+        }
+
+        Element::tag("div")
+            .attr("class", "alive-organism")
+            .attr(
+                "style",
+                format!(
+                    "position:relative;width:{}px;height:{}px",
+                    self.dimensions.0 * 20,
+                    self.dimensions.1 * 20
+                ),
+            )
+            .children(children)
+    }
+
+    fn initial_state(&self) -> GA3 {
+        // Organism state: cell count as scalar, generation in e1, total energy in e2
+        let mut coeffs = vec![0.0; 8];
+        coeffs[0] = self.cell_count() as f64;
+        coeffs[1] = self.generation as f64;
+        coeffs[2] = self.total_energy();
+        GA3::from_coefficients(coeffs)
+    }
+
+    fn type_name(&self) -> &'static str {
+        "UIOrganismField"
+    }
+}
+
 /// Calculate variance of a set of values
 fn calculate_variance(values: &[f64]) -> f64 {
     if values.len() < 2 {
@@ -728,6 +762,30 @@ mod tests {
 
         // Should have applied selection pressure
         assert_eq!(organism.living_cell_count(), 1);
+    }
+
+    #[test]
+    fn test_organism_component_render() {
+        use cliffy_core::{Component, ElementKind};
+
+        let config = AliveConfig::default();
+        let mut organism = UIOrganismField::new((10, 10), config);
+
+        let _ = organism.plant_seed(5, 5, UICellType::ButtonCore);
+        let _ = organism.plant_seed(3, 3, UICellType::InputField);
+
+        let state = organism.initial_state();
+        let element = organism.render(&state);
+
+        // Should be a container div
+        assert!(matches!(&element.kind, ElementKind::Tag(t) if t == "div"));
+        assert!(element.props.has("class"));
+
+        // Should have 2 children (one per cell)
+        assert_eq!(element.children.len(), 2);
+
+        // Initial state should encode cell count
+        assert!((state.get(0) - 2.0).abs() < 1e-10);
     }
 
     #[test]

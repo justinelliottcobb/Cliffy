@@ -257,7 +257,7 @@ impl Neuron {
     pub fn update(&mut self, dt: UITime) {
         // Calculate total input
         let mut total_input = 0.0;
-        for (_input_id, weight) in &self.inputs {
+        for weight in self.inputs.values() {
             // Would need access to other neurons to get their activation
             // For now, use a simplified calculation
             total_input += weight * 0.5; // Placeholder
@@ -735,6 +735,12 @@ pub struct NervousSystem {
 
     /// Global memory shared across cells
     global_memory: HashMap<String, f64>,
+}
+
+impl Default for NervousSystem {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl NervousSystem {

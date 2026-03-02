@@ -5,13 +5,16 @@
 //! geometric fields that grow, adapt, and respond to user interaction through
 //! biological-inspired mechanisms.
 
+pub mod automata_bridge;
 pub mod evolution;
+pub mod frp_bridge;
 pub mod metabolism;
 pub mod nervous_system;
 pub mod physics;
 pub mod renderer;
 pub mod ui_cell;
 pub mod ui_organism;
+pub mod wasm_bindings;
 
 use cliffy_core::GeometricState;
 // use amari_automata::{AutomatonField, AutomatonCell, CellularRule};
@@ -113,6 +116,12 @@ pub struct AliveUI {
     renderer: Box<dyn UIRenderer>,
 }
 
+impl Default for AliveUI {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl AliveUI {
     /// Create a new living UI with default configuration
     pub fn new() -> Self {
@@ -141,10 +150,15 @@ impl AliveUI {
         }
     }
 
-    /// Set a custom renderer
+    /// Set a custom renderer (builder pattern)
     pub fn with_renderer(mut self, renderer: Box<dyn UIRenderer>) -> Self {
         self.renderer = renderer;
         self
+    }
+
+    /// Set the renderer on an existing AliveUI
+    pub fn set_renderer(&mut self, renderer: Box<dyn UIRenderer>) {
+        self.renderer = renderer;
     }
 
     /// Plant a seed UI cell at specific coordinates

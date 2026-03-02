@@ -4,7 +4,7 @@
 //! a geometric state using Amari's multivectors and participates in the cellular
 //! automaton that drives UI evolution and behavior.
 
-use cliffy_core::{GeometricState, GA3};
+use cliffy_core::{Component, Element, GeometricState, GA3};
 // use amari_automata::{AutomatonCell, CellularRule};
 use rand;
 use serde::{Deserialize, Serialize};
@@ -236,6 +236,12 @@ pub struct CellInteractionState {
     pub interaction_count: u32,
 }
 
+impl Default for CellInteractionState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CellInteractionState {
     pub fn new() -> Self {
         Self {
@@ -258,6 +264,12 @@ pub struct CellGenome {
     pub traits: HashMap<String, f64>,
     /// Affinity genes that determine relationships with other cell types
     pub affinities: HashMap<UICellType, f64>,
+}
+
+impl Default for CellGenome {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl CellGenome {
@@ -361,7 +373,7 @@ impl CellGenome {
 
     /// Check if has genes from another genome
     pub fn has_genes_from(&self, other: &CellGenome) -> bool {
-        for (key, _) in &other.genes {
+        for key in other.genes.keys() {
             if self.genes.contains_key(key) {
                 return true;
             }
@@ -638,8 +650,8 @@ impl UICell {
     pub fn position(&self) -> Position2D {
         let state = self.geometric_state.multivector();
         Position2D {
-            x: state.scalar_part(),       // Dimension 0
-            y: state.vector_component(0), // Dimension 1 (e1)
+            x: state.scalar_part(),       // [0] scalar
+            y: state.vector_component(0), // [1] e1
         }
     }
 
@@ -647,21 +659,88 @@ impl UICell {
     pub fn size(&self) -> Size2D {
         let state = self.geometric_state.multivector();
         Size2D {
-            width: state.vector_component(1).abs().max(10.0), // Dimension 2 (e2), minimum size
-            height: state.vector_component(2).abs().max(10.0), // Dimension 3 (e3), minimum size
+            width: state.vector_component(1).abs().max(10.0), // [2] e2, minimum size
+            height: state.vector_component(2).abs().max(10.0), // [4] e3, minimum size
         }
     }
 
     /// Get opacity (0.0 to 1.0)
     pub fn opacity(&self) -> f64 {
         let state = self.geometric_state.multivector();
-        ((state.get(3) + 1.0) / 2.0).clamp(0.0, 1.0) // Dimension 5 (e12 bivector), normalized to 0-1
+        ((state.get(3) + 1.0) / 2.0).clamp(0.0, 1.0) // [3] e12 bivector, normalized to 0-1
+    }
+
+    /// Get z-index from geometric state
+    pub fn z_index(&self) -> i32 {
+        let state = self.geometric_state.multivector();
+        state.get(5) as i32 // [5] e13 bivector
+    }
+
+    /// Get rotation angle in degrees
+    pub fn rotation(&self) -> f64 {
+        let state = self.geometric_state.multivector();
+        state.get(7) * 180.0 // [7] e123 pseudoscalar, radians to degrees
     }
 
     /// Get scale factor
     pub fn scale(&self) -> f64 {
         let state = self.geometric_state.multivector();
-        state.get(6).abs().max(0.1) // Dimension 7 (e23 bivector), minimum scale
+        state.get(6).abs().max(0.1) // [6] e23 bivector, minimum scale
+    }
+
+    /// Project 8D geometric state to a CSS style string
+    ///
+    /// Maps GA3 coefficients to CSS properties:
+    /// - `[0]` scalar → x position (px)
+    /// - `[1]` e1 → y position (px)
+    /// - `[2]` e2 → width (px)
+    /// - `[4]` e3 → height (px)
+    /// - `[3]` e12 → opacity (normalized 0-1)
+    /// - `[5]` e13 → z-index
+    /// - `[6]` e23 → scale
+    /// - `[7]` e123 → rotation (degrees)
+    pub fn to_css_string(&self, state: &GA3) -> String {
+        let x = state.scalar_part();
+        let y = state.vector_component(0);
+        let width = state.vector_component(1).abs().max(10.0);
+        let height = state.vector_component(2).abs().max(10.0);
+        let opacity = ((state.get(3) + 1.0) / 2.0).clamp(0.0, 1.0);
+        let z_index = state.get(5) as i32;
+        let scale = state.get(6).abs().max(0.1);
+        let rotation = state.get(7) * 180.0;
+
+        let color = &self.visual_properties.color;
+        let r = (color[0] * 255.0) as u8;
+        let g = (color[1] * 255.0) as u8;
+        let b = (color[2] * 255.0) as u8;
+
+        format!(
+            "position:absolute;\
+             left:{x:.1}px;\
+             top:{y:.1}px;\
+             width:{width:.1}px;\
+             height:{height:.1}px;\
+             opacity:{opacity:.3};\
+             z-index:{z_index};\
+             transform:rotate({rotation:.1}deg) scale({scale:.3});\
+             background:rgb({r},{g},{b});\
+             border:{bw:.1}px solid rgb({br},{bg},{bb})",
+            x = x,
+            y = y,
+            width = width,
+            height = height,
+            opacity = opacity,
+            z_index = z_index,
+            rotation = rotation,
+            scale = scale,
+            r = r,
+            g = g,
+            b = b,
+            bw = self.visual_properties.border_width,
+            br = (self.visual_properties.border_color[0] * 255.0) as u8,
+            bg = (self.visual_properties.border_color[1] * 255.0) as u8,
+            bb = (self.visual_properties.border_color[2] * 255.0) as u8,
+        )
     }
 
     /// Set position
@@ -945,6 +1024,23 @@ impl LivingComponent for UICell {
     }
 }
 
+impl Component for UICell {
+    fn render(&self, state: &GA3) -> Element {
+        Element::tag("div")
+            .attr("class", format!("alive-cell alive-{:?}", self.cell_type))
+            .with_key(self.id.to_string())
+            .attr("style", self.to_css_string(state))
+    }
+
+    fn initial_state(&self) -> GA3 {
+        self.geometric_state.multivector()
+    }
+
+    fn type_name(&self) -> &'static str {
+        "UICell"
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1018,6 +1114,53 @@ mod tests {
 
         // Value might have changed due to mutation
         assert!(mutated_value >= 0.0 && mutated_value <= 1.0);
+    }
+
+    #[test]
+    fn test_component_render() {
+        use cliffy_core::{Component, ElementKind};
+
+        let cell = UICell::new_at_position(UICellType::ButtonCore, GA3::scalar(5.0));
+        let state = cell.initial_state();
+        let element = cell.render(&state);
+
+        // Should produce a div with class and style
+        assert!(matches!(&element.kind, ElementKind::Tag(t) if t == "div"));
+        assert!(element.props.has("class"));
+        assert!(element.props.has("style"));
+        assert!(element.key.is_some());
+
+        // Class should include cell type
+        let class = element.props.get("class").unwrap().as_str().unwrap();
+        assert!(class.contains("alive-cell"));
+        assert!(class.contains("ButtonCore"));
+    }
+
+    #[test]
+    fn test_css_projection() {
+        let cell = UICell::new_at_position(UICellType::ButtonCore, GA3::scalar(0.0));
+
+        // Build a state with known coefficients
+        let coeffs = vec![
+            100.0, // [0] x
+            200.0, // [1] y
+            50.0,  // [2] width
+            0.5,   // [3] opacity (raw, maps to (0.5+1)/2 = 0.75)
+            30.0,  // [4] height
+            5.0,   // [5] z-index
+            1.0,   // [6] scale
+            0.0,   // [7] rotation
+        ];
+        let state = GA3::from_coefficients(coeffs);
+        let css = cell.to_css_string(&state);
+
+        assert!(css.contains("left:100.0px"));
+        assert!(css.contains("top:200.0px"));
+        assert!(css.contains("width:50.0px"));
+        assert!(css.contains("height:30.0px"));
+        assert!(css.contains("opacity:0.750"));
+        assert!(css.contains("z-index:5"));
+        assert!(css.contains("scale(1.000)"));
     }
 
     #[test]
