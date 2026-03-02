@@ -288,7 +288,7 @@ mod tests {
             .unwrap();
 
         // Result should be some weighted average
-        assert!(result.get(0) > 0.0);
+        assert!(result.scalar_part() > 0.0);
     }
 
     #[test]
@@ -299,11 +299,11 @@ mod tests {
         let join = lattice_join(&a, &b);
         let meet = lattice_meet(&a, &b);
 
-        assert!((join.get(0) - 2.0).abs() < 1e-10);
+        assert!((join.scalar_part() - 2.0).abs() < 1e-10);
         assert!((join.get(1) - 2.0).abs() < 1e-10);
         assert!((join.get(2) - 4.0).abs() < 1e-10);
 
-        assert!((meet.get(0) - 1.0).abs() < 1e-10);
+        assert!((meet.scalar_part() - 1.0).abs() < 1e-10);
         assert!((meet.get(1) - 1.0).abs() < 1e-10);
         assert!((meet.get(2) - 3.0).abs() < 1e-10);
     }

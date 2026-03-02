@@ -98,6 +98,120 @@ Items are categorized by:
 
 ---
 
+## Amari 0.19.0 Upgrade (Phase 9.5)
+
+### cliffy-test: SMT Backend + Statistical Bounds
+
+- [ ] **Bump amari-flynn 0.17.0 → 0.19.0**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: High
+  - Note: rand 0.8 → check compatibility with new amari-flynn; may need rand version bump
+
+- [ ] **Add SMT proof export to invariants**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: High
+  - Details:
+    - `ImpossibleInvariant::export_smt()` → `precondition_obligation(name, desc, 1.0)`
+    - `RareInvariant::export_smt()` → `hoeffding_obligation(name, samples, epsilon, delta)`
+    - Both return `SmtProofObligation` that can be written to `.smt2` files
+    - Add `verify_with_smt()` that cross-verifies Monte Carlo vs SMT
+
+- [ ] **Enrich InvariantTestReport with statistical bounds**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Medium
+  - Details:
+    - Add `confidence_interval: Option<(f64, f64)>` field
+    - Use `MonteCarloVerifier::estimate_probability()` → returns (estimate, lower, upper)
+    - Use `hoeffding_bound(n, epsilon)` to compute required sample count
+    - Use `compute_confidence(samples, epsilon)` for confidence level
+    - Use `confidence_interval(successes, total, confidence)` for CI
+
+### cliffy-core: Typed Rotor API
+
+- [ ] **Replace raw GA3 rotation with Rotor<3,0,0>**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Medium
+  - Details:
+    - `GeometricState` rotation via `Rotor::apply()` instead of manual sandwich
+    - `GeometricState.blend()` via `Rotor::slerp()` for correct manifold interpolation
+    - Transform composition via `Rotor::compose()`
+    - Rotor construction via `Rotor::from_vectors()` where applicable
+
+- [ ] **Replace raw GA3 vectors with Vector<3,0,0>**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Medium
+  - Details:
+    - Position/displacement as `Vector<3,0,0>`
+    - `Vector::normalize()` and `Vector::norm()` for typed operations
+
+### cliffy-protocols: Type-Safe Distributed State
+
+- [ ] **Type CRDT operations with Rotor/Vector/Bivector**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: High
+  - Details:
+    - `GeometricOp::Sandwich` → takes `Rotor<3,0,0>`, uses `Rotor::apply()`
+    - `GeometricOp::Exponential` → takes `Bivector<3,0,0>`, uses `exp()` then `Rotor::apply()`
+    - Operation composition via `Rotor::compose()`
+
+- [ ] **Type delta encodings**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Medium
+  - Details:
+    - `DeltaEncoding::Additive` wraps `Vector<3,0,0>` (displacement)
+    - `DeltaEncoding::Multiplicative` wraps `Rotor<3,0,0>` (transformation)
+    - `DeltaEncoding::Compressed` wraps `Bivector<3,0,0>` (log-space)
+    - Use `Rotor::logarithm()` and `Multivector::exp()` for compressed encoding
+
+- [ ] **Use Rotor::slerp() for consensus**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Medium
+  - Details:
+    - `geometric_consensus()` → iterative `Rotor::slerp()` for Fréchet mean
+    - `weighted_geometric_consensus()` → `Rotor::power(weight)` for weighted proposals
+    - Mathematically correct interpolation on rotor manifold
+
+- [ ] **Performance: norm_squared() for magnitude comparisons**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Low
+  - Details:
+    - Replace `magnitude()` with `norm_squared()` in lattice comparisons
+    - Use `grade_magnitude()` for grade-aware lattice operations
+    - Avoids unnecessary sqrt in hot paths
+
+- [ ] **Storage integrity with VerifiedMultivector**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 9.5
+  - Priority: Low
+  - Requires: amari-core `phantom-types` feature
+  - Details:
+    - Validate multivectors on snapshot load via `VerifiedMultivector::new()`
+    - Catches corruption at deserialization boundary
+
+### cliffy-alive: amari-automata Integration (deferred)
+
+- [ ] **Replace custom CA with amari-automata GeometricCA**
+  - Origin: Amari 0.19.0 audit
+  - Related: Phase 11
+  - Priority: Deferred
+  - Details:
+    - `GeometricCA` replaces `UIOrganismField` custom automata
+    - `InverseDesigner` for target layout → rule discovery
+    - `SelfAssembler` / `UIAssembler` for self-assembling UI
+    - `CayleyNavigator` for algebraic structure exploration
+    - amari-automata docs explicitly mention being built for cliffy-alive
+
+---
+
 ## Example Enhancements
 
 ### Document Editor (`examples/document-editor`)
@@ -412,6 +526,7 @@ Examples that demonstrate specific phase capabilities:
 
 ### In Progress
 
+- Phase 9.5: Amari 0.19.0 Upgrade (Foundation Hardening)
 - Phase 7 Documentation continues
 
 ### Completed This Sprint

@@ -129,6 +129,17 @@ pub struct InvariantTestReport {
 
     /// Sample of failure errors (if any)
     pub sample_errors: Vec<GeometricError>,
+
+    /// Confidence interval for the failure rate estimate (lower, upper)
+    ///
+    /// Computed using Hoeffding-based bounds from amari-flynn.
+    /// Only populated for Rare invariants verified with Monte Carlo.
+    pub confidence_interval: Option<(f64, f64)>,
+
+    /// Confidence level of the statistical verification (0.0 to 1.0)
+    ///
+    /// Computed from the Hoeffding bound given sample count and epsilon.
+    pub confidence_level: Option<f64>,
 }
 
 /// Category of invariant

@@ -112,6 +112,9 @@ pub mod prelude {
 
     // Re-export amari-flynn types
     pub use amari_flynn::prelude::*;
+
+    // SMT proof obligations for formal verification
+    pub use amari_flynn::backend::smt::SmtProofObligation;
 }
 
 #[cfg(test)]

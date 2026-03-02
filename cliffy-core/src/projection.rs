@@ -12,6 +12,7 @@
 //! - `ColorProjection`: Interpret components as RGB color
 
 use crate::geometric::GA3;
+use amari_core::{Bivector, Vector};
 
 /// A projection extracts a user-facing type from a multivector.
 ///
@@ -140,6 +141,38 @@ impl Projection for BivectorProjection {
 
     fn name(&self) -> &str {
         "bivector"
+    }
+}
+
+/// Project the vector (grade 1) components as a typed `Vector<3,0,0>`
+#[derive(Clone, Debug)]
+pub struct TypedVectorProjection;
+
+impl Projection for TypedVectorProjection {
+    type Output = Vector<3, 0, 0>;
+
+    fn project(&self, mv: &GA3) -> Vector<3, 0, 0> {
+        Vector::from_components(mv.get(1), mv.get(2), mv.get(4))
+    }
+
+    fn name(&self) -> &str {
+        "typed_vector"
+    }
+}
+
+/// Project bivector (grade 2) components as a typed `Bivector<3,0,0>`
+#[derive(Clone, Debug)]
+pub struct TypedBivectorProjection;
+
+impl Projection for TypedBivectorProjection {
+    type Output = Bivector<3, 0, 0>;
+
+    fn project(&self, mv: &GA3) -> Bivector<3, 0, 0> {
+        Bivector::from_components(mv.get(3), mv.get(5), mv.get(6))
+    }
+
+    fn name(&self) -> &str {
+        "typed_bivector"
     }
 }
 
@@ -388,6 +421,29 @@ mod tests {
         let mv = GA3::scalar(21.0);
         assert!((proj.project(&mv) - 42.0).abs() < 1e-10);
         assert_eq!(proj.name(), "doubled");
+    }
+
+    #[test]
+    fn test_typed_vector_projection() {
+        let v = Vector::<3, 0, 0>::from_components(1.0, 2.0, 3.0);
+        let mv = GA3::from_vector(&v);
+        let proj = TypedVectorProjection;
+        let result = proj.project(&mv);
+        // GA3 vector indices: 1=e1, 2=e2, 4=e3
+        assert!((result.mv.get(1) - 1.0).abs() < 1e-10);
+        assert!((result.mv.get(2) - 2.0).abs() < 1e-10);
+        assert!((result.mv.get(4) - 3.0).abs() < 1e-10);
+    }
+
+    #[test]
+    fn test_typed_bivector_projection() {
+        let b = Bivector::<3, 0, 0>::from_components(0.5, 0.3, 0.1);
+        let mv = GA3::from_bivector(&b);
+        let proj = TypedBivectorProjection;
+        let result = proj.project(&mv);
+        assert!((result.get(0) - 0.5).abs() < 1e-10);
+        assert!((result.get(1) - 0.3).abs() < 1e-10);
+        assert!((result.get(2) - 0.1).abs() < 1e-10);
     }
 
     #[test]

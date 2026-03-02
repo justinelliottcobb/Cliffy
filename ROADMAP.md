@@ -1891,6 +1891,115 @@ pub enum PropValue<T> {
 
 ---
 
+## Phase 9.5: Amari 0.19.0 Upgrade (Foundation Hardening)
+
+**Goal**: Upgrade all crates to Amari 0.19.0 and adopt typed geometric primitives (Rotor, Vector, Bivector), SMT proof obligations, and statistical bounds throughout the framework.
+
+**Prerequisites**: None — this is foundational work that strengthens all subsequent phases.
+
+### Motivation
+
+Amari 0.19.0 introduces three major capabilities that directly address Cliffy's architecture:
+
+1. **Typed geometric primitives** (`Rotor<P,Q,R>`, `Vector<P,Q,R>`, `Bivector<P,Q,R>`) — replaces raw `GA3` multivector usage with compile-time grade safety
+2. **SMT-LIB2 proof obligations** (`SmtProofObligation`) — enables formal verification of probabilistic contracts, exportable to Z3/CVC5
+3. **Statistical bounds** (`hoeffding_bound`, `chernoff_bound`, `confidence_interval`) — tightens probabilistic test verification with mathematical rigor
+
+### 9.5.1 cliffy-test: SMT Backend + Statistical Bounds
+
+Upgrade amari-flynn from 0.17.0 → 0.19.0 and integrate new verification backends.
+
+**Changes**:
+- Bump `amari-flynn` dependency to 0.19.0
+- Add `export_smt()` to `ImpossibleInvariant` — generates `precondition_obligation()` for formal proof
+- Add `export_smt()` to `RareInvariant` — generates `hoeffding_obligation()` with sample count and epsilon
+- Enrich `InvariantTestReport` with `confidence_interval: Option<(f64, f64)>` using `estimate_probability()`
+- Use `hoeffding_bound()` in `RareInvariant` to compute required sample count for target confidence
+- Use `confidence_interval()` for richer reporting in test output
+- Add `verify_with_smt()` method that cross-verifies Monte Carlo results against SMT obligations
+- Optional: Wire up `Why3Generator` pipeline for future formal verification
+
+**Tasks**:
+- [ ] Bump amari-flynn 0.17.0 → 0.19.0 in cliffy-test/Cargo.toml
+- [ ] Add SMT export to ImpossibleInvariant (precondition_obligation)
+- [ ] Add SMT export to RareInvariant (hoeffding_obligation)
+- [ ] Add confidence_interval field to InvariantTestReport
+- [ ] Use hoeffding_bound() for adaptive sample count in RareInvariant
+- [ ] Use estimate_probability() for (estimate, lower, upper) reporting
+- [ ] Add verify_with_smt() cross-verification method
+- [ ] Update all existing tests to work with 0.19.0 API
+- [ ] Add new tests for SMT export and statistical bounds
+
+### 9.5.2 cliffy-core: Typed Rotor API
+
+Adopt Amari's typed `Rotor<3,0,0>` for geometric state transformations.
+
+**Changes**:
+- Use `Rotor<3,0,0>` instead of raw GA3 for rotation operations in GeometricState
+- Use `Vector<3,0,0>` for position/displacement components
+- Use `Rotor::slerp()` for state interpolation (replaces ad-hoc blend)
+- Use `Rotor::compose()` for transform composition
+- Evaluate `phantom-types` feature for VerifiedMultivector in critical paths
+
+**Tasks**:
+- [ ] Audit all GA3 usage in cliffy-core for type opportunities
+- [ ] Replace rotation operations with typed Rotor<3,0,0>
+- [ ] Replace vector operations with typed Vector<3,0,0>
+- [ ] Use Rotor::slerp() for GeometricState.blend()
+- [ ] Use Rotor::compose() for transform chaining
+- [ ] Ensure all 79 existing tests pass with typed API
+- [ ] Add new tests for typed rotor operations
+
+### 9.5.3 cliffy-protocols: Type-Safe Distributed State
+
+Replace raw GA3 usage with typed geometric primitives for compile-time safety in CRDT, consensus, and sync operations.
+
+**Changes**:
+- **CRDT**: Use `Rotor<3,0,0>` for sandwich operations, `Rotor::apply()` instead of manual `geometric_product + reverse`
+- **Delta encoding**: Type deltas by encoding — `Vector` for Additive, `Rotor` for Multiplicative, `Bivector` for Compressed
+- **Consensus**: Use `Rotor::slerp()` for geometric mean (mathematically correct manifold interpolation)
+- **Lattice**: Use `grade_magnitude()` and `norm_squared()` for efficient grade-aware operations
+- **Storage**: Use `VerifiedMultivector` at snapshot boundaries for integrity checking on load
+- **Performance**: Replace `magnitude()` comparisons with `norm_squared()` to avoid unnecessary sqrt
+
+**Tasks**:
+- [ ] Replace CRDT sandwich product with Rotor::apply()
+- [ ] Type delta encodings (Vector/Rotor/Bivector)
+- [ ] Replace consensus geometric mean with Rotor::slerp()
+- [ ] Use grade_magnitude() in lattice operations
+- [ ] Replace magnitude() with norm_squared() in comparisons
+- [ ] Add VerifiedMultivector at storage snapshot boundaries
+- [ ] Update Rotor composition to use Rotor::compose()
+- [ ] Use Rotor::logarithm() and Rotor::power() in compressed delta encoding
+- [ ] Ensure all 42 existing tests pass with typed API
+- [ ] Add new tests for typed operations
+
+### 9.5.4 cliffy-alive: amari-automata Integration (deferred to Phase 11)
+
+When cliffy-alive development resumes, integrate `amari-automata` as the mathematical backbone:
+
+- Replace custom cellular automata with `GeometricCA`
+- Use `InverseDesigner` for target layout discovery
+- Use `SelfAssembler` / `UIAssembler` for self-assembling UI components
+- Use `CayleyNavigator` for algebraic structure exploration
+- Use `TropicalSolver` for optimization problems
+
+This work is deferred to Phase 11 since cliffy-alive is on its own feature branch.
+
+### Dependencies Between Sub-phases
+
+```
+9.5.1 (cliffy-test)     ← no dependencies, start here
+       ↓
+9.5.2 (cliffy-core)     ← typed API patterns established in tests first
+       ↓
+9.5.3 (cliffy-protocols) ← depends on cliffy-core typed API
+       ↓
+9.5.4 (cliffy-alive)    ← deferred to Phase 11, depends on all above
+```
+
+---
+
 ## Phase 10: Component Library (cliffy-components) → v0.3.0
 
 **Goal**: A standard library of geometric components built on Phase 4's foundation, preparing for Living UI integration.
@@ -2339,6 +2448,17 @@ Demonstrate the paradigm with compelling examples:
 - [ ] create-cliffy documentation complete
 - [ ] Package references updated to `@cliffy-ga/core`
 - [ ] **Release**: Publish `@cliffy-ga/core` v0.2.0 to npm
+
+### Phase 9.5 (Amari 0.19.0 Upgrade)
+- [ ] amari-flynn bumped to 0.19.0 in cliffy-test
+- [ ] SMT export working for Impossible and Rare invariants
+- [ ] InvariantTestReport includes confidence intervals
+- [ ] cliffy-core uses typed Rotor<3,0,0> for rotations
+- [ ] cliffy-core uses typed Vector<3,0,0> for positions
+- [ ] cliffy-protocols CRDT uses Rotor::apply() for sandwich products
+- [ ] cliffy-protocols consensus uses Rotor::slerp()
+- [ ] cliffy-protocols delta encoding typed (Vector/Rotor/Bivector)
+- [ ] All existing tests pass across all three crates (79 + 42 + 25)
 
 ### Phase 10 → v0.3.0 (Component Library)
 - [ ] Core component set implemented (Button, Input, Select, etc.)
