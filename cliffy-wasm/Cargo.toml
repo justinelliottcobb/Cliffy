@@ -37,7 +37,7 @@ getrandom = { version = "0.2", features = ["js"] }
 # getrandom 0.4 is pulled in by cliffy-test -> quickcheck -> rand 0.10
 # Enable wasm_js feature for WASM target compatibility
 getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
-rand = "0.8"
+rand = "0.10"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
