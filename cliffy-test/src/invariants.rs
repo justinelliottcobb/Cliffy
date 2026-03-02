@@ -481,6 +481,6 @@ mod tests {
         // Should have confidence level populated
         assert!(report.confidence_level.is_some());
         let conf = report.confidence_level.unwrap();
-        assert!(conf >= 0.0 && conf <= 1.0);
+        assert!((0.0..=1.0).contains(&conf));
     }
 }
