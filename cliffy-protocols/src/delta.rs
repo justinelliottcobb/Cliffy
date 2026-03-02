@@ -25,7 +25,7 @@
 //! let mut state = from.clone();
 //! apply_additive_delta(&mut state, &delta);
 //!
-//! assert!((state.get(0) - to.get(0)).abs() < 1e-10);
+//! assert!((state.scalar_part() - to.scalar_part()).abs() < 1e-10);
 //! ```
 
 use crate::serde_ga3;
@@ -299,7 +299,7 @@ mod tests {
         let delta = compute_delta(&from, &to);
 
         // Delta should be 4.0
-        assert!((delta.get(0) - 4.0).abs() < 1e-10);
+        assert!((delta.scalar_part() - 4.0).abs() < 1e-10);
     }
 
     #[test]
@@ -318,7 +318,7 @@ mod tests {
         let mut state = from.clone();
         apply_delta(&mut state, &delta);
 
-        assert!((state.get(0) - 7.0).abs() < 1e-10);
+        assert!((state.scalar_part() - 7.0).abs() < 1e-10);
     }
 
     #[test]
@@ -335,7 +335,7 @@ mod tests {
         apply_delta(&mut state, &delta);
 
         // sandwich(2, 3, 2) = 2 * 3 * 2 = 12
-        assert!((state.get(0) - 12.0).abs() < 1e-10);
+        assert!((state.scalar_part() - 12.0).abs() < 1e-10);
     }
 
     #[test]
@@ -352,7 +352,7 @@ mod tests {
 
         // exp(1) * 1 ≈ 2.718
         let expected = std::f64::consts::E;
-        assert!((state.get(0) - expected).abs() < 1e-10);
+        assert!((state.scalar_part() - expected).abs() < 1e-10);
     }
 
     #[test]
@@ -383,7 +383,7 @@ mod tests {
         let combined = batch.combine_additive().unwrap();
 
         // 1 + 2 + 3 = 6
-        assert!((combined.get(0) - 6.0).abs() < 1e-10);
+        assert!((combined.scalar_part() - 6.0).abs() < 1e-10);
     }
 
     #[test]
@@ -408,7 +408,7 @@ mod tests {
         batch.apply_to(&mut state);
 
         // 10 + 1 + 2 = 13
-        assert!((state.get(0) - 13.0).abs() < 1e-10);
+        assert!((state.scalar_part() - 13.0).abs() < 1e-10);
     }
 
     #[test]
@@ -440,7 +440,7 @@ mod tests {
 
         // ln(8/2) = ln(4) ≈ 1.386
         let expected = (8.0_f64 / 2.0_f64).ln();
-        assert!((delta.get(0) - expected).abs() < 1e-10);
+        assert!((delta.scalar_part() - expected).abs() < 1e-10);
     }
 
     #[test]

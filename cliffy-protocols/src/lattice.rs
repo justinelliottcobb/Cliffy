@@ -318,7 +318,7 @@ mod tests {
 
         let joined = a.join(&b);
 
-        assert!((joined.as_multivector().get(0) - 2.0).abs() < 1e-10);
+        assert!((joined.as_multivector().scalar_part() - 2.0).abs() < 1e-10);
         assert!((joined.as_multivector().get(1) - 2.0).abs() < 1e-10);
         assert!((joined.as_multivector().get(2) - 4.0).abs() < 1e-10);
     }
@@ -334,7 +334,7 @@ mod tests {
 
         let met = a.meet(&b).unwrap();
 
-        assert!((met.as_multivector().get(0) - 1.0).abs() < 1e-10);
+        assert!((met.as_multivector().scalar_part() - 1.0).abs() < 1e-10);
         assert!((met.as_multivector().get(1) - 1.0).abs() < 1e-10);
         assert!((met.as_multivector().get(2) - 3.0).abs() < 1e-10);
     }

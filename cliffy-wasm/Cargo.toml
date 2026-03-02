@@ -1,9 +1,13 @@
 [package]
 name = "cliffy-wasm"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 description = "WebAssembly bindings for Cliffy reactive framework"
 license = "MIT"
+repository = "https://github.com/justinelliottcobb/Cliffy"
+readme = "README.md"
+keywords = ["wasm", "webassembly", "reactive", "frp", "geometric-algebra"]
+categories = ["wasm", "gui", "web-programming"]
 
 [lib]
 crate-type = ["cdylib", "rlib"]
@@ -25,9 +29,15 @@ web-sys = { workspace = true, features = [
     "Window",
 ] }
 console_error_panic_hook = { version = "0.1", optional = true }
-cliffy-core = { path = "../cliffy-core" }
-cliffy-protocols = { path = "../cliffy-protocols" }
+cliffy-core = { version = "0.2.0", path = "../cliffy-core" }
+cliffy-protocols = { version = "0.2.0", path = "../cliffy-protocols" }
+cliffy-test = { version = "0.2.0", path = "../cliffy-test" }
 uuid = { version = "1.0", features = ["v4", "js"] }
+getrandom = { version = "0.2", features = ["js"] }
+# getrandom 0.4 is pulled in by cliffy-test -> quickcheck -> rand 0.10
+# Enable wasm_js feature for WASM target compatibility
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+rand = "0.8"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

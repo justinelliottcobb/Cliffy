@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@cliffy/core": "^{{cliffyVersion}}"
+    "@cliffy-ga/core": "^{{cliffyVersion}}"
   },
   "devDependencies": {
     "@types/bun": "latest",

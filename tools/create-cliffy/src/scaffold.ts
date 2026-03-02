@@ -10,8 +10,11 @@ import pc from 'picocolors';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
+// Templates are in src/templates, but compiled code runs from dist/
+// Go up one level from dist/ to find src/templates/
+const TEMPLATES_DIR = join(__dirname, '..', 'src', 'templates');
 
-export const TEMPLATES = ['typescript-vite', 'bun', 'purescript'] as const;
+export const TEMPLATES = ['typescript-vite', 'typescript-vite-library', 'bun', 'purescript'] as const;
 export type Template = typeof TEMPLATES[number];
 
 export interface ScaffoldOptions {
@@ -22,7 +25,7 @@ export interface ScaffoldOptions {
   packageManager: 'npm' | 'yarn' | 'pnpm' | 'bun';
 }
 
-const CLIFFY_VERSION = '0.1.2';
+const CLIFFY_VERSION = '0.1.3';
 
 interface TemplateVariables {
   projectName: string;
@@ -76,7 +79,10 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
     }
   }
 
-  console.log(`\n${pc.cyan('Creating project')} ${pc.bold(projectName)}...`);
+  const isLibrary = template === 'typescript-vite-library';
+  const projectType = isLibrary ? 'library' : 'application';
+
+  console.log(`\n${pc.cyan('Creating ' + projectType)} ${pc.bold(projectName)}...`);
   console.log(`  Template: ${pc.yellow(template)}`);
   console.log();
 
@@ -84,7 +90,7 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
   mkdirSync(targetDir, { recursive: true });
 
   // Copy template files
-  const templateDir = join(__dirname, 'templates', template);
+  const templateDir = join(TEMPLATES_DIR, template);
   const variables: TemplateVariables = {
     projectName,
     cliffyVersion: CLIFFY_VERSION,
@@ -137,7 +143,14 @@ export async function scaffold(options: ScaffoldOptions): Promise<void> {
     console.log(`  ${pc.cyan('spago build')}`);
   }
 
-  console.log(`  ${pc.cyan(getDevCommand(packageManager))}`);
+  if (isLibrary) {
+    console.log(`  ${pc.cyan(getBuildCommand(packageManager))}  ${pc.dim('# Build the library')}`);
+    console.log();
+    console.log(pc.dim('To publish your library:'));
+    console.log(`  ${pc.cyan('npm publish')}  ${pc.dim('# or: npm publish --access public')}`);
+  } else {
+    console.log(`  ${pc.cyan(getDevCommand(packageManager))}`);
+  }
   console.log();
   console.log(pc.dim('Happy hacking!'));
   console.log();
@@ -159,6 +172,11 @@ function getInstallCommand(pm: string): string {
 function getDevCommand(pm: string): string {
   const runCmd = pm === 'npm' ? 'npm run' : pm;
   return `${runCmd} dev`;
+}
+
+function getBuildCommand(pm: string): string {
+  const runCmd = pm === 'npm' ? 'npm run' : pm;
+  return `${runCmd} build`;
 }
 
 function getGitignore(template: Template): string {
@@ -197,6 +215,13 @@ yarn-error.log*
     'typescript-vite': `
 # Vite
 *.local
+`,
+    'typescript-vite-library': `
+# Vite
+*.local
+
+# TypeScript build info
+*.tsbuildinfo
 `,
     'bun': `
 # Bun

@@ -16,7 +16,7 @@
  * ```
  */
 
-import type { Behavior } from '@cliffy/core';
+import type { Behavior } from '@cliffy-ga/core';
 
 // Type guard to check if a value is a Behavior
 function isBehavior(value: unknown): value is Behavior {

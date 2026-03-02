@@ -175,7 +175,7 @@ mod tests {
         crdt.apply_operation(op);
 
         // State should now be 3.0 (1.0 + 2.0)
-        assert!((crdt.state.get(0) - 3.0).abs() < 1e-10);
+        assert!((crdt.state.scalar_part() - 3.0).abs() < 1e-10);
     }
 
     #[test]
@@ -200,7 +200,7 @@ mod tests {
         let merged2 = crdt2.merge(&crdt1);
 
         // Both merges should produce the same state
-        let diff = merged1.state.get(0) - merged2.state.get(0);
+        let diff = merged1.state.scalar_part() - merged2.state.scalar_part();
         assert!(diff.abs() < 1e-10);
     }
 

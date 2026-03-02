@@ -7,6 +7,7 @@ Minimal geometric state management for JavaScript/TypeScript. Pure TypeScript, z
 - **GeometricState** - Smooth state interpolation via `.blend()`
 - **Rotor** - Rotation representation with SLERP interpolation
 - **Transform** - Combined rotation + translation
+- **Distributed Protocols** - CRDT, vector clocks, sync, consensus
 - **Zero dependencies** - Pure TypeScript math
 - **Universal** - Works in browser, Node.js, React Native, Deno
 
@@ -655,6 +656,373 @@ You don't need to understand GA to use the library - the API is designed around 
 | `then(other)` | Compose transforms |
 | `inverse()` | Reverse transform |
 | `interpolateTo(other, t)` | Interpolate to other |
+
+---
+
+## Distributed Protocols
+
+cliffy-tsukoshi includes a complete suite of distributed protocols for building collaborative applications. Import from `cliffy-tsukoshi/protocols` or directly from the main module.
+
+```typescript
+import { GeometricCRDT, VectorClock, SyncState } from 'cliffy-tsukoshi';
+// or
+import { GeometricCRDT, VectorClock } from 'cliffy-tsukoshi/protocols';
+```
+
+### VectorClock
+
+Track causality in distributed systems without centralized coordination.
+
+```typescript
+import { VectorClock } from 'cliffy-tsukoshi';
+
+const clock1 = new VectorClock();
+const clock2 = new VectorClock();
+
+// Each node increments its own entry
+clock1.tick('node-1');
+clock2.tick('node-2');
+
+// These events are concurrent (neither happened before the other)
+console.log(clock1.concurrent(clock2)); // true
+
+// After syncing, merge clocks
+clock1.update(clock2);
+clock1.tick('node-1');
+
+// Now clock1 happened after clock2
+console.log(clock2.happensBefore(clock1)); // true
+```
+
+### GeometricCRDT
+
+Conflict-free replicated data type using geometric algebra for merge operations.
+
+```typescript
+import { GeometricCRDT, OperationType, scalar } from 'cliffy-tsukoshi';
+
+// Create CRDTs on two different nodes
+const nodeId1 = crypto.randomUUID();
+const nodeId2 = crypto.randomUUID();
+
+const crdt1 = new GeometricCRDT(nodeId1, scalar(0));
+const crdt2 = new GeometricCRDT(nodeId2, scalar(0));
+
+// Each node makes independent updates
+const op1 = crdt1.createOperation(scalar(5), OperationType.Addition);
+crdt1.applyOperation(op1);
+
+const op2 = crdt2.createOperation(scalar(3), OperationType.Addition);
+crdt2.applyOperation(op2);
+
+// Merge - order doesn't matter, result is always consistent
+const merged1 = crdt1.merge(crdt2);
+const merged2 = crdt2.merge(crdt1);
+
+// Both produce the same state (8.0)
+console.log(merged1.state[0] === merged2.state[0]); // true
+```
+
+### Lattice Operations
+
+Join-semilattice operations for guaranteed convergence.
+
+```typescript
+import { GA3Lattice, ComponentLattice, latticeJoin, latticeMeet } from 'cliffy-tsukoshi';
+
+// Magnitude-based lattice (larger magnitude wins)
+const stateA = GA3Lattice.fromScalar(3);
+const stateB = GA3Lattice.fromScalar(7);
+
+const joined = stateA.join(stateB);
+console.log(joined.dominates(stateA)); // true
+console.log(joined.dominates(stateB)); // true
+
+// Component-wise lattice (max of each coefficient)
+const a = ComponentLattice.fromScalar(5);
+const b = ComponentLattice.fromScalar(3);
+
+const max = a.join(b);  // Takes max of each component
+const min = a.meet(b);  // Takes min of each component
+```
+
+### Delta Synchronization
+
+Efficient state sync using minimal deltas instead of full state transfer.
+
+```typescript
+import {
+  computeDelta,
+  applyDelta,
+  additiveDelta,
+  DeltaBatch,
+  VectorClock
+} from 'cliffy-tsukoshi';
+import { scalar } from 'cliffy-tsukoshi';
+
+// Compute delta between states
+const from = scalar(10);
+const to = scalar(25);
+const delta = computeDelta(from, to); // Results in scalar(15)
+
+// Create a delta with causal metadata
+const fromClock = new VectorClock();
+const toClock = new VectorClock();
+toClock.tick('node-1');
+
+const stateDelta = additiveDelta(delta, fromClock, toClock, 'node-1');
+
+// Apply delta to reconstruct state
+const newState = applyDelta(from, stateDelta);
+console.log(newState[0]); // 25
+
+// Batch multiple deltas for efficiency
+const batch = new DeltaBatch();
+batch.push(stateDelta);
+// ... add more deltas
+const finalState = batch.applyTo(from);
+```
+
+### Storage & Recovery
+
+Persist state with snapshots and operation logs.
+
+```typescript
+import { MemoryStore, recoverState, VectorClock, additiveDelta } from 'cliffy-tsukoshi';
+import { scalar } from 'cliffy-tsukoshi';
+
+// Create a store (in-memory for this example)
+const store = new MemoryStore({
+  maxSnapshots: 10,
+  maxOperationsBeforeCompact: 100,
+  autoCompact: true,
+});
+
+// Save initial snapshot
+const state = scalar(100);
+const clock = new VectorClock();
+store.saveSnapshot(state, clock);
+
+// Append operations
+clock.tick('node-1');
+const delta = additiveDelta(scalar(50), new VectorClock(), clock, 'node-1');
+store.appendOperation(delta);
+
+// Later: recover state from storage
+const result = recoverState(store);
+if (result) {
+  console.log(result.state[0]); // 150
+  console.log(result.operationsReplayed); // 1
+}
+
+// Check stats
+const stats = store.stats();
+console.log(`Snapshots: ${stats.snapshotCount}, Operations: ${stats.operationCount}`);
+```
+
+### Peer-to-Peer Sync
+
+Protocol messages for P2P state synchronization.
+
+```typescript
+import { SyncState, PeerConnectionState, VectorClock } from 'cliffy-tsukoshi';
+
+// Create sync state for this node
+const nodeId = crypto.randomUUID();
+const syncState = new SyncState(nodeId, {
+  heartbeatInterval: 5000,
+  peerTimeout: 30000,
+});
+
+// When a peer connects
+const peerId = crypto.randomUUID();
+syncState.registerPeer(peerId, new VectorClock());
+
+// Create protocol messages
+const hello = syncState.createHello('My App Node');
+const heartbeat = syncState.createHeartbeat();
+const deltaRequest = syncState.createDeltaRequest(new VectorClock());
+
+// Send messages via your transport (WebRTC, WebSocket, etc.)
+sendToPeer(peerId, JSON.stringify(hello));
+
+// Handle incoming messages
+function onMessageReceived(data: string) {
+  const message = JSON.parse(data);
+  const response = syncState.handleMessage(message);
+  if (response) {
+    sendToPeer(message.sender, JSON.stringify(response));
+  }
+}
+
+// Maintenance: check for stale peers
+const stalePeers = syncState.stalePeers();
+for (const peerId of stalePeers) {
+  // Attempt reconnection or remove
+}
+```
+
+### Distributed Consensus
+
+Geometric mean consensus for distributed agreement.
+
+```typescript
+import { GeometricConsensus, scalar } from 'cliffy-tsukoshi';
+
+const nodeId = crypto.randomUUID();
+const consensus = new GeometricConsensus(nodeId, scalar(0));
+
+// Subscribe to outgoing messages
+consensus.onMessage((message) => {
+  // Broadcast to all peers
+  broadcastToPeers(JSON.stringify(message));
+});
+
+// Propose a value
+const round = consensus.propose(scalar(42));
+
+// Receive proposals from other nodes
+consensus.receiveProposal('other-node-id', scalar(38), round);
+consensus.receiveProposal('another-node-id', scalar(45), round);
+
+// Compute consensus from all proposals
+const proposals = consensus.getProposals(round);
+const consensusValue = consensus.geometricConsensus(proposals, 0.1);
+console.log('Consensus:', consensusValue[0]); // ~41.67 (geometric mean)
+
+// Vote on the consensus value
+consensus.vote(round, true, consensusValue);
+
+// Try to commit if we have majority
+const committed = consensus.tryCommit(round, 3); // 3 participants
+if (committed) {
+  console.log('Round committed!', committed[0]);
+}
+```
+
+### Complete Example: Collaborative Counter
+
+```typescript
+import {
+  GeometricCRDT,
+  OperationType,
+  SyncState,
+  VectorClock,
+  MemoryStore,
+  additiveDelta,
+  scalar,
+} from 'cliffy-tsukoshi';
+
+class CollaborativeCounter {
+  private crdt: GeometricCRDT;
+  private syncState: SyncState;
+  private store: MemoryStore;
+  private onUpdate: (value: number) => void;
+
+  constructor(nodeId: string, onUpdate: (value: number) => void) {
+    this.crdt = new GeometricCRDT(nodeId, scalar(0));
+    this.syncState = new SyncState(nodeId);
+    this.store = new MemoryStore();
+    this.onUpdate = onUpdate;
+
+    // Save initial state
+    this.store.saveSnapshot(this.crdt.state, this.crdt.vectorClock);
+  }
+
+  increment(amount: number = 1): void {
+    const op = this.crdt.createOperation(scalar(amount), OperationType.Addition);
+    this.crdt.applyOperation(op);
+    this.notifyUpdate();
+
+    // Store the operation
+    const delta = additiveDelta(
+      scalar(amount),
+      new VectorClock(),
+      this.crdt.vectorClock,
+      this.crdt.nodeId
+    );
+    this.store.appendOperation(delta);
+  }
+
+  getValue(): number {
+    return this.crdt.state[0];
+  }
+
+  // Call when receiving state from another peer
+  merge(otherCrdt: GeometricCRDT): void {
+    this.crdt = this.crdt.merge(otherCrdt);
+    this.notifyUpdate();
+  }
+
+  // Get state to send to peers
+  getState(): GeometricCRDT {
+    return this.crdt;
+  }
+
+  private notifyUpdate(): void {
+    this.onUpdate(this.getValue());
+  }
+}
+
+// Usage
+const counter = new CollaborativeCounter('node-1', (value) => {
+  console.log('Counter updated:', value);
+});
+
+counter.increment(5);
+counter.increment(3);
+console.log(counter.getValue()); // 8
+```
+
+## Protocol Reference
+
+### VectorClock
+
+| Method | Description |
+|--------|-------------|
+| `tick(nodeId)` | Increment clock for a node |
+| `update(other)` | Merge with another clock |
+| `happensBefore(other)` | Check causal ordering |
+| `concurrent(other)` | Check if concurrent events |
+| `merge(other)` | Create merged clock |
+| `clone()` | Copy the clock |
+| `toJSON()` / `fromJSON()` | Serialization |
+
+### GeometricCRDT
+
+| Method | Description |
+|--------|-------------|
+| `createOperation(transform, type)` | Create a new operation |
+| `applyOperation(op)` | Apply an operation |
+| `merge(other)` | Merge with another CRDT |
+| `geometricJoin(other)` | Conflict resolution via magnitude |
+| `toJSON()` / `fromJSON()` | Serialization |
+
+### SyncState
+
+| Method | Description |
+|--------|-------------|
+| `registerPeer(id, clock)` | Add a peer |
+| `removePeer(id)` | Remove a peer |
+| `createHello(name?)` | Create hello message |
+| `createHeartbeat()` | Create heartbeat message |
+| `createDeltaRequest(clock)` | Request deltas |
+| `handleMessage(msg)` | Process incoming message |
+| `stalePeers()` | Get list of stale peers |
+
+### GeometricStore
+
+| Method | Description |
+|--------|-------------|
+| `saveSnapshot(state, clock)` | Persist a snapshot |
+| `loadLatestSnapshot()` | Load most recent snapshot |
+| `appendOperation(delta)` | Add operation to log |
+| `operationsSince(clock)` | Get operations after clock |
+| `compact()` | Create snapshot from operations |
+| `stats()` | Get storage statistics |
+| `clear()` | Remove all data |
+
+---
 
 ## License
 

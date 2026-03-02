@@ -356,7 +356,7 @@ mod tests {
         store.save_snapshot(&state, &clock);
 
         let loaded = store.load_latest_snapshot().unwrap();
-        assert!((loaded.state.get(0) - 42.0).abs() < 1e-10);
+        assert!((loaded.state.scalar_part() - 42.0).abs() < 1e-10);
     }
 
     #[test]
@@ -411,7 +411,7 @@ mod tests {
         let result = recover_state(&store).unwrap();
 
         // Should be 10 + 5 + 3 = 18
-        assert!((result.state.get(0) - 18.0).abs() < 1e-10);
+        assert!((result.state.scalar_part() - 18.0).abs() < 1e-10);
         assert_eq!(result.operations_replayed, 2);
     }
 
@@ -518,7 +518,7 @@ mod tests {
         ));
 
         let current = store.get_current_state().unwrap();
-        assert!((current.get(0) - 15.0).abs() < 1e-10);
+        assert!((current.scalar_part() - 15.0).abs() < 1e-10);
     }
 
     #[test]
