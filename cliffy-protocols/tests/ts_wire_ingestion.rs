@@ -277,3 +277,40 @@ fn wire_validation_precedes_clock_alias_collapse() {
         vec![2]
     );
 }
+
+/// Round-7 review (P1): LEGAL clock aliases must collapse in INPUT order
+/// (last-wins), matching native serde and TS. `serde_json::Value`'s default
+/// object is `BTreeMap` — SORTED — so a `from_value` typed parse collapses
+/// aliases in sorted order, not input order. Native/TS keep 2 here.
+#[test]
+fn legal_clock_aliases_collapse_in_input_order() {
+    // Input order: lowercase 1, then uppercase 2 → last-wins = 2.
+    let wire = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{"aaaaaaaa-0000-0000-0000-000000000001":1,"AAAAAAAA-0000-0000-0000-000000000001":2}},"payload":{"Scalar":1.0},"grant_ref":null}]"#;
+    let set = ObservationSet::from_json_str(wire).expect("legal aliases parse");
+    let obs = set.iter().next().expect("one observation");
+    assert_eq!(
+        obs.clock.clocks.values().copied().collect::<Vec<_>>(),
+        vec![2],
+        "input-order last-wins (native serde + TS behavior), not sorted-order"
+    );
+}
+
+/// Round-7 review (P2): serde's derived Deserialize ALSO accepts positional
+/// (array-shaped) struct forms, which bypass the Value pre-pass's object-
+/// field inspection. The canonical wire is map-shaped (both emitters
+/// produce it); positional forms are rejected as schema violations.
+#[test]
+fn positional_wire_forms_are_rejected() {
+    let positional = r#"[["aaaaaaaa-0000-0000-0000-000000000001",9007199254740992,{"clocks":{}},{"Scalar":1.0},null]]"#;
+    assert!(
+        ObservationSet::from_json_str(positional).is_err(),
+        "positional observation form must be rejected (it bypasses domain validation)"
+    );
+    // Even an IN-domain positional form: the wire schema is map-shaped, period.
+    let positional_legal =
+        r#"[["aaaaaaaa-0000-0000-0000-000000000001",0,{"clocks":{}},{"Scalar":1.0},null]]"#;
+    assert!(
+        ObservationSet::from_json_str(positional_legal).is_err(),
+        "the wire schema is map-shaped; positional forms are not wire"
+    );
+}

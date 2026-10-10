@@ -389,21 +389,42 @@ impl ObservationSet {
         // hazard — the TS port validates every record pre-collapse and
         // throws RangeError on the same bytes (rounds 4 and 6). Value
         // objects preserve distinct string keys, so every counter is seen.
+        //
+        // Two hazards of the Value itself are handled here:
+        // - Value's default object is BTreeMap (SORTED): typed parsing
+        //   must use the ORIGINAL TEXT to preserve input-order last-wins
+        //   (round 7 P1).
+        // - serde's derived Deserialize also accepts POSITIONAL struct
+        //   forms, which the object-field inspection below can't see:
+        //   the wire schema is map-shaped, so positional forms are
+        //   rejected outright (round 7 P2).
         let value: serde_json::Value = serde_json::from_str(text).map_err(WireError::Json)?;
-        if let Some(observations) = value.as_array() {
-            for observation in observations {
-                if observation
-                    .get("seq")
-                    .and_then(serde_json::Value::as_u64)
-                    .is_some_and(|seq| seq > MAX_CROSS_RUNTIME_SEQ)
-                {
-                    return Err(WireError::OutOfDomain);
-                }
-                if let Some(clocks) = observation
-                    .get("clock")
-                    .and_then(|c| c.get("clocks"))
-                    .and_then(serde_json::Value::as_object)
-                {
+        let observations_value = value.as_array().ok_or_else(|| {
+            WireError::Json(serde::de::Error::custom("wire root must be an array"))
+        })?;
+        for observation in observations_value {
+            let observation = observation.as_object().ok_or_else(|| {
+                WireError::Json(serde::de::Error::custom(
+                    "wire observations must be map-shaped (positional forms are not wire)",
+                ))
+            })?;
+            if observation
+                .get("seq")
+                .and_then(serde_json::Value::as_u64)
+                .is_some_and(|seq| seq > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(WireError::OutOfDomain);
+            }
+            if let Some(clock) = observation.get("clock") {
+                let clock = clock.as_object().ok_or_else(|| {
+                    WireError::Json(serde::de::Error::custom("wire clock must be map-shaped"))
+                })?;
+                if let Some(clocks) = clock.get("clocks") {
+                    let clocks = clocks.as_object().ok_or_else(|| {
+                        WireError::Json(serde::de::Error::custom(
+                            "wire clock.clocks must be map-shaped",
+                        ))
+                    })?;
                     for counter in clocks.values() {
                         if counter.as_u64().is_some_and(|c| c > MAX_CROSS_RUNTIME_SEQ) {
                             return Err(WireError::OutOfDomain);
@@ -412,11 +433,11 @@ impl ObservationSet {
                 }
             }
         }
-        // Typed parse (schema errors surface here), then the last-wins
-        // duplicate collapse, mirroring BTreeMap::insert (and the TS
-        // fromWire's per-record insert) — validation saw every record.
-        let observations: Vec<Observation> =
-            serde_json::from_value(value).map_err(WireError::Json)?;
+        // Typed parse from the ORIGINAL TEXT (preserves input-order
+        // last-wins), then the last-wins duplicate collapse, mirroring
+        // BTreeMap::insert (and the TS fromWire's per-record insert) —
+        // validation saw every record.
+        let observations: Vec<Observation> = serde_json::from_str(text).map_err(WireError::Json)?;
         let mut set = Self::new();
         for observation in observations {
             set.observations.insert(observation.key(), observation);
