@@ -157,6 +157,15 @@ pub enum ObservationPayload {
     Rotor(RotorObservation),
 }
 
+/// Cross-runtime sequence bound: `seq <= 2^53 − 1` when an
+/// `ObservationSet` travels to the TypeScript port.
+///
+/// f64 cannot represent larger integers, and JSON wire through a JS
+/// runtime would silently collide distinct keys (PR #342 review round 1).
+/// The tsukoshi side enforces the bound with a hard error; here the
+/// constructors `debug_assert` it (the Rust-only domain remains full u64).
+pub const MAX_CROSS_RUNTIME_SEQ: u64 = (1 << 53) - 1;
+
 /// One attributed observation, canonically identified by
 /// `(participant_id, seq)` — the participant-scoped identity whose absence
 /// (len()-minted u64 ids) caused the old design's cross-replica collisions.
@@ -178,6 +187,10 @@ impl Observation {
     /// A scalar observation with an empty clock.
     #[must_use]
     pub fn new_scalar(participant_id: Uuid, seq: u64, value: f64) -> Self {
+        debug_assert!(
+            seq <= MAX_CROSS_RUNTIME_SEQ,
+            "seq exceeds the cross-runtime bound"
+        );
         Self {
             participant_id,
             seq,
@@ -190,6 +203,10 @@ impl Observation {
     /// A rotor observation with an empty clock.
     #[must_use]
     pub fn new_rotor(participant_id: Uuid, seq: u64, rotor: RotorObservation) -> Self {
+        debug_assert!(
+            seq <= MAX_CROSS_RUNTIME_SEQ,
+            "seq exceeds the cross-runtime bound"
+        );
         Self {
             participant_id,
             seq,
@@ -202,6 +219,10 @@ impl Observation {
     /// A vector observation with an empty clock.
     #[must_use]
     pub fn new_vector(participant_id: Uuid, seq: u64, vector: VectorObservation) -> Self {
+        debug_assert!(
+            seq <= MAX_CROSS_RUNTIME_SEQ,
+            "seq exceeds the cross-runtime bound"
+        );
         Self {
             participant_id,
             seq,

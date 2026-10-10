@@ -10,14 +10,12 @@ import { describe, it, expect } from 'vitest';
 import {
   testImpossible,
   testRare,
-  TestResult,
   InvariantCategory,
-  type InvariantTestReport,
 } from '@industrialalgebra/cliffy-core';
 
 // Import the TypeScript protocols
 import { VectorClock } from './vector-clock.js';
-import { ObservationSet, scalarObservation, vectorObservation } from './observation.js';
+import { ObservationSet, scalarObservation, vectorObservation, MAX_CROSS_RUNTIME_SEQ } from './observation.js';
 import { scalarMean, vectorMean, rotorConsensus } from './projection.js';
 import { latticeJoin, latticeMeet } from './lattice.js';
 import {
@@ -27,16 +25,12 @@ import {
   additiveDelta,
 } from './delta.js';
 import { MemoryStore } from './storage.js';
-import { SyncState, PeerConnectionState } from './sync.js';
+import { SyncState } from './sync.js';
 
 // Import GA3 functions from cliffy-tsukoshi
 import {
-  zero,
   scalar,
   vector,
-  add,
-  sub,
-  magnitude,
   equals,
 } from '../ga3.js';
 
@@ -187,6 +181,50 @@ describe('ObservationSet', () => {
     expect(scalarMean(a)).toBeNull();
     expect(vectorMean(a)).toBeNull();
     expect(rotorConsensus(a)).toBeNull();
+  });
+
+  // --- Review-round-1 regressions (PR #342): the boundary conditions ---
+
+  it('canonicalizes participant UUIDs — case aliases are the SAME key', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(A, 0, -0));
+    a.insert(scalarObservation(B, 0, 2));
+    a.insert(scalarObservation(A.toUpperCase(), 0, 3)); // same participant!
+    expect(a.size).toBe(2); // last-wins on the duplicate key
+    expect(scalarMean(a)).toBe(2.5); // matches the Rust behavior
+    expect([...a.entries()][0].participant_id).toBe(A); // lowercase canonical
+  });
+
+  it('rejects non-UUID participants (Rust parse domain) and out-of-domain seq', () => {
+    const a = new ObservationSet();
+    expect(() => a.insert(scalarObservation('not-a-uuid', 0, 1))).toThrow(TypeError);
+    expect(() => a.insert(scalarObservation(A, -1, 1))).toThrow(RangeError);
+    expect(() => a.insert(scalarObservation(A, MAX_CROSS_RUNTIME_SEQ + 1, 1))).toThrow(RangeError);
+    expect(() => a.insert(scalarObservation(A, 1.5, 1))).toThrow(RangeError);
+    a.insert(scalarObservation(A, MAX_CROSS_RUNTIME_SEQ, 1)); // the bound itself is legal
+    expect(a.size).toBe(1);
+  });
+
+  it('owns its data — caller mutation cannot rewrite the set', () => {
+    const a = new ObservationSet();
+    const b = new ObservationSet();
+    const o = scalarObservation(A, 0, 1);
+    a.insert(o);
+    b.merge(a);
+    // The reviewer's repro: mutate the caller-held object post-insert.
+    // Constructor output is itself frozen (ownObservation runs there too),
+    // so this throws in strict mode — and even the attempt cannot reach
+    // the set's owned copy.
+    expect(() => {
+      (o.payload as { Scalar: number }).Scalar = 8;
+    }).toThrow(TypeError);
+    expect(scalarMean(a)).toBe(1);
+    expect(scalarMean(b)).toBe(1);
+    // Stored records are frozen as well.
+    const stored = [...a.entries()][0];
+    expect(Object.isFrozen(stored)).toBe(true);
+    expect(Object.isFrozen(stored.payload)).toBe(true);
+    expect(scalarMean(a)).toBe(1);
   });
 });
 

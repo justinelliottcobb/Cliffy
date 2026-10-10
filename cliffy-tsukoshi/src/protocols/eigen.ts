@@ -11,13 +11,19 @@
  *
  * PORT NOTES (places where JS semantics differ from Rust and the port must
  * not drift):
- * - f64::MIN_POSITIVE === Number.MIN_VALUE (both are the smallest positive
- *   NORMAL double, 2^-1022 — NOT Number.EPSILON).
+ * - f64::MIN_POSITIVE is the smallest positive NORMAL double, 2^-1022.
+ *   Number.MIN_VALUE is NOT it — that is 2^-1074, the smallest positive
+ *   SUBNORMAL. (Neither is Number.EPSILON.) The skip floor below uses the
+ *   literal 2 ** -1022; review round 1 (PR #342) caught the wrong constant
+ *   rotating subnormal off-diagonals Rust skips.
  * - Rust's f64::signum returns 1.0 for +0.0 and -1.0 for -0.0; JS's
  *   Math.sign returns 0/-0 for both. See rustSignum below.
  * - Math.sqrt and Rust's f64::sqrt are both the correctly-rounded IEEE 754
  *   square root — bit-identical for identical inputs.
  */
+
+/** f64::MIN_POSITIVE — the smallest positive NORMAL double (2^-1022). */
+const MIN_POSITIVE = 2 ** -1022;
 
 /** Rust f64::signum semantics: ±0 keep their sign bit; NaN → NaN. */
 function rustSignum(x: number): number {
@@ -101,7 +107,7 @@ export function jacobiEigen4(m: Mat4): [number[], Mat4] {
     // Fixed cyclic order — never reorder, never skip.
     for (let p = 0; p < 4; p++) {
       for (let q = p + 1; q < 4; q++) {
-        if (Math.abs(a[p][q]) < Number.MIN_VALUE) continue;
+        if (Math.abs(a[p][q]) < MIN_POSITIVE) continue;
         rotatePair(a, v, p, q);
       }
     }

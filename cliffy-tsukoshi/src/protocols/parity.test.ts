@@ -5,18 +5,34 @@
  *
  * The doctrine, fossilized: equal sets => bit-identical projections, in
  * every runtime. Agreement is not convergence; approximation is not parity —
- * these assertions use exact equality (toEqual on f64 bits via Object.is
- * semantics of toBe), never toBeCloseTo.
+ * these assertions use exact equality (toBe/Object.is, which distinguishes
+ * -0 from +0), never toBeCloseTo.
+ *
+ * Permutations are RAW INSERTION ORDERS (review round 1: canonicalized
+ * permutations tested the same array repeatedly). Each is replayed two
+ * ways: straight insertion, and split-in-half + merge — so the merge path
+ * is exercised against every case, not just insert.
+ *
+ * The reverse direction is pinned too: this suite emits (and drift-guards)
+ * test-vectors/ts-emitted-wire.json via toWireJson(), which the Rust test
+ * ts_wire_ingestion.rs parses, bit-checks, and re-projects.
  */
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import { describe, it, expect } from 'vitest';
-import { ObservationSet, type Observation } from './observation.js';
+import {
+  ObservationSet,
+  scalarObservation,
+  vectorObservation,
+  MAX_CROSS_RUNTIME_SEQ,
+  type Observation,
+} from './observation.js';
 import { scalarMean, vectorMean, rotorConsensus } from './projection.js';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const vectorsPath = join(here, '..', '..', '..', 'test-vectors', 'observation-set-parity.json');
+const tsWirePath = join(here, '..', '..', '..', 'test-vectors', 'ts-emitted-wire.json');
 
 interface WireObservation {
   participant_id: string;
@@ -29,6 +45,7 @@ interface WireObservation {
 interface ParityCase {
   name: string;
   observations: WireObservation[];
+  /** Raw insertion orders — replay, never trust as canonical. */
   permutations: WireObservation[][];
   expected: {
     scalar_mean: number | null;
@@ -37,18 +54,14 @@ interface ParityCase {
   };
 }
 
-function fromWire(wire: WireObservation[]): ObservationSet {
-  const set = new ObservationSet();
-  for (const o of wire) {
-    set.insert(o as unknown as Observation);
-  }
-  return set;
+function replay(wire: readonly WireObservation[]): ObservationSet {
+  return ObservationSet.fromWire(wire as Observation[]);
 }
 
-function assertExactTuple(
-  got: { [k: string]: number } | null,
-  expected: { [k: string]: number } | null,
-  keys: string[],
+function assertExactTuple<K extends string>(
+  got: Record<K, number> | null,
+  expected: Record<K, number> | null,
+  keys: readonly K[],
   context: string,
 ) {
   if (expected === null) {
@@ -64,25 +77,72 @@ function assertExactTuple(
   }
 }
 
+function assertCaseProjections(set: ObservationSet, c: ParityCase, context: string) {
+  expect(scalarMean(set), `${context}/scalar_mean`).toBe(c.expected.scalar_mean);
+  assertExactTuple(vectorMean(set), c.expected.vector_mean, ['x', 'y', 'z'], `${context}/vector_mean`);
+  assertExactTuple(rotorConsensus(set), c.expected.rotor_consensus, ['w', 'x', 'y', 'z'], `${context}/rotor_consensus`);
+}
+
 const suite = JSON.parse(readFileSync(vectorsPath, 'utf-8')) as { cases: ParityCase[] };
 
 describe('cross-runtime parity (Rust-generated vectors)', () => {
   for (const c of suite.cases) {
     it(`${c.name}: canonical set projects bit-identically`, () => {
-      const set = fromWire(c.observations);
-      expect(scalarMean(set), `${c.name}/scalar_mean`).toBe(c.expected.scalar_mean);
-      assertExactTuple(vectorMean(set), c.expected.vector_mean, ['x', 'y', 'z'], `${c.name}/vector_mean`);
-      assertExactTuple(rotorConsensus(set), c.expected.rotor_consensus, ['w', 'x', 'y', 'z'], `${c.name}/rotor_consensus`);
+      assertCaseProjections(replay(c.observations), c, c.name);
     });
 
     for (const [i, perm] of c.permutations.entries()) {
-      it(`${c.name}: permutation ${i} projects bit-identically`, () => {
-        const set = fromWire(perm);
-        assertExactTuple(vectorMean(set), c.expected.vector_mean, ['x', 'y', 'z'], `${c.name}/perm${i}/vector_mean`);
-        assertExactTuple(rotorConsensus(set), c.expected.rotor_consensus, ['w', 'x', 'y', 'z'], `${c.name}/perm${i}/rotor_consensus`);
-        const s = scalarMean(set);
-        expect(s, `${c.name}/perm${i}/scalar_mean`).toBe(c.expected.scalar_mean);
+      it(`${c.name}: insertion-order ${i} projects bit-identically`, () => {
+        assertCaseProjections(replay(perm), c, `${c.name}/perm${i}`);
+      });
+
+      it(`${c.name}: insertion-order ${i} via split-merge projects bit-identically`, () => {
+        const half = Math.floor(perm.length / 2);
+        const merged = replay(perm.slice(0, half));
+        merged.merge(replay(perm.slice(half)));
+        assertCaseProjections(merged, c, `${c.name}/perm${i}/split-merge`);
       });
     }
   }
+});
+
+describe('TS-emitted wire (drift-guarded; Rust ingests the same file)', () => {
+  const id = 'aaaaaaaa-0000-0000-0000-000000000001';
+
+  function buildFixtureSet(): ObservationSet {
+    const set = new ObservationSet();
+    // Signed zero — the case JSON.stringify would silently flip.
+    set.insert(scalarObservation(id, 0, -0));
+    // Integer-valued float — serde_json renders "3.0"; we must too.
+    set.insert(scalarObservation(id, 1, 3));
+    // The cross-runtime seq bound, exercised at its maximum.
+    set.insert(vectorObservation(id, MAX_CROSS_RUNTIME_SEQ, { x: 1, y: 2, z: 3 }));
+    // Uppercase UUID input — canonicalized to lowercase at ingestion.
+    set.insert(scalarObservation('BBBBBBBB-0000-0000-0000-000000000002', 0, 7));
+    return set;
+  }
+
+  it('toWireJson is byte-stable (drift guard)', () => {
+    const emitted = buildFixtureSet().toWireJson() + '\n';
+    if (process.env.CLIFFY_PARITY_WRITE) {
+      mkdirSync(dirname(tsWirePath), { recursive: true });
+      writeFileSync(tsWirePath, emitted);
+      return;
+    }
+    expect(emitted).toBe(readFileSync(tsWirePath, 'utf-8'));
+  });
+
+  it('the wire round-trips through TS bit-exactly, preserving -0', () => {
+    const reparsed = ObservationSet.fromWireJson(buildFixtureSet().toWireJson());
+    // -0 survives the full wire round trip (parse gives -0 back).
+    const negZero = [...reparsed.entries()].find(
+      (o) => 'Scalar' in o.payload && o.seq === 0,
+    );
+    expect(negZero).toBeDefined();
+    expect(Object.is((negZero!.payload as { Scalar: number }).Scalar, -0)).toBe(true);
+    // Canonical order absorbed the uppercase input; merge parity with the set.
+    const merged = new ObservationSet();
+    merged.merge(buildFixtureSet());
+    expect(JSON.stringify(merged.toWire())).toBe(JSON.stringify(reparsed.toWire()));
+  });
 });

@@ -10,6 +10,12 @@
 //! - the wasm bindings (same vectors through the JS-facing surface)
 //! - cliffy-tsukoshi's vitest (bit-exact parity of the TS port)
 //!
+//! `permutations` are RAW INSERTION ORDERS (arrays of observations in the
+//! order to insert them) — NOT canonicalized sets. Consumers replay them
+//! (insert in order; split-and-merge), so merge-order insensitivity is
+//! actually exercised (review round 1 caught canonicalized permutations
+//! that tested the same array repeatedly).
+//!
 //! Regenerate after intentional behavior changes:
 //!   `CLIFFY_PARITY_WRITE=1 cargo test -p cliffy-protocols --test parity_vectors`
 //!
@@ -43,8 +49,9 @@ struct ParityCase {
     name: &'static str,
     /// The observation set in wire format (array, canonical key order).
     observations: serde_json::Value,
-    /// Merge-order permutations of the same set (wire format); every
-    /// permutation MUST project to the same expected values.
+    /// Raw insertion orders of the same members (wire format); replaying
+    /// any of them (or any merge partition of them) MUST project to the
+    /// same expected values.
     permutations: Vec<serde_json::Value>,
     expected: Expected,
 }
@@ -59,7 +66,7 @@ struct Expected {
 fn project(
     name: &'static str,
     set: &ObservationSet,
-    permutations: &[ObservationSet],
+    permutations: &[Vec<Observation>],
 ) -> ParityCase {
     // The drift guard's secondary assertion: every permutation projects
     // bit-identically in Rust before we ever serialize.
@@ -69,18 +76,20 @@ fn project(
         rotor_consensus: rotor_consensus(set),
     };
     for perm in permutations {
+        // Rebuild from the raw insertion order, then assert bit-stability.
+        let permuted = set_of(perm);
         assert_eq!(
-            scalar_mean(perm),
+            scalar_mean(&permuted),
             expected.scalar_mean,
             "{name}: permutation changed scalar_mean bits"
         );
         assert_eq!(
-            vector_mean(perm),
+            vector_mean(&permuted),
             expected.vector_mean,
             "{name}: permutation changed vector_mean bits"
         );
         assert_eq!(
-            rotor_consensus(perm),
+            rotor_consensus(&permuted),
             expected.rotor_consensus,
             "{name}: permutation changed rotor_consensus bits"
         );
@@ -116,21 +125,18 @@ fn set_of(observations: &[Observation]) -> ObservationSet {
     set
 }
 
-/// Same members, inserted in reverse — the canonical order must absorb it.
-fn reversed(observations: &[Observation]) -> ObservationSet {
-    let mut set = ObservationSet::new();
-    for o in observations.iter().rev() {
-        set.insert(o.clone());
-    }
-    set
+/// Same members, in reverse insertion order — the canonical order must
+/// absorb it.
+fn reversed(observations: &[Observation]) -> Vec<Observation> {
+    observations.iter().rev().cloned().collect()
 }
 
-/// Via merge: an empty set unions the full set twice (idempotent delivery).
-fn via_merge(set: &ObservationSet) -> ObservationSet {
-    let mut merged = ObservationSet::new();
-    merged.merge(set);
-    merged.merge(set);
-    merged
+/// Interleaved insertion order (evens then odds) — a nontrivial shuffle
+/// for multi-member sets.
+fn interleaved(observations: &[Observation]) -> Vec<Observation> {
+    let mut out: Vec<Observation> = observations.iter().step_by(2).cloned().collect();
+    out.extend(observations.iter().skip(1).step_by(2).cloned());
+    out
 }
 
 fn cases() -> Vec<ParityCase> {
@@ -148,7 +154,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "annihilation_oracle",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // Scalars from three participants, non-trivial sum order.
@@ -163,7 +169,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "scalar_mixed_magnitudes",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // Vectors: componentwise mean.
@@ -176,7 +182,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "vector_componentwise",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // Single rotor is its own consensus.
@@ -193,7 +199,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "rotor_double_cover",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // Opposed ±90°z rotors average to identity (w ≈ 1).
@@ -205,7 +211,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "rotor_opposed_to_identity",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // The full determinism set from the Rust oracle: four rotors, three
@@ -220,7 +226,7 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "rotor_multi_participant",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
 
     // Degenerate rotor (below the 1e-12 norm floor) is skipped, never
@@ -244,8 +250,16 @@ fn cases() -> Vec<ParityCase> {
     cases.push(project(
         "mixed_payloads",
         &set,
-        &[reversed(&obs), via_merge(&set)],
+        &[reversed(&obs), interleaved(&obs)],
     ));
+
+    // Signed zero: -0.0 must survive the wire (serde_json emits "-0.0";
+    // JS parses it to -0) and the mean launders it to +0.0 identically on
+    // both sides (0.0 + -0.0 = +0.0 in round-to-nearest). Pins both the
+    // wire path and the laundering.
+    let obs = vec![scalar(a, 0, -0.0)];
+    let set = set_of(&obs);
+    cases.push(project("scalar_signed_zero", &set, &[]));
 
     // Empty set: everything is None — never fabricate.
     let set = ObservationSet::new();

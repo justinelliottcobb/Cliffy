@@ -23,19 +23,18 @@ All 47 tests pass (42 unit + 5 doc tests) and the crate compiles successfully.
 
 Added WASM bindings in `cliffy-wasm/src/protocols.rs`:
 - `VectorClock` - Causal ordering with tick, update, merge, happensBefore, concurrent
-- `GeometricCRDT` - Conflict-free replicated data with add, multiply, applyOperation, merge
-- `GeometricOperation` - Operation type with id, nodeId, value, operationType
-- `OperationType` - Addition, Multiplication, GeometricProduct, Exponential, Sandwich
+- `ObservationSet` - The sound CRDT floor: observeScalar/observeVector/observeRotor,
+  merge (union), scalarMean/vectorMean/rotorConsensus projections
 - `generateNodeId()` - UUID generation for node IDs
 
 Usage in JavaScript:
 ```javascript
-import { GeometricCRDT, VectorClock, generateNodeId } from '@industrialalgebra/cliffy-core';
+import { ObservationSet, generateNodeId } from '@industrialalgebra/cliffy-core';
 
 const nodeId = generateNodeId();
-const crdt = new GeometricCRDT(nodeId, 0.0);
-crdt.add(5.0);
-console.log(crdt.state()); // 5.0
+const set = new ObservationSet();
+set.observeScalar(nodeId, 0, 5.0);
+console.log(set.scalarMean()); // 5.0
 ```
 
 ### New Example Created

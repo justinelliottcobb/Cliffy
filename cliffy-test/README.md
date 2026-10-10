@@ -180,7 +180,7 @@ Validate CRDT convergence in Yew collaborative apps:
 
 ```rust
 use cliffy_test::{test_impossible, test_rare};
-use cliffy_protocols::GeometricCRDT;
+use cliffy_protocols::{ObservationSet, Observation, scalar_mean};
 
 #[cfg(test)]
 mod crdt_tests {
@@ -188,20 +188,20 @@ mod crdt_tests {
 
     #[test]
     fn test_crdt_convergence() {
-        // CRDTs must always converge regardless of merge order
+        // ObservationSet merge is union — convergence is by construction
         let report = test_impossible(
-            "CRDT merge is commutative",
+            "ObservationSet merge is commutative",
             || {
-                let mut a = GeometricCRDT::new("a", rand::random());
-                let mut b = GeometricCRDT::new("b", rand::random());
+                let mut a = ObservationSet::new();
+                let mut b = ObservationSet::new();
 
-                a.add(rand::random());
-                b.add(rand::random());
+                a.insert(Observation::new_scalar(Uuid::new_v4(), 0, rand::random()));
+                b.insert(Observation::new_scalar(Uuid::new_v4(), 0, rand::random()));
 
-                let ab = a.clone().merge(&b);
-                let ba = b.clone().merge(&a);
+                let mut ab = a.clone(); ab.merge(&b);
+                let mut ba = b.clone(); ba.merge(&a);
 
-                (ab.value() - ba.value()).abs() < 1e-10
+                scalar_mean(&ab).unwrap().to_bits() == scalar_mean(&ba).unwrap().to_bits()
             },
             1000,
         );

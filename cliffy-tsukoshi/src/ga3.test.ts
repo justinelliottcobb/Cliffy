@@ -20,7 +20,6 @@ import {
   asVector,
   asBivector,
   equals,
-  GA3,
 } from './ga3.js';
 
 describe('GA3 Constructors', () => {

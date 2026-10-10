@@ -48,7 +48,8 @@ export interface GeometricLattice<T> {
 /**
  * Component-wise lattice operations for multivectors.
  *
- * Unlike GA3Lattice which uses magnitude ordering, this provides
+ * Unlike the deleted GA3Lattice (magnitude ordering — see the epitaph
+ * above), this provides
  * coefficient-by-coefficient join/meet operations.
  */
 export class ComponentLattice implements GeometricLattice<ComponentLattice> {

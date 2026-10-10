@@ -28,21 +28,21 @@ assert!(clock.concurrent(&other));
 let merged = clock.merge(&other);
 ```
 
-### Geometric CRDT
-Conflict-free replicated data types with geometric merge:
+### ObservationSet (the sound CRDT floor)
+A grow-only set of attributed observations — merge is union, so
+convergence is trivial by construction and data can never annihilate:
 
 ```rust
-use cliffy_protocols::{GeometricCRDT, OperationType};
+use cliffy_protocols::{ObservationSet, Observation};
 
-let mut crdt = GeometricCRDT::new("node-1", initial_state);
+let mut local = ObservationSet::new();
+local.insert(Observation::new_scalar(node_a, 0, 5.0));
 
-// Apply operations
-crdt.apply_operation(value, OperationType::Addition);
-crdt.apply_operation(factor, OperationType::Multiplication);
+local.merge(&remote); // union — absorbs, never annihilates
 
-// Merge with another replica
-let merged = crdt.merge(&other_crdt);
-// Conflicts resolved via geometric mean - always converges!
+// Consensus values are deterministic projections of the set:
+let mean = cliffy_protocols::scalar_mean(&local); // Some(7.5)
+let rotor = cliffy_protocols::rotor_consensus(&local); // Markley eigen-mean
 ```
 
 ### Lattice Operations
@@ -119,19 +119,19 @@ let response = sync.handle_message(incoming_msg);
 let request = sync.create_delta_request(&since_clock);
 ```
 
-### Geometric Consensus
-Distributed agreement via geometric mean:
+### Rotor Consensus (projection, not protocol)
+Distributed agreement is a deterministic projection of the observation
+set — the Markley chordal-L2 eigen-mean via an in-house cyclic Jacobi:
 
 ```rust
-use cliffy_protocols::GeometricConsensus;
+use cliffy_protocols::{ObservationSet, Observation, rotor_consensus};
 
-let mut consensus = GeometricConsensus::new("node-1", initial_state);
+let mut set = ObservationSet::new();
+set.insert(Observation::new_rotor(node_a, 0, rotor_a));
+set.insert(Observation::new_rotor(node_b, 0, rotor_b));
 
-// Propose value
-let round = consensus.propose(my_value);
-
-// Receive proposals from others
-consensus.receive_proposal("node-2", their_value, round);
+// Every replica computes the bit-identical consensus rotor — no rounds.
+let consensus = rotor_consensus(&set);
 
 // Vote
 consensus.vote(round, true, preferred_value);
@@ -158,27 +158,28 @@ Build collaborative apps with Leptos and geometric CRDTs:
 
 ```rust
 use leptos::*;
-use cliffy_protocols::{GeometricCRDT, VectorClock};
+use cliffy_protocols::{ObservationSet, Observation, scalar_mean};
 
 #[component]
 fn CollaborativeCounter() -> impl IntoView {
-    let node_id = "browser-1";
-    let (crdt, set_crdt) = create_signal(GeometricCRDT::new(node_id, 0.0));
+    let node_id = Uuid::new_v4();
+    let seq = create_cell(0u64);
+    let (observations, set_observations) = create_signal(ObservationSet::new());
     let (count, set_count) = create_signal(0.0);
 
     // Simulate receiving updates from other nodes
-    let merge_remote = move |remote_state: GeometricCRDT| {
-        set_crdt.update(|local| {
-            let merged = local.merge(&remote_state);
-            set_count.set(merged.value());
-            *local = merged;
+    let merge_remote = move |remote: ObservationSet| {
+        set_observations.update(|local| {
+            local.merge(&remote); // union — absorbs, never annihilates
+            set_count.set(scalar_mean(local).unwrap_or(0.0));
         });
     };
 
     let increment = move |_| {
-        set_crdt.update(|crdt| {
-            crdt.add(1.0);
-            set_count.set(crdt.value());
+        set_observations.update(|set| {
+            let s = seq.get(); seq.set(s + 1);
+            set.insert(Observation::new_scalar(node_id, s, 1.0));
+            set_count.set(scalar_mean(set).unwrap_or(0.0));
         });
     };
 
@@ -198,14 +199,14 @@ Real-time sync in Yew applications:
 
 ```rust
 use yew::prelude::*;
-use cliffy_protocols::{SyncState, VectorClock, GeometricCRDT};
+use cliffy_protocols::{SyncState, VectorClock, ObservationSet};
 use gloo_timers::callback::Interval;
 
 #[function_component]
 fn SyncedEditor() -> Html {
     let node_id = "yew-client";
     let sync = use_state(|| SyncState::new(node_id));
-    let document = use_state(|| GeometricCRDT::new(node_id, 0.0));
+    let document = use_state(ObservationSet::new);
 
     // Periodic sync with server
     use_effect_with((), {
