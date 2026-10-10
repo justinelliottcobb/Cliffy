@@ -338,11 +338,30 @@ impl ObservationSet {
     /// wire format (canonical key order, correctly-rounded floats via the
     /// crate's `serde_json/float_roundtrip` dependency).
     ///
+    /// The emitter validates the same domain the ingest path enforces: a
+    /// set carrying seq or clock counters beyond `MAX_CROSS_RUNTIME_SEQ`
+    /// (constructible natively — Rust-only flows keep full u64) is refused
+    /// rather than emitted, since its own `from_json_str` (and the TS
+    /// port) would reject the output. Native serde `Serialize` remains
+    /// unrestricted for Rust-only persistence.
+    ///
     /// # Errors
     ///
-    /// `WireError::Json` on serialization failure (not expected for this
-    /// type, but the `Result` keeps the API honest).
+    /// `WireError::OutOfDomain` when a seq or clock counter exceeds
+    /// `MAX_CROSS_RUNTIME_SEQ`; `WireError::Json` on serialization failure
+    /// (not expected for this type, but the `Result` keeps the API honest).
     pub fn to_json_string(&self) -> Result<String, WireError> {
+        for observation in self.observations.values() {
+            if observation.seq > MAX_CROSS_RUNTIME_SEQ
+                || observation
+                    .clock
+                    .clocks
+                    .values()
+                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(WireError::OutOfDomain);
+            }
+        }
         serde_json::to_string(self).map_err(WireError::Json)
     }
 

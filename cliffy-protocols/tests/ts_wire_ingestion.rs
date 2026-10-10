@@ -201,3 +201,41 @@ fn wire_validation_precedes_duplicate_collapse() {
     let mean = cliffy_protocols::projection::scalar_mean(&set).expect("scalar");
     assert_eq!(mean.to_bits(), 2.0f64.to_bits(), "last-wins");
 }
+
+/// Round-5 review: the wire EMITTER must refuse what its own ingest path
+/// rejects — a set that can't cross the wire doesn't get to speak it.
+/// (TS needs no such check: its sets are in-domain by construction;
+/// native Rust constructors keep the full u64 domain.)
+#[test]
+fn wire_emitter_rejects_out_of_domain_values() {
+    let mut set = ObservationSet::new();
+    set.insert(Observation::new_scalar(
+        Uuid::from_u128(1),
+        9_007_199_254_740_992, // 2^53 — legal natively, out of wire domain
+        1.0,
+    ));
+    assert!(
+        set.to_json_string().is_err(),
+        "out-of-domain seq refused at emission"
+    );
+
+    let mut clocked = ObservationSet::new();
+    let mut o = Observation::new_scalar(Uuid::from_u128(1), 0, 1.0);
+    o.clock
+        .clocks
+        .insert(Uuid::from_u128(1), 9_007_199_254_740_992);
+    clocked.insert(o);
+    assert!(
+        clocked.to_json_string().is_err(),
+        "out-of-domain clock counter refused at emission"
+    );
+
+    // In-domain still emits fine.
+    let mut legal = ObservationSet::new();
+    legal.insert(Observation::new_scalar(
+        Uuid::from_u128(1),
+        9_007_199_254_740_991,
+        1.0,
+    ));
+    assert!(legal.to_json_string().is_ok(), "the bound itself emits");
+}
