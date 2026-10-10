@@ -191,6 +191,8 @@ cutover). Version target: **0.5.0**.
 
 ## 7. Open questions for the operator
 
+0. *(Added 2026-10-10 — see §8.)* The Amari remediation changes the
+   answers available below; read §8 first.
 1. **Knopper contract version**: is the U2 encoding contract published at a
    pin-able version (IA-documents contract lineage), or is Cliffy WS1 the
    forcing function to version it?
@@ -204,3 +206,58 @@ cutover). Version target: **0.5.0**.
    unchanged but re-published for parity), or tsukoshi-only 0.5.0
    (explicit divergence, breaking the one-version-everywhere story the
    rabbit hole criticized)?
+
+## 8. Amendment — Amari core audit and remediation (2026-10-10)
+
+The Amari core-foundations audit (PR #276, merged 2026-10-09) found
+mathematical inaccuracies in `amari-core`, and the maintainer's policy is
+explicit: *mathematical correctness is paramount; compatibility is not a
+constraint on these repairs; downstream consumers will be updated to the
+corrected mathematics.* The remediation programme (CORE-W00..W09) lands
+with **Amari 0.25.0**. Cliffy consumes `amari-core 0.24.1` — every audit
+defect is live in our published substrate until we deliberately adopt
+0.25.
+
+### Cliffy's exposure map (audited 2026-10-10)
+
+| Site | amari API | Audit finding | Fixed upstream? |
+|---|---|---|---|
+| `cliffy-core/src/transforms.rs` | `Rotor::inverse()` ×3 | CORE-01 (inverse wrong outside versor domain) → W03 | **No** |
+| `cliffy-core/src/transforms.rs` | `Rotor::slerp()` ×3 | CORE-11 (rotor log/power loses double cover) → W07 | **No** |
+| `cliffy-protocols/src/delta.rs` | `.exp()` ×1 | CORE-03/04 (exp dispatch) → W04 | **No** (GA3-Euclidean bivectors square to negative scalars; the demonstrated nilpotent/nonsimple failures are out-of-signature, but this is unverified-by-oracle, not verified) |
+| coefficient arithmetic, `projection.rs`, `state.rs` | products, norms | CORE-02 (1e-14 pruning breaks associativity) → W01 | **Yes** (#282, on Amari develop → 0.25.0) |
+| null/metric semantics | `norm()` | CORE-07 → W02 | **Yes** (#285, → 0.25.0) |
+| `cliffy-protocols` wire path | conversions only (`from_amari_rotor`, `from_components`) + own `eigen.rs` | none — deliberately self-contained | n/a |
+| **tsukoshi (pure TS)** | none | none | n/a |
+
+### Amendments to this plan
+
+1. **Open question 4 is answered by this table.** Ship **tsukoshi-only
+   0.5.0** (WS0): tsukoshi has zero amari exposure, so its breaking
+   release is clean regardless of the substrate. Defer the Rust workspace
+   version bump until Amari 0.25 adoption — publishing a Rust 0.5.0 on
+   known-defective 0.24.1 math would put a fresh version number on
+   unfixed CORE-01/11 slerp/inverse paths.
+2. **New workstream WS-A — Amari 0.25 adoption** (gated on Amari 0.25.0
+   release; slot after WS2, before or parallel with WS1):
+   - Bump `amari-core` to 0.25 and adopt breaking changes per the
+     remediation's downstream guidance.
+   - Review the audit diffs for `inverse`, `slerp`, `exp` specifically;
+     adjust `transforms.rs` call sites (the versor-domain posture the
+     audit blesses is the one Cliffy should already be in — rotors, not
+     general multivectors).
+   - Re-run the full matrix plus the WS0 parity vectors (expected stable:
+     the wire projections don't consume amari numerics) and the
+     geometric-mean invariants in `cliffy-test`.
+   - Adoption evidence doubles as Amari's downstream-consumer validation
+     — share results upstream.
+3. **Until WS-A lands**: the 0.4.x/0.5.x documentation states plainly
+   that `cliffy-core` rotor transforms inherit amari-core 0.24.1's known
+   defects (CORE-01, CORE-11) and that the wire-critical path
+   (ObservationSet + projections) does not. No emergency patch: the
+   affected paths are single-node transform helpers, not the distributed
+   soundness core — but users doing rotor interpolation deserve the
+   warning.
+4. **Sequencing**: WS0 (merging) → WS2 → **WS-A (when 0.25.0 ships)** →
+   WS1 → WS3. If Amari 0.25.0 slips past WS1's completion, WS1 proceeds
+   (it is protocols-layer; its U2 contract is encoding, not numerics).
