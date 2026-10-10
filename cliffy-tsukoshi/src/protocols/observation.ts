@@ -378,6 +378,12 @@ export class ObservationSet {
 
   /** Deserialize (last-wins on duplicate keys, mirroring the Rust side). */
   static fromWire(wire: readonly Observation[]): ObservationSet {
+    // Root-shape enforcement (review round 10): a string root iterates
+    // char-by-char to an empty set where Rust's from_json_str rejects with
+    // WireError::Json — the wire root is an array, period.
+    if (!Array.isArray(wire)) {
+      throw new TypeError('wire root must be an array of observations');
+    }
     const set = new ObservationSet();
     for (const o of wire) {
       set.insert(o);

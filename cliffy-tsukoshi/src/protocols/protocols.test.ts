@@ -754,3 +754,16 @@ describe('wire value-level symmetry (review round 9)', () => {
     expect(set.toWire()[0].grant_ref).toBeNull();
   });
 });
+
+describe('wire root shape (review round 10)', () => {
+  it('rejects non-array roots (Rust: WireError::Json)', () => {
+    for (const text of ['""', '{}', '42', 'null', '"not a wire"']) {
+      expect(() => ObservationSet.fromWireJson(text)).toThrow(TypeError);
+    }
+    expect(() => ObservationSet.fromWire('' as never)).toThrow(TypeError);
+  });
+
+  it('still accepts the empty array (empty set)', () => {
+    expect(ObservationSet.fromWireJson('[]').size).toBe(0);
+  });
+});
