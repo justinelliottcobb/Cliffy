@@ -432,6 +432,21 @@ impl ObservationSet {
                     }
                 }
             }
+            // Payload variant bodies: Vector/Rotor must be map-shaped
+            // (serde would also accept positional forms; TS rejects them,
+            // and pre-fix TS smuggled NaN into projections — round 8).
+            // Scalar's body is a bare f64 by design.
+            if let Some(payload) = observation.get("payload").and_then(|p| p.as_object()) {
+                for variant in ["Vector", "Rotor"] {
+                    if let Some(body) = payload.get(variant) {
+                        if !body.is_object() {
+                            return Err(WireError::Json(serde::de::Error::custom(
+                                "wire payload bodies must be map-shaped",
+                            )));
+                        }
+                    }
+                }
+            }
         }
         // Typed parse from the ORIGINAL TEXT (preserves input-order
         // last-wins), then the last-wins duplicate collapse, mirroring

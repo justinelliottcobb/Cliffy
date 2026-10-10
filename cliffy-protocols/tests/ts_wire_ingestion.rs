@@ -314,3 +314,26 @@ fn positional_wire_forms_are_rejected() {
         "the wire schema is map-shaped; positional forms are not wire"
     );
 }
+
+/// Round-8 review (P2): positional PAYLOAD bodies escape map-shape
+/// enforcement — serde accepts {"Vector":[1,2,3]} (seq form of the struct
+/// variant) where TS now rejects (and NaN'd projections before it did).
+/// The pre-pass enforces payload variant bodies are map-shaped.
+#[test]
+fn positional_payload_bodies_are_rejected() {
+    for payload in [r#"{"Vector":[1,2,3]}"#, r#"{"Rotor":[1,0,0,0]}"#] {
+        let wire = format!(
+            r#"[{{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{{"clocks":{{}}}},"payload":{payload},"grant_ref":null}}]"#
+        );
+        assert!(
+            ObservationSet::from_json_str(&wire).is_err(),
+            "positional payload body must be rejected: {payload}"
+        );
+    }
+    // Scalar's body is a bare f64 — not map-shaped BY DESIGN.
+    let scalar = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":1.0},"grant_ref":null}]"#;
+    assert!(
+        ObservationSet::from_json_str(scalar).is_ok(),
+        "Scalar stays a bare f64"
+    );
+}

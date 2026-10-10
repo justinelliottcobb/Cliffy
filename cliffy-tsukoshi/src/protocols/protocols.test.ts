@@ -700,3 +700,37 @@ describe('Algebraic Invariants (cliffy-test)', () => {
     expect(report.verified).toBe(true);
   });
 });
+
+describe('wire schema shape enforcement (review round 8)', () => {
+  const base = { participant_id: 'aaaaaaaa-0000-0000-0000-000000000001', seq: 0, grant_ref: null };
+
+  it('rejects positional Vector/Rotor payload bodies', () => {
+    for (const payload of [{ Vector: [1, 2, 3] }, { Rotor: [1, 0, 0, 0] }]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('rejects non-finite or missing payload components', () => {
+    for (const payload of [
+      { Scalar: NaN }, { Vector: { x: 1, y: 2 } }, { Rotor: { w: 1, x: 0, y: 0, z: Infinity } },
+    ]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('rejects non-map clock.clocks (array/null)', () => {
+    for (const clocks of [[], null]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks }, payload: { Scalar: 1.0 } }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('still accepts the canonical map-shaped wire', () => {
+    const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload: { Vector: { x: 1, y: 2, z: 3 } } }]);
+    const set = ObservationSet.fromWireJson(wire);
+    const mean = vectorMean(set);
+    expect(mean).toEqual({ x: 1, y: 2, z: 3 });
+  });
+});

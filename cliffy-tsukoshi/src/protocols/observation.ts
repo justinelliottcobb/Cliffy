@@ -140,13 +140,55 @@ function ownObservation(o: Observation): Observation {
   if (owned.grant_ref !== null) {
     owned.grant_ref = canonicalParticipantId(owned.grant_ref);
   }
+  // Map-shape enforcement (review round 8): the wire schema is map-shaped;
+  // arrays are objects in JS, so clock.clocks: [] would silently canonicalize
+  // to {} where Rust rejects. Payload bodies likewise: positional forms or
+  // missing/non-finite components would smuggle NaN into projections.
+  const rawClocks: unknown = owned.clock?.clocks;
+  if (rawClocks === null || typeof rawClocks !== 'object' || Array.isArray(rawClocks)) {
+    throw new TypeError('clock.clocks must be a map (object), not an array or scalar');
+  }
   const clocks: Record<string, number> = {};
-  for (const [k, v] of Object.entries(owned.clock.clocks)) {
+  for (const [k, v] of Object.entries(rawClocks as Record<string, number>)) {
     checkSeq(v);
     clocks[canonicalParticipantId(k)] = v;
   }
   owned.clock = { clocks };
+  validatePayload(owned.payload);
   return deepFreeze(owned);
+}
+
+function isFiniteNumber(v: unknown): v is number {
+  return typeof v === 'number' && Number.isFinite(v);
+}
+
+function validatePayload(p: ObservationPayload): void {
+  if (p === null || typeof p !== 'object' || Array.isArray(p)) {
+    throw new TypeError('payload must be a map-shaped variant object');
+  }
+  if ('Scalar' in p) {
+    if (!isFiniteNumber(p.Scalar)) throw new TypeError('payload.Scalar must be a finite number');
+  } else if ('Vector' in p) {
+    const v: unknown = p.Vector;
+    if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+      throw new TypeError('payload.Vector must be a map-shaped {x,y,z} body');
+    }
+    const { x, y, z } = v as VectorObservation;
+    if (!isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) {
+      throw new TypeError('payload.Vector components must be finite numbers');
+    }
+  } else if ('Rotor' in p) {
+    const r: unknown = p.Rotor;
+    if (r === null || typeof r !== 'object' || Array.isArray(r)) {
+      throw new TypeError('payload.Rotor must be a map-shaped {w,x,y,z} body');
+    }
+    const { w, x, y, z } = r as RotorObservation;
+    if (!isFiniteNumber(w) || !isFiniteNumber(x) || !isFiniteNumber(y) || !isFiniteNumber(z)) {
+      throw new TypeError('payload.Rotor components must be finite numbers');
+    }
+  } else {
+    throw new TypeError('unknown payload variant');
+  }
 }
 
 function observation(id: string, seq: number, payload: ObservationPayload): Observation {
