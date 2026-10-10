@@ -1,3 +1,8 @@
+> **HISTORICAL RECORD (pre-salvage, 2026-08-27).** This handoff documents
+> the pre-0.4.0 state and references APIs since deleted for unsoundness
+> (`GeometricCRDT::merge` and friends — removed in #313/#342). Kept as
+> evidence of the process, not documentation of the current surface.
+
 # Handoff: Cliffy Modernization — CRDT Salvage + Anima Web-Projection Road
 
 **Date:** 2026-08-27

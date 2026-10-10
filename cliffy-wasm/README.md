@@ -83,15 +83,20 @@ const mid = state.blend(target, 0.5);
 
 ### Distributed Protocols
 
-Built-in CRDT and sync support:
+ObservationSet CRDT (merge = union) with deterministic geometric
+projections — the merge is boring; the render is geometric:
 
 ```typescript
-import { GeometricCRDT, VectorClock, SyncState } from '@industrialalgebra/cliffy-core';
+import { ObservationSet, VectorClock, SyncState } from '@industrialalgebra/cliffy-core';
 
-const crdt = new GeometricCRDT('node-1', initialState);
-crdt.add(5);
+const left = new ObservationSet();
+const right = new ObservationSet();
 
-const merged = crdt.merge(otherCrdt);
+left.observeScalar(nodeA, 0, 5.0);
+right.observeScalar(nodeB, 0, 10.0);
+
+left.merge(right); // union — convergence is trivial by construction
+console.log(left.scalarMean()); // 7.5 — the exact mean, never annihilated
 ```
 
 ### Testing Framework

@@ -1,3 +1,7 @@
+// ARCHIVED — historical, pre-salvage code. References the deleted
+// pre-0.4.0 protocols surface; kept as history, not documentation.
+// See archive/README.md.
+
 /**
  * Main Cliffy class - Entry point for the TypeScript API
  */

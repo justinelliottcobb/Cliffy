@@ -157,6 +157,17 @@ pub enum ObservationPayload {
     Rotor(RotorObservation),
 }
 
+/// Cross-runtime sequence bound: `seq <= 2^53 − 1` when an
+/// `ObservationSet` travels to or from the TypeScript port.
+///
+/// f64 cannot represent larger integers, and JSON wire through a JS
+/// runtime would silently collide distinct keys (PR #342 review round 1).
+/// The bound is enforced AT THE WIRE — tsukoshi throws `RangeError` at
+/// ingestion, and `ObservationSet::from_json_str` returns
+/// `WireError::OutOfDomain`. Native serde and the constructors keep the
+/// full u64 domain (Rust-only persistence is unbounded; round 3).
+pub const MAX_CROSS_RUNTIME_SEQ: u64 = (1 << 53) - 1;
+
 /// One attributed observation, canonically identified by
 /// `(participant_id, seq)` — the participant-scoped identity whose absence
 /// (len()-minted u64 ids) caused the old design's cross-replica collisions.
@@ -254,6 +265,38 @@ pub struct ObservationSet {
 // are not strings — and the array keeps iteration order canonical on the
 // wire. Deserialization reinserts into the map, re-sorting canonically;
 // duplicate keys resolve last-wins, a deterministic function of the array.)
+/// Wire ingestion errors for the cross-runtime entry points.
+#[derive(Debug)]
+pub enum WireError {
+    /// Malformed JSON or schema mismatch.
+    Json(serde_json::Error),
+    /// seq or a clock counter exceeded `MAX_CROSS_RUNTIME_SEQ` (2^53 − 1) —
+    /// the shared cross-runtime integer domain (f64-exact bound; the TS
+    /// port rejects the same inputs).
+    OutOfDomain,
+}
+
+impl std::fmt::Display for WireError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Json(e) => write!(f, "wire JSON error: {e}"),
+            Self::OutOfDomain => write!(
+                f,
+                "seq/clock counter exceeds MAX_CROSS_RUNTIME_SEQ (2^53 - 1)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for WireError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Json(e) => Some(e),
+            Self::OutOfDomain => None,
+        }
+    }
+}
+
 impl Serialize for ObservationSet {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -270,6 +313,11 @@ impl<'de> Deserialize<'de> for ObservationSet {
     {
         let observations = Vec::<Observation>::deserialize(deserializer)?;
         let mut set = Self::new();
+        // Native serde is the Rust persistence domain: full u64 seq and
+        // clock counters round-trip unchanged. The cross-runtime bound is
+        // enforced at the WIRE entry points (`from_json_str`), not here —
+        // validating here made Rust-only serialization unable to reload
+        // (PR #342 review round 3).
         for observation in observations {
             set.observations.insert(observation.key(), observation);
         }
@@ -284,6 +332,132 @@ impl ObservationSet {
         Self {
             observations: BTreeMap::new(),
         }
+    }
+
+    /// Serialize to canonical wire JSON text — the supported cross-runtime
+    /// wire format (canonical key order, correctly-rounded floats via the
+    /// crate's `serde_json/float_roundtrip` dependency).
+    ///
+    /// The emitter validates the same domain the ingest path enforces: a
+    /// set carrying seq or clock counters beyond `MAX_CROSS_RUNTIME_SEQ`
+    /// (constructible natively — Rust-only flows keep full u64) is refused
+    /// rather than emitted, since its own `from_json_str` (and the TS
+    /// port) would reject the output. Native serde `Serialize` remains
+    /// unrestricted for Rust-only persistence.
+    ///
+    /// # Errors
+    ///
+    /// `WireError::OutOfDomain` when a seq or clock counter exceeds
+    /// `MAX_CROSS_RUNTIME_SEQ`; `WireError::Json` on serialization failure
+    /// (not expected for this type, but the `Result` keeps the API honest).
+    pub fn to_json_string(&self) -> Result<String, WireError> {
+        for observation in self.observations.values() {
+            if observation.seq > MAX_CROSS_RUNTIME_SEQ
+                || observation
+                    .clock
+                    .clocks
+                    .values()
+                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(WireError::OutOfDomain);
+            }
+        }
+        serde_json::to_string(self).map_err(WireError::Json)
+    }
+
+    /// Parse the cross-runtime wire — the SUPPORTED ingestion path, twin
+    /// of tsukoshi's `ObservationSet.fromWireJson`.
+    ///
+    /// Two guarantees over raw serde:
+    /// - **bit-faithful floats** (this crate's `serde_json` builds with
+    ///   `float_roundtrip`; a consumer parsing the wire with their own
+    ///   default `serde_json` can misround — use this entry point);
+    /// - **domain validation**: seq and clock counters must satisfy the
+    ///   cross-runtime bound (`MAX_CROSS_RUNTIME_SEQ`, 2^53 − 1) — the TS
+    ///   port throws `RangeError` on the same inputs. Native serde
+    ///   (`Deserialize`) remains the Rust-only persistence domain and
+    ///   keeps full u64.
+    ///
+    /// # Errors
+    ///
+    /// `WireError::Json` on malformed JSON; `WireError::OutOfDomain` when
+    /// a seq or clock counter exceeds `MAX_CROSS_RUNTIME_SEQ`.
+    pub fn from_json_str(text: &str) -> Result<Self, WireError> {
+        // Domain validation runs on the raw Value, where keys are STRINGS:
+        // typed parsing collapses clock-key UUID aliases (HashMap<Uuid, _>
+        // last-wins) and the typed Vec shares the observation-key collapse
+        // hazard — the TS port validates every record pre-collapse and
+        // throws RangeError on the same bytes (rounds 4 and 6). Value
+        // objects preserve distinct string keys, so every counter is seen.
+        //
+        // Two hazards of the Value itself are handled here:
+        // - Value's default object is BTreeMap (SORTED): typed parsing
+        //   must use the ORIGINAL TEXT to preserve input-order last-wins
+        //   (round 7 P1).
+        // - serde's derived Deserialize also accepts POSITIONAL struct
+        //   forms, which the object-field inspection below can't see:
+        //   the wire schema is map-shaped, so positional forms are
+        //   rejected outright (round 7 P2).
+        let value: serde_json::Value = serde_json::from_str(text).map_err(WireError::Json)?;
+        let observations_value = value.as_array().ok_or_else(|| {
+            WireError::Json(serde::de::Error::custom("wire root must be an array"))
+        })?;
+        for observation in observations_value {
+            let observation = observation.as_object().ok_or_else(|| {
+                WireError::Json(serde::de::Error::custom(
+                    "wire observations must be map-shaped (positional forms are not wire)",
+                ))
+            })?;
+            if observation
+                .get("seq")
+                .and_then(serde_json::Value::as_u64)
+                .is_some_and(|seq| seq > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(WireError::OutOfDomain);
+            }
+            if let Some(clock) = observation.get("clock") {
+                let clock = clock.as_object().ok_or_else(|| {
+                    WireError::Json(serde::de::Error::custom("wire clock must be map-shaped"))
+                })?;
+                if let Some(clocks) = clock.get("clocks") {
+                    let clocks = clocks.as_object().ok_or_else(|| {
+                        WireError::Json(serde::de::Error::custom(
+                            "wire clock.clocks must be map-shaped",
+                        ))
+                    })?;
+                    for counter in clocks.values() {
+                        if counter.as_u64().is_some_and(|c| c > MAX_CROSS_RUNTIME_SEQ) {
+                            return Err(WireError::OutOfDomain);
+                        }
+                    }
+                }
+            }
+            // Payload variant bodies: Vector/Rotor must be map-shaped
+            // (serde would also accept positional forms; TS rejects them,
+            // and pre-fix TS smuggled NaN into projections — round 8).
+            // Scalar's body is a bare f64 by design.
+            if let Some(payload) = observation.get("payload").and_then(|p| p.as_object()) {
+                for variant in ["Vector", "Rotor"] {
+                    if let Some(body) = payload.get(variant) {
+                        if !body.is_object() {
+                            return Err(WireError::Json(serde::de::Error::custom(
+                                "wire payload bodies must be map-shaped",
+                            )));
+                        }
+                    }
+                }
+            }
+        }
+        // Typed parse from the ORIGINAL TEXT (preserves input-order
+        // last-wins), then the last-wins duplicate collapse, mirroring
+        // BTreeMap::insert (and the TS fromWire's per-record insert) —
+        // validation saw every record.
+        let observations: Vec<Observation> = serde_json::from_str(text).map_err(WireError::Json)?;
+        let mut set = Self::new();
+        for observation in observations {
+            set.observations.insert(observation.key(), observation);
+        }
+        Ok(set)
     }
 
     /// Insert an observation. Returns `false` if the key already exists

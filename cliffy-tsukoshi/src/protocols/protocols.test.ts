@@ -10,14 +10,13 @@ import { describe, it, expect } from 'vitest';
 import {
   testImpossible,
   testRare,
-  TestResult,
   InvariantCategory,
-  type InvariantTestReport,
 } from '@industrialalgebra/cliffy-core';
 
 // Import the TypeScript protocols
 import { VectorClock } from './vector-clock.js';
-import { GeometricCRDT, OperationType } from './crdt.js';
+import { ObservationSet, scalarObservation, vectorObservation, MAX_CROSS_RUNTIME_SEQ } from './observation.js';
+import { scalarMean, vectorMean, rotorConsensus } from './projection.js';
 import { latticeJoin, latticeMeet } from './lattice.js';
 import {
   DeltaBatch,
@@ -26,17 +25,12 @@ import {
   additiveDelta,
 } from './delta.js';
 import { MemoryStore } from './storage.js';
-import { SyncState, PeerConnectionState } from './sync.js';
-import { GeometricConsensus } from './consensus.js';
+import { SyncState } from './sync.js';
 
 // Import GA3 functions from cliffy-tsukoshi
 import {
-  zero,
   scalar,
   vector,
-  add,
-  sub,
-  magnitude,
   equals,
 } from '../ga3.js';
 
@@ -117,62 +111,123 @@ describe('VectorClock', () => {
 });
 
 // =============================================================================
-// GeometricCRDT Tests
+// ObservationSet Tests (the sound floor — Phase 2 WS0 port)
 // =============================================================================
 
-describe('GeometricCRDT', () => {
-  it('creates CRDT with initial state', () => {
-    const crdt = new GeometricCRDT('node-1', scalar(10));
-    expect(crdt.state[0]).toBe(10);
-    expect(crdt.nodeId).toBe('node-1');
+describe('ObservationSet', () => {
+  const A = 'aaaaaaaa-0000-0000-0000-000000000001';
+  const B = 'bbbbbbbb-0000-0000-0000-000000000002';
+
+  it('merge is union — absorbs, never annihilates', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(A, 0, 10));
+    const b = new ObservationSet();
+    b.insert(scalarObservation(B, 0, 5));
+    a.merge(b);
+    expect(a.size).toBe(2);
+    // The fossilized failure: replicas at 10 and 5 must NOT merge to 0.
+    expect(scalarMean(a)).toBe(7.5);
   });
 
-  it('addition operations modify state correctly', () => {
-    const crdt = new GeometricCRDT('node-1', scalar(10));
-    const op = crdt.createOperation(scalar(5), OperationType.Addition);
-
-    crdt.applyOperation(op);
-
-    expect(crdt.state[0]).toBeCloseTo(15);
+  it('merge is commutative and associative', () => {
+    const mk = (id: string, seq: number, v: number) => {
+      const s = new ObservationSet();
+      s.insert(scalarObservation(id, seq, v));
+      return s;
+    };
+    const [sa, sb, sc] = [mk(A, 0, 1), mk(B, 0, 2), mk(A, 1, 3)];
+    const ab = new ObservationSet(); ab.merge(sa); ab.merge(sb);
+    const ba = new ObservationSet(); ba.merge(sb); ba.merge(sa);
+    expect(JSON.stringify(ab.toWire())).toBe(JSON.stringify(ba.toWire()));
+    const abC = new ObservationSet(); abC.merge(ab); abC.merge(sc);
+    const bcA = new ObservationSet(); const bc = new ObservationSet(); bc.merge(sb); bc.merge(sc); bcA.merge(sa); bcA.merge(bc);
+    expect(JSON.stringify(abC.toWire())).toBe(JSON.stringify(bcA.toWire()));
   });
 
-  it('operations are idempotent', () => {
-    const crdt = new GeometricCRDT('node-1', scalar(10));
-    const op = crdt.createOperation(scalar(5), OperationType.Addition);
-
-    crdt.applyOperation(op);
-    const state1 = crdt.state[0];
-
-    crdt.applyOperation(op); // Apply same op again
-    const state2 = crdt.state[0];
-
-    expect(state1).toBe(state2);
+  it('merge is idempotent — re-delivery is a no-op', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(A, 0, 42));
+    const before = JSON.stringify(a.toWire());
+    expect(a.merge(a)).toBe(false);
+    expect(JSON.stringify(a.toWire())).toBe(before);
   });
 
-  it('createOperation increments clock', () => {
-    const crdt = new GeometricCRDT('node-1', scalar(0));
-
-    const op1 = crdt.createOperation(scalar(5), OperationType.Addition);
-    const op2 = crdt.createOperation(scalar(3), OperationType.Addition);
-
-    expect(op1.id).toBe(0);
-    expect(op2.id).toBe(1);
-    expect(crdt.vectorClock.get('node-1')).toBe(2);
+  it('insert replaces on duplicate key (last-wins, mirrors BTreeMap::insert)', () => {
+    const a = new ObservationSet();
+    expect(a.insert(scalarObservation(A, 0, 1))).toBe(true);
+    expect(a.insert(scalarObservation(A, 0, 2))).toBe(false);
+    expect(scalarMean(a)).toBe(2);
   });
 
-  it('geometric product operation works', () => {
-    const crdt = new GeometricCRDT('node-1', scalar(2));
-    const op = crdt.createOperation(scalar(3), OperationType.GeometricProduct);
+  it('iteration is canonical — (participant, seq) order, not insertion order', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(B, 0, 1));
+    a.insert(scalarObservation(A, 1, 2));
+    a.insert(scalarObservation(A, 0, 3));
+    const order = [...a.entries()].map((o) => `${o.participant_id}:${o.seq}`);
+    expect(order).toEqual([`${A}:0`, `${A}:1`, `${B}:0`]);
+  });
 
-    crdt.applyOperation(op);
+  it('wire round-trip preserves the set', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(A, 0, 1.5));
+    a.insert(vectorObservation(B, 0, { x: 1, y: 2, z: 3 }));
+    const b = ObservationSet.fromWire(a.toWire());
+    expect(JSON.stringify(b.toWire())).toBe(JSON.stringify(a.toWire()));
+  });
 
-    expect(crdt.state[0]).toBeCloseTo(6);
+  it('empty set projects to null — never fabricate', () => {
+    const a = new ObservationSet();
+    expect(scalarMean(a)).toBeNull();
+    expect(vectorMean(a)).toBeNull();
+    expect(rotorConsensus(a)).toBeNull();
+  });
+
+  // --- Review-round-1 regressions (PR #342): the boundary conditions ---
+
+  it('canonicalizes participant UUIDs — case aliases are the SAME key', () => {
+    const a = new ObservationSet();
+    a.insert(scalarObservation(A, 0, -0));
+    a.insert(scalarObservation(B, 0, 2));
+    a.insert(scalarObservation(A.toUpperCase(), 0, 3)); // same participant!
+    expect(a.size).toBe(2); // last-wins on the duplicate key
+    expect(scalarMean(a)).toBe(2.5); // matches the Rust behavior
+    expect([...a.entries()][0].participant_id).toBe(A); // lowercase canonical
+  });
+
+  it('rejects non-UUID participants (Rust parse domain) and out-of-domain seq', () => {
+    const a = new ObservationSet();
+    expect(() => a.insert(scalarObservation('not-a-uuid', 0, 1))).toThrow(TypeError);
+    expect(() => a.insert(scalarObservation(A, -1, 1))).toThrow(RangeError);
+    expect(() => a.insert(scalarObservation(A, MAX_CROSS_RUNTIME_SEQ + 1, 1))).toThrow(RangeError);
+    expect(() => a.insert(scalarObservation(A, 1.5, 1))).toThrow(RangeError);
+    a.insert(scalarObservation(A, MAX_CROSS_RUNTIME_SEQ, 1)); // the bound itself is legal
+    expect(a.size).toBe(1);
+  });
+
+  it('owns its data — caller mutation cannot rewrite the set', () => {
+    const a = new ObservationSet();
+    const b = new ObservationSet();
+    const o = scalarObservation(A, 0, 1);
+    a.insert(o);
+    b.merge(a);
+    // The reviewer's repro: mutate the caller-held object post-insert.
+    // Constructor output is itself frozen (ownObservation runs there too),
+    // so this throws in strict mode — and even the attempt cannot reach
+    // the set's owned copy.
+    expect(() => {
+      (o.payload as { Scalar: number }).Scalar = 8;
+    }).toThrow(TypeError);
+    expect(scalarMean(a)).toBe(1);
+    expect(scalarMean(b)).toBe(1);
+    // Stored records are frozen as well.
+    const stored = [...a.entries()][0];
+    expect(Object.isFrozen(stored)).toBe(true);
+    expect(Object.isFrozen(stored.payload)).toBe(true);
+    expect(scalarMean(a)).toBe(1);
   });
 });
 
-// =============================================================================
-// Lattice Tests
-// =============================================================================
 
 describe('Lattice Operations', () => {
   it('latticeJoin computes component-wise maximum', () => {
@@ -457,104 +512,6 @@ describe('Sync Protocol', () => {
 // Consensus Tests
 // =============================================================================
 
-describe('Consensus', () => {
-  it('consensus returns zero for empty proposals', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-    const result = consensus.geometricConsensus([], 0.1);
-
-    expect(equals(result, zero())).toBe(true);
-  });
-
-  it('propose increments round', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-
-    const round1 = consensus.propose(scalar(10));
-    const round2 = consensus.propose(scalar(20));
-
-    expect(round1).toBe(0);
-    expect(round2).toBe(1);
-  });
-
-  it('voting and commit workflow', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-
-    // Receive proposals
-    consensus.receiveProposal('node-2', scalar(10), 0);
-    consensus.receiveProposal('node-3', scalar(12), 0);
-    consensus.receiveProposal('node-4', scalar(14), 0);
-
-    // Vote
-    consensus.vote(0, true, scalar(12));
-    consensus.receiveVote('node-2', 0, true);
-    consensus.receiveVote('node-3', 0, true);
-
-    // Try to commit (3 out of 4 voted yes)
-    const committed = consensus.tryCommit(0, 4);
-    expect(committed).not.toBeNull();
-    expect(consensus.isCommitted(0)).toBe(true);
-  });
-
-  it('commit requires majority', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-
-    consensus.receiveProposal('node-2', scalar(10), 0);
-    consensus.vote(0, true, scalar(10));
-
-    // Only 1 yes vote out of 4 participants - no majority
-    const committed = consensus.tryCommit(0, 4);
-    expect(committed).toBeNull();
-    expect(consensus.isCommitted(0)).toBe(false);
-  });
-
-  it('getCommittedValue returns committed state', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-
-    consensus.receiveProposal('node-2', scalar(10), 0);
-    consensus.vote(0, true, scalar(10));
-    consensus.receiveVote('node-2', 0, true);
-    consensus.receiveVote('node-3', 0, true);
-
-    consensus.tryCommit(0, 3);
-
-    const value = consensus.getCommittedValue(0);
-    expect(value).not.toBeNull();
-  });
-
-  it('message handlers receive broadcasts', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-    const messages: any[] = [];
-
-    consensus.onMessage((msg) => {
-      messages.push(msg);
-    });
-
-    consensus.propose(scalar(10));
-
-    expect(messages.length).toBe(1);
-    expect(messages[0].messageType.type).toBe('Propose');
-  });
-
-  it('CRDT state updates after commit', () => {
-    const consensus = new GeometricConsensus('node-1', scalar(0));
-
-    consensus.receiveProposal('node-2', scalar(10), 0);
-    consensus.vote(0, true, scalar(10));
-    consensus.receiveVote('node-2', 0, true);
-    consensus.receiveVote('node-3', 0, true);
-
-    const initialState = consensus.getCurrentState();
-    consensus.tryCommit(0, 3);
-    const finalState = consensus.getCurrentState();
-
-    // State should have changed after commit
-    expect(magnitude(sub(finalState, initialState))).toBeGreaterThan(0);
-  });
-});
-
-// =============================================================================
-// Invariant Tests using cliffy-test WASM bindings
-// =============================================================================
-
 describe('Algebraic Invariants (cliffy-test)', () => {
   it('IMPOSSIBLE: Vector clock happensBefore is transitive', () => {
     const report = testImpossible(
@@ -631,25 +588,21 @@ describe('Algebraic Invariants (cliffy-test)', () => {
     expect(report.failures).toBe(0);
   });
 
-  it('IMPOSSIBLE: CRDT operations are idempotent', () => {
+  it('IMPOSSIBLE: ObservationSet merge is idempotent', () => {
     const report = testImpossible(
-      'CRDT operation idempotence',
+      'ObservationSet merge idempotence',
       () => {
-        const crdt = new GeometricCRDT('test', scalar(0));
-        const op = crdt.createOperation(
-          scalar(Math.random() * 10),
-          OperationType.Addition
-        );
-
-        crdt.applyOperation(op);
-        const state1 = crdt.state[0];
-
-        crdt.applyOperation(op); // Apply same op again
-        const state2 = crdt.state[0];
-
-        return state1 === state2;
+        const id = 'aaaaaaaa-0000-0000-0000-00000000000' + Math.floor(Math.random() * 10);
+        const seq = Math.floor(Math.random() * 100);
+        const value = Math.random() * 10;
+        const a = new ObservationSet();
+        a.insert(scalarObservation(id, seq, value));
+        const before = a.toWire();
+        a.merge(a);
+        a.merge(a);
+        return JSON.stringify(a.toWire()) === JSON.stringify(before);
       },
-      50
+      100
     );
 
     expect(report.verified).toBe(true);
@@ -745,5 +698,72 @@ describe('Algebraic Invariants (cliffy-test)', () => {
     );
 
     expect(report.verified).toBe(true);
+  });
+});
+
+describe('wire schema shape enforcement (review round 8)', () => {
+  const base = { participant_id: 'aaaaaaaa-0000-0000-0000-000000000001', seq: 0, grant_ref: null };
+
+  it('rejects positional Vector/Rotor payload bodies', () => {
+    for (const payload of [{ Vector: [1, 2, 3] }, { Rotor: [1, 0, 0, 0] }]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('rejects non-finite or missing payload components', () => {
+    for (const payload of [
+      { Scalar: NaN }, { Vector: { x: 1, y: 2 } }, { Rotor: { w: 1, x: 0, y: 0, z: Infinity } },
+    ]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('rejects non-map clock.clocks (array/null)', () => {
+    for (const clocks of [[], null]) {
+      const wire = JSON.stringify([{ ...base, clock: { clocks }, payload: { Scalar: 1.0 } }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('still accepts the canonical map-shaped wire', () => {
+    const wire = JSON.stringify([{ ...base, clock: { clocks: {} }, payload: { Vector: { x: 1, y: 2, z: 3 } } }]);
+    const set = ObservationSet.fromWireJson(wire);
+    const mean = vectorMean(set);
+    expect(mean).toEqual({ x: 1, y: 2, z: 3 });
+  });
+});
+
+describe('wire value-level symmetry (review round 9)', () => {
+  const base = { participant_id: 'aaaaaaaa-0000-0000-0000-000000000001', seq: 0, clock: { clocks: {} } };
+
+  it('rejects payloads without exactly one variant key (Rust does)', () => {
+    for (const payload of [
+      { Scalar: 1, Vector: { x: 2, y: 3, z: 4 } },
+      { Scalar: 1, extra: 2 },
+    ]) {
+      const wire = JSON.stringify([{ ...base, payload, grant_ref: null }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('accepts a missing grant_ref as null (Rust does)', () => {
+    const wire = JSON.stringify([{ ...base, payload: { Scalar: 1.0 } }]);
+    const set = ObservationSet.fromWireJson(wire);
+    expect(set.toWire()[0].grant_ref).toBeNull();
+  });
+});
+
+describe('wire root shape (review round 10)', () => {
+  it('rejects non-array roots (Rust: WireError::Json)', () => {
+    for (const text of ['""', '{}', '42', 'null', '"not a wire"']) {
+      expect(() => ObservationSet.fromWireJson(text)).toThrow(TypeError);
+    }
+    expect(() => ObservationSet.fromWire('' as never)).toThrow(TypeError);
+  });
+
+  it('still accepts the empty array (empty set)', () => {
+    expect(ObservationSet.fromWireJson('[]').size).toBe(0);
   });
 });

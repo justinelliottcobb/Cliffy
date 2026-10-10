@@ -132,6 +132,30 @@ mod tests {
 
     use super::*;
 
+    /// The review-round-1 regression oracle (PR #342): an off-diagonal at
+    /// 2^-1074 (JS `Number.MIN_VALUE` — the smallest SUBNORMAL) is below
+    /// `f64::MIN_POSITIVE` (2^-1022, the smallest NORMAL) and must be
+    /// skipped, not rotated. Values pinned bit-exact; the tsukoshi port
+    /// asserts the identical bits.
+    #[test]
+    fn subnormal_off_diagonal_is_skipped() {
+        let s = f64::from_bits(1); // 2^-1074
+        let m = [
+            [2.0, s, 0.0, 0.0],
+            [s, 2.0, 0.0, 0.0],
+            [0.0, 0.0, 5.0, 1.0],
+            [0.0, 0.0, 1.0, 5.0],
+        ];
+        let (vals, vecs) = jacobi_eigen_4(m);
+        assert_eq!(vals[0].to_bits(), 0x4000_0000_0000_0000, "2.0 exactly");
+        assert_eq!(vals[1].to_bits(), 0x4000_0000_0000_0000, "2.0 exactly");
+        assert_eq!(vals[2].to_bits(), 0x400f_ffff_ffff_fffe);
+        assert_eq!(vals[3].to_bits(), 0x4017_ffff_ffff_ffff);
+        // The skipped block leaves the identity basis untouched.
+        assert_eq!(vecs[0], [1.0, 0.0, 0.0, 0.0]);
+        assert_eq!(vecs[1], [0.0, 1.0, 0.0, 0.0]);
+    }
+
     fn assert_close(a: f64, b: f64, msg: &str) {
         assert!((a - b).abs() < 1e-12, "{msg}: {a} vs {b}");
     }

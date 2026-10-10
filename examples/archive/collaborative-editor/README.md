@@ -1,3 +1,8 @@
+> **ARCHIVED — historical, pre-salvage example.** References the deleted
+> pre-0.4.0 protocols surface (`GeometricCRDT` and friends), which was
+> removed for unsoundness (merge could annihilate data). Kept as history,
+> not documentation. See `archive/README.md`.
+
 # Cliffy Collaborative Editor
 
 A revolutionary collaborative text editor demonstrating the power of geometric algebra for distributed conflict resolution. This example showcases how Clifford algebras can be used to represent document state and resolve editing conflicts in a mathematically elegant way.

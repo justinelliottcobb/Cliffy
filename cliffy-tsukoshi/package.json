@@ -1,6 +1,6 @@
 {
   "name": "@industrialalgebra/cliffy-tsukoshi",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Minimal geometric state management with distributed protocols - pure TypeScript, zero dependencies",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -54,6 +54,7 @@
   },
   "devDependencies": {
     "@industrialalgebra/cliffy-core": "file:../cliffy-wasm/pkg",
+    "@types/node": "^26.6.5",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0",
     "vitest": "^1.0.0"

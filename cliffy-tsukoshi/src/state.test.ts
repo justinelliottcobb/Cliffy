@@ -3,7 +3,7 @@
  */
 
 import { describe, it, expect, vi } from 'vitest';
-import { GeometricState, ReactiveState, reactiveState } from './state.js';
+import { GeometricState, reactiveState } from './state.js';
 import { Rotor } from './rotor.js';
 import { Transform, translation } from './transform.js';
 
