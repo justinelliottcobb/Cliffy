@@ -137,8 +137,12 @@ function ownObservation(o: Observation): Observation {
   const owned: Observation = structuredClone(o);
   owned.participant_id = canonicalParticipantId(owned.participant_id);
   checkSeq(owned.seq);
-  if (owned.grant_ref !== null) {
+  if (owned.grant_ref !== null && owned.grant_ref !== undefined) {
     owned.grant_ref = canonicalParticipantId(owned.grant_ref);
+  } else {
+    // Missing grant_ref = null (Postel): Rust's serde fills an absent
+    // Option field with None; the TS twin accepts it identically (r9).
+    owned.grant_ref = null;
   }
   // Map-shape enforcement (review round 8): the wire schema is map-shaped;
   // arrays are objects in JS, so clock.clocks: [] would silently canonicalize
@@ -165,6 +169,14 @@ function isFiniteNumber(v: unknown): v is number {
 function validatePayload(p: ObservationPayload): void {
   if (p === null || typeof p !== 'object' || Array.isArray(p)) {
     throw new TypeError('payload must be a map-shaped variant object');
+  }
+  // Cardinality (review round 9): serde's externally-tagged enum accepts
+  // exactly one entry — a second variant OR unknown key is rejected there,
+  // so it is rejected here (pre-fix TS read Scalar first and silently
+  // dropped the rest, then emitted a different observation).
+  const keys = Object.keys(p);
+  if (keys.length !== 1 || !['Scalar', 'Vector', 'Rotor'].includes(keys[0])) {
+    throw new TypeError('payload must have exactly one variant key (Scalar, Vector, or Rotor)');
   }
   if ('Scalar' in p) {
     if (!isFiniteNumber(p.Scalar)) throw new TypeError('payload.Scalar must be a finite number');
@@ -373,7 +385,17 @@ export class ObservationSet {
     return set;
   }
 
-  /** Parse + ingest canonical wire JSON (toWireJson or serde_json output). */
+  /**
+   * Parse + ingest canonical wire JSON (toWireJson or serde_json output).
+   *
+   * Text-level strictness TS cannot share (documented, not a divergence —
+   * review round 9): JSON.parse erases token shape, so Rust additionally
+   * rejects integral float tokens ("seq":1.0), duplicate textual fields,
+   * and nesting beyond serde_json's limit (128). Canonical emitters never
+   * produce such text; the acceptance sets agree on everything expressible
+   * at the VALUE level. Error mapping: Rust WireError::Json ⟷ TypeError
+   * (schema); Rust WireError::OutOfDomain ⟷ RangeError (domain).
+   */
   static fromWireJson(json: string): ObservationSet {
     return ObservationSet.fromWire(JSON.parse(json) as Observation[]);
   }

@@ -734,3 +734,23 @@ describe('wire schema shape enforcement (review round 8)', () => {
     expect(mean).toEqual({ x: 1, y: 2, z: 3 });
   });
 });
+
+describe('wire value-level symmetry (review round 9)', () => {
+  const base = { participant_id: 'aaaaaaaa-0000-0000-0000-000000000001', seq: 0, clock: { clocks: {} } };
+
+  it('rejects payloads without exactly one variant key (Rust does)', () => {
+    for (const payload of [
+      { Scalar: 1, Vector: { x: 2, y: 3, z: 4 } },
+      { Scalar: 1, extra: 2 },
+    ]) {
+      const wire = JSON.stringify([{ ...base, payload, grant_ref: null }]);
+      expect(() => ObservationSet.fromWireJson(wire)).toThrow(TypeError);
+    }
+  });
+
+  it('accepts a missing grant_ref as null (Rust does)', () => {
+    const wire = JSON.stringify([{ ...base, payload: { Scalar: 1.0 } }]);
+    const set = ObservationSet.fromWireJson(wire);
+    expect(set.toWire()[0].grant_ref).toBeNull();
+  });
+});

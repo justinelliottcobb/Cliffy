@@ -337,3 +337,34 @@ fn positional_payload_bodies_are_rejected() {
         "Scalar stays a bare f64"
     );
 }
+
+/// Round-9 review: payload cardinality — exactly one variant key, no
+/// extras. (Pinning serde's behavior so the TS port's policy is anchored.)
+#[test]
+fn wire_payload_requires_exactly_one_variant_key() {
+    let base = |payload: &str| {
+        format!(
+            r#"[{{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{{"clocks":{{}}}},"payload":{payload},"grant_ref":null}}]"#
+        )
+    };
+    assert!(ObservationSet::from_json_str(&base(
+        r#"{"Scalar":1.0,"Vector":{"x":2.0,"y":3.0,"z":4.0}}"#
+    ))
+    .is_err());
+    assert!(ObservationSet::from_json_str(&base(r#"{"Scalar":1.0,"extra":2}"#)).is_err());
+    assert!(ObservationSet::from_json_str(&base(r#"{"Scalar":1.0}"#)).is_ok());
+}
+
+/// Round-9 review: missing `grant_ref` is accepted as null (Postel), pinned
+/// so the TS twin (which now does the same) is anchored.
+#[test]
+fn wire_missing_grant_ref_is_null() {
+    let wire = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":1.0}}]"#;
+    let set = ObservationSet::from_json_str(wire).expect("missing grant_ref = None");
+    assert!(set
+        .iter()
+        .next()
+        .expect("one observation")
+        .grant_ref
+        .is_none());
+}
