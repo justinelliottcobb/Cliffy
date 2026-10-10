@@ -14,7 +14,7 @@
 
 use std::path::PathBuf;
 
-use cliffy_protocols::observation::{ObservationPayload, ObservationSet};
+use cliffy_protocols::observation::{Observation, ObservationPayload, ObservationSet};
 use cliffy_protocols::projection::scalar_mean;
 use uuid::Uuid;
 
@@ -37,8 +37,7 @@ fn rust_ingests_ts_emitted_wire_bit_faithfully() {
 
     // Serde must accept the TS wire whole: hyphenated lowercase UUIDs,
     // "-0.0", integer-styled floats, the max-safe seq.
-    let set: ObservationSet =
-        serde_json::from_str(&text).expect("TS wire parses as an ObservationSet");
+    let set = ObservationSet::from_json_str(&text).expect("TS wire parses as an ObservationSet");
 
     assert_eq!(set.len(), 5, "every TS observation ingested");
 
@@ -104,7 +103,7 @@ fn rust_wire_rejects_out_of_domain_counters() {
         .replace("SEQ", "9007199254740992")
         .replace("CLOCKS", "{}");
     assert!(
-        serde_json::from_str::<ObservationSet>(&over_seq).is_err(),
+        ObservationSet::from_json_str(&over_seq).is_err(),
         "seq beyond the cross-runtime bound must be rejected"
     );
 
@@ -113,7 +112,7 @@ fn rust_wire_rejects_out_of_domain_counters() {
         r#"{"aaaaaaaa-0000-0000-0000-000000000001":9007199254740992}"#,
     );
     assert!(
-        serde_json::from_str::<ObservationSet>(&over_clock).is_err(),
+        ObservationSet::from_json_str(&over_clock).is_err(),
         "clock counter beyond the cross-runtime bound must be rejected"
     );
 
@@ -121,7 +120,58 @@ fn rust_wire_rejects_out_of_domain_counters() {
         .replace("SEQ", "9007199254740991")
         .replace("CLOCKS", "{}");
     assert!(
-        serde_json::from_str::<ObservationSet>(&at_bound).is_ok(),
+        ObservationSet::from_json_str(&at_bound).is_ok(),
         "the bound itself is legal"
     );
+}
+
+/// Round-3 review: native serde is the Rust persistence domain (full
+/// u64); the cross-runtime bound applies only to the wire entry points.
+/// A Rust-only set with seq beyond the bound must serialize AND reload.
+#[test]
+fn rust_only_full_u64_persistence_round_trips() {
+    let mut set = ObservationSet::new();
+    set.insert(Observation::new_scalar(
+        Uuid::from_u128(1),
+        9_007_199_254_740_992, // beyond the cross-runtime bound, legal Rust-only
+        1.0,
+    ));
+    let text = serde_json::to_string(&set).expect("serialize");
+    let reloaded: ObservationSet =
+        serde_json::from_str(&text).expect("native serde reload keeps the full u64 domain");
+    assert_eq!(reloaded.len(), 1);
+}
+
+/// Round-3 review: the SUPPORTED wire entry points carry the contract —
+/// `from_json_str` validates the cross-runtime domain AND parses
+/// bit-faithfully (the library's `serde_json` pins `float_roundtrip` as a
+/// real dependency, not a dev-only one).
+#[test]
+fn supported_wire_api_validates_and_parses_bit_exact() {
+    // Out-of-domain rejected at the wire entry point.
+    let over = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":9007199254740992,"clock":{"clocks":{}},"payload":{"Scalar":1.0},"grant_ref":null}]"#;
+    assert!(
+        ObservationSet::from_json_str(over).is_err(),
+        "wire entry point rejects out-of-domain seq"
+    );
+
+    // Bit-faithful parse of the reviewer's 1-ulp value.
+    let tricky = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":2.3318716180463287e-130},"grant_ref":null}]"#;
+    let set = ObservationSet::from_json_str(tricky).expect("wire parses");
+    let obs = set.iter().next().expect("one observation");
+    match &obs.payload {
+        ObservationPayload::Scalar(v) => {
+            assert_eq!(
+                v.to_bits(),
+                0x2504_b08b_ac75_584b,
+                "bit-exact via the supported API"
+            );
+        }
+        other => panic!("expected Scalar, got {other:?}"),
+    }
+
+    // to_json_string round-trips through from_json_str.
+    let text = set.to_json_string().expect("serialize");
+    let reloaded = ObservationSet::from_json_str(&text).expect("reload");
+    assert_eq!(reloaded.len(), 1);
 }

@@ -53,12 +53,17 @@ All notable changes to Cliffy are documented here. Format follows
   with the regression matrix pinned bit-exact on both runtimes.
 - CI: `tsukoshi-checks` job — typecheck (`tsc --noEmit`), build, and vitest
   now gate every PR (the typecheck script existed but never ran in CI).
-- **Review round 2 hardening** (PR #342): `serde_json`'s `float_roundtrip`
-  feature enabled (correctly-rounded parsing — the default parser misrounds
-  e.g. 2.3318716180463287e-130 by 1 ulp; pinned both directions); the Rust
-  wire boundary (`ObservationSet::deserialize`) now enforces the
-  cross-runtime integer domain for seq AND clock counters (RangeError's
-  Rust twin); `VectorClock::tick` debug_asserts the same bound; the
+- **Review round 2+3 hardening** (PR #342): the cross-runtime wire gained
+  SUPPORTED entry points — `ObservationSet::to_json_string` /
+  `from_json_str` (Rust) twinning tsukoshi's `toWireJson` / `fromWireJson`.
+  `from_json_str` enforces the shared integer domain (seq and clock
+  counters ≤ 2^53−1; `WireError::OutOfDomain`) and parses bit-faithfully:
+  `serde_json` is a real dependency with `float_roundtrip` (the default
+  parser misrounds e.g. 2.3318716180463287e-130 by 1 ulp; feature
+  unification carries correct rounding to downstream graphs — verified
+  with a scratch consumer). Native serde `Deserialize` remains the
+  Rust-only persistence domain with full u64 (seq beyond the bound
+  round-trips through serde but is rejected at the wire entry point). The
   signed-zero case pins the input payload's sign bit (the laundered mean
   cannot); Rust-side split-merge replay is persistent in the drift guard.
 - Docs: crate READMEs, CONTEXT.md, and the wasm README rewritten to the

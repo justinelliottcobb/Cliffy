@@ -15,15 +15,16 @@ amari-core = { workspace = true }
 tokio = { workspace = true }
 serde = { workspace = true }
 uuid = { version = "1.24.0", features = ["v4", "serde"] }
+# A REAL dependency (not dev): float_roundtrip = correctly-rounded float
+# PARSING for the supported wire entry points (ObservationSet::
+# from_json_str / to_json_string). Dev-dependency features do not reach
+# downstream consumers (PR #342 review round 3); the default parser
+# misrounds e.g. 2.3318716180463287e-130 by 1 ulp.
+serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 
 [dev-dependencies]
 quickcheck = "1.0"
 quickcheck_macros = "1.0"
-# float_roundtrip: correctly-rounded float PARSING — the cross-runtime
-# wire contract requires bit-faithful ingestion of TS-emitted decimals
-# (default serde_json misrounds e.g. 2.3318716180463287e-130 by 1 ulp;
-# PR #342 review round 2).
-serde_json = { version = "1.0.151", features = ["float_roundtrip"] }
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
 
 [lints]

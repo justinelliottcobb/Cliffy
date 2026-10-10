@@ -158,12 +158,14 @@ pub enum ObservationPayload {
 }
 
 /// Cross-runtime sequence bound: `seq <= 2^53 − 1` when an
-/// `ObservationSet` travels to the TypeScript port.
+/// `ObservationSet` travels to or from the TypeScript port.
 ///
 /// f64 cannot represent larger integers, and JSON wire through a JS
 /// runtime would silently collide distinct keys (PR #342 review round 1).
-/// The tsukoshi side enforces the bound with a hard error; here the
-/// constructors `debug_assert` it (the Rust-only domain remains full u64).
+/// The bound is enforced AT THE WIRE — tsukoshi throws `RangeError` at
+/// ingestion, and `ObservationSet::from_json_str` returns
+/// `WireError::OutOfDomain`. Native serde and the constructors keep the
+/// full u64 domain (Rust-only persistence is unbounded; round 3).
 pub const MAX_CROSS_RUNTIME_SEQ: u64 = (1 << 53) - 1;
 
 /// One attributed observation, canonically identified by
@@ -187,10 +189,6 @@ impl Observation {
     /// A scalar observation with an empty clock.
     #[must_use]
     pub fn new_scalar(participant_id: Uuid, seq: u64, value: f64) -> Self {
-        debug_assert!(
-            seq <= MAX_CROSS_RUNTIME_SEQ,
-            "seq exceeds the cross-runtime bound"
-        );
         Self {
             participant_id,
             seq,
@@ -203,10 +201,6 @@ impl Observation {
     /// A rotor observation with an empty clock.
     #[must_use]
     pub fn new_rotor(participant_id: Uuid, seq: u64, rotor: RotorObservation) -> Self {
-        debug_assert!(
-            seq <= MAX_CROSS_RUNTIME_SEQ,
-            "seq exceeds the cross-runtime bound"
-        );
         Self {
             participant_id,
             seq,
@@ -219,10 +213,6 @@ impl Observation {
     /// A vector observation with an empty clock.
     #[must_use]
     pub fn new_vector(participant_id: Uuid, seq: u64, vector: VectorObservation) -> Self {
-        debug_assert!(
-            seq <= MAX_CROSS_RUNTIME_SEQ,
-            "seq exceeds the cross-runtime bound"
-        );
         Self {
             participant_id,
             seq,
@@ -275,6 +265,38 @@ pub struct ObservationSet {
 // are not strings — and the array keeps iteration order canonical on the
 // wire. Deserialization reinserts into the map, re-sorting canonically;
 // duplicate keys resolve last-wins, a deterministic function of the array.)
+/// Wire ingestion errors for the cross-runtime entry points.
+#[derive(Debug)]
+pub enum WireError {
+    /// Malformed JSON or schema mismatch.
+    Json(serde_json::Error),
+    /// seq or a clock counter exceeded `MAX_CROSS_RUNTIME_SEQ` (2^53 − 1) —
+    /// the shared cross-runtime integer domain (f64-exact bound; the TS
+    /// port rejects the same inputs).
+    OutOfDomain,
+}
+
+impl std::fmt::Display for WireError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Json(e) => write!(f, "wire JSON error: {e}"),
+            Self::OutOfDomain => write!(
+                f,
+                "seq/clock counter exceeds MAX_CROSS_RUNTIME_SEQ (2^53 - 1)"
+            ),
+        }
+    }
+}
+
+impl std::error::Error for WireError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Self::Json(e) => Some(e),
+            Self::OutOfDomain => None,
+        }
+    }
+}
+
 impl Serialize for ObservationSet {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -291,21 +313,12 @@ impl<'de> Deserialize<'de> for ObservationSet {
     {
         let observations = Vec::<Observation>::deserialize(deserializer)?;
         let mut set = Self::new();
+        // Native serde is the Rust persistence domain: full u64 seq and
+        // clock counters round-trip unchanged. The cross-runtime bound is
+        // enforced at the WIRE entry points (`from_json_str`), not here —
+        // validating here made Rust-only serialization unable to reload
+        // (PR #342 review round 3).
         for observation in observations {
-            // The wire IS the cross-runtime boundary: enforce the shared
-            // integer domain here (the tsukoshi port throws RangeError on
-            // the same inputs; PR #342 review round 2).
-            if observation.seq > MAX_CROSS_RUNTIME_SEQ
-                || observation
-                    .clock
-                    .clocks
-                    .values()
-                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
-            {
-                return Err(serde::de::Error::custom(
-                    "seq/clock counter exceeds MAX_CROSS_RUNTIME_SEQ (2^53 - 1)",
-                ));
-            }
             set.observations.insert(observation.key(), observation);
         }
         Ok(set)
@@ -319,6 +332,51 @@ impl ObservationSet {
         Self {
             observations: BTreeMap::new(),
         }
+    }
+
+    /// Serialize to canonical wire JSON text — the supported cross-runtime
+    /// wire format (canonical key order, correctly-rounded floats via the
+    /// crate's `serde_json/float_roundtrip` dependency).
+    ///
+    /// # Errors
+    ///
+    /// `WireError::Json` on serialization failure (not expected for this
+    /// type, but the `Result` keeps the API honest).
+    pub fn to_json_string(&self) -> Result<String, WireError> {
+        serde_json::to_string(self).map_err(WireError::Json)
+    }
+
+    /// Parse the cross-runtime wire — the SUPPORTED ingestion path, twin
+    /// of tsukoshi's `ObservationSet.fromWireJson`.
+    ///
+    /// Two guarantees over raw serde:
+    /// - **bit-faithful floats** (this crate's `serde_json` builds with
+    ///   `float_roundtrip`; a consumer parsing the wire with their own
+    ///   default `serde_json` can misround — use this entry point);
+    /// - **domain validation**: seq and clock counters must satisfy the
+    ///   cross-runtime bound (`MAX_CROSS_RUNTIME_SEQ`, 2^53 − 1) — the TS
+    ///   port throws `RangeError` on the same inputs. Native serde
+    ///   (`Deserialize`) remains the Rust-only persistence domain and
+    ///   keeps full u64.
+    ///
+    /// # Errors
+    ///
+    /// `WireError::Json` on malformed JSON; `WireError::OutOfDomain` when
+    /// a seq or clock counter exceeds `MAX_CROSS_RUNTIME_SEQ`.
+    pub fn from_json_str(text: &str) -> Result<Self, WireError> {
+        let set: Self = serde_json::from_str(text).map_err(WireError::Json)?;
+        for observation in set.observations.values() {
+            if observation.seq > MAX_CROSS_RUNTIME_SEQ
+                || observation
+                    .clock
+                    .clocks
+                    .values()
+                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(WireError::OutOfDomain);
+            }
+        }
+        Ok(set)
     }
 
     /// Insert an observation. Returns `false` if the key already exists
