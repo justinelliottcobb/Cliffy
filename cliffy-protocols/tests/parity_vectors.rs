@@ -31,6 +31,9 @@
 // Test-only serialization infallibility: serde_json::to_value on our own
 // types cannot fail; the workspace panic-denial lints target production
 // code paths, and the probe suites carry the same allow.
+#![allow(clippy::panic)]
+// Test assertions ARE controlled panics; a parity oracle that cannot panic
+// cannot fail.
 
 use std::collections::BTreeMap;
 use std::path::PathBuf;
@@ -78,6 +81,35 @@ fn project(
     for perm in permutations {
         // Rebuild from the raw insertion order, then assert bit-stability.
         let permuted = set_of(perm);
+        // Split-merge replay: the merge path must project identically too.
+        let (first, second) = perm.split_at(perm.len() / 2);
+        let mut merged = set_of(first);
+        merged.merge(&set_of(second));
+        assert_eq!(
+            scalar_mean(&merged).map(f64::to_bits),
+            scalar_mean(&permuted).map(f64::to_bits),
+            "{name}: split-merge changed scalar_mean bits"
+        );
+        assert_eq!(
+            vector_mean(&merged).map(|v| [v.x.to_bits(), v.y.to_bits(), v.z.to_bits()]),
+            vector_mean(&permuted).map(|v| [v.x.to_bits(), v.y.to_bits(), v.z.to_bits()]),
+            "{name}: split-merge changed vector_mean bits"
+        );
+        assert_eq!(
+            rotor_consensus(&merged).map(|r| [
+                r.w.to_bits(),
+                r.x.to_bits(),
+                r.y.to_bits(),
+                r.z.to_bits()
+            ]),
+            rotor_consensus(&permuted).map(|r| [
+                r.w.to_bits(),
+                r.x.to_bits(),
+                r.y.to_bits(),
+                r.z.to_bits()
+            ]),
+            "{name}: split-merge changed rotor_consensus bits"
+        );
         assert_eq!(
             scalar_mean(&permuted),
             expected.scalar_mean,
@@ -253,19 +285,32 @@ fn cases() -> Vec<ParityCase> {
         &[reversed(&obs), interleaved(&obs)],
     ));
 
+    epilogue_cases(&mut cases, a);
+    cases
+}
+
+/// The wire-boundary and empty-set cases (kept separate so `cases()` stays
+/// under the line budget).
+fn epilogue_cases(cases: &mut Vec<ParityCase>, a: Uuid) {
     // Signed zero: -0.0 must survive the wire (serde_json emits "-0.0";
     // JS parses it to -0) and the mean launders it to +0.0 identically on
-    // both sides (0.0 + -0.0 = +0.0 in round-to-nearest). Pins both the
-    // wire path and the laundering.
+    // both sides (0.0 + -0.0 = +0.0 in round-to-nearest). The projection
+    // alone CANNOT detect sign loss (the laundered mean is +0.0 either
+    // way — review round 2), so pin the input payload bits directly; the
+    // TS side asserts Object.is(payload, -0) before projecting.
     let obs = vec![scalar(a, 0, -0.0)];
+    match obs.first().map(|o| &o.payload) {
+        Some(cliffy_protocols::observation::ObservationPayload::Scalar(v)) => {
+            assert_eq!(v.to_bits(), (-0.0f64).to_bits(), "input sign pinned");
+        }
+        other => panic!("expected Scalar payload, got {other:?}"),
+    }
     let set = set_of(&obs);
     cases.push(project("scalar_signed_zero", &set, &[]));
 
     // Empty set: everything is None — never fabricate.
     let set = ObservationSet::new();
     cases.push(project("empty", &set, &[]));
-
-    cases
 }
 
 fn vectors_path() -> PathBuf {

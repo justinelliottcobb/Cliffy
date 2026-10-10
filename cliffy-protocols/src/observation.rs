@@ -292,6 +292,20 @@ impl<'de> Deserialize<'de> for ObservationSet {
         let observations = Vec::<Observation>::deserialize(deserializer)?;
         let mut set = Self::new();
         for observation in observations {
+            // The wire IS the cross-runtime boundary: enforce the shared
+            // integer domain here (the tsukoshi port throws RangeError on
+            // the same inputs; PR #342 review round 2).
+            if observation.seq > MAX_CROSS_RUNTIME_SEQ
+                || observation
+                    .clock
+                    .clocks
+                    .values()
+                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
+            {
+                return Err(serde::de::Error::custom(
+                    "seq/clock counter exceeds MAX_CROSS_RUNTIME_SEQ (2^53 - 1)",
+                ));
+            }
             set.observations.insert(observation.key(), observation);
         }
         Ok(set)

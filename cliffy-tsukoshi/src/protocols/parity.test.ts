@@ -91,6 +91,16 @@ describe('cross-runtime parity (Rust-generated vectors)', () => {
       assertCaseProjections(replay(c.observations), c, c.name);
     });
 
+    // The laundered mean cannot detect input-sign loss (review round 2):
+    // pin the ingested payload's sign bit directly before projecting.
+    if (c.name === 'scalar_signed_zero') {
+      it('scalar_signed_zero: the ingested payload is bit-exact -0', () => {
+        const set = replay(c.observations);
+        const obs = [...set.entries()][0];
+        expect('Scalar' in obs.payload && Object.is(obs.payload.Scalar, -0)).toBe(true);
+      });
+    }
+
     for (const [i, perm] of c.permutations.entries()) {
       it(`${c.name}: insertion-order ${i} projects bit-identically`, () => {
         assertCaseProjections(replay(perm), c, `${c.name}/perm${i}`);
@@ -119,6 +129,10 @@ describe('TS-emitted wire (drift-guarded; Rust ingests the same file)', () => {
     set.insert(vectorObservation(id, MAX_CROSS_RUNTIME_SEQ, { x: 1, y: 2, z: 3 }));
     // Uppercase UUID input — canonicalized to lowercase at ingestion.
     set.insert(scalarObservation('BBBBBBBB-0000-0000-0000-000000000002', 0, 7));
+    // The round-2 reviewer's value: default serde_json misrounds this by
+    // 1 ulp; float_roundtrip (now enabled in cliffy-protocols) parses it
+    // correctly. Pins the bit-faithful-wiring claim.
+    set.insert(scalarObservation(id, 2, 2.3318716180463287e-130));
     return set;
   }
 
@@ -140,6 +154,11 @@ describe('TS-emitted wire (drift-guarded; Rust ingests the same file)', () => {
     );
     expect(negZero).toBeDefined();
     expect(Object.is((negZero!.payload as { Scalar: number }).Scalar, -0)).toBe(true);
+    // The reviewer's 1-ulp value survives exactly.
+    const tricky = [...reparsed.entries()].find(
+      (o) => 'Scalar' in o.payload && o.seq === 2,
+    );
+    expect((tricky!.payload as { Scalar: number }).Scalar).toBe(2.3318716180463287e-130);
     // Canonical order absorbed the uppercase input; merge parity with the set.
     const merged = new ObservationSet();
     merged.merge(buildFixtureSet());

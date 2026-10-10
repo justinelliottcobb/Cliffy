@@ -53,6 +53,14 @@ All notable changes to Cliffy are documented here. Format follows
   with the regression matrix pinned bit-exact on both runtimes.
 - CI: `tsukoshi-checks` job — typecheck (`tsc --noEmit`), build, and vitest
   now gate every PR (the typecheck script existed but never ran in CI).
+- **Review round 2 hardening** (PR #342): `serde_json`'s `float_roundtrip`
+  feature enabled (correctly-rounded parsing — the default parser misrounds
+  e.g. 2.3318716180463287e-130 by 1 ulp; pinned both directions); the Rust
+  wire boundary (`ObservationSet::deserialize`) now enforces the
+  cross-runtime integer domain for seq AND clock counters (RangeError's
+  Rust twin); `VectorClock::tick` debug_asserts the same bound; the
+  signed-zero case pins the input payload's sign bit (the laundered mean
+  cannot); Rust-side split-merge replay is persistent in the drift guard.
 - Docs: crate READMEs, CONTEXT.md, and the wasm README rewritten to the
   post-salvage surface; `archive/` and `examples/archive/` carry explicit
   historical banners.

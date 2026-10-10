@@ -25,7 +25,12 @@ impl VectorClock {
     }
 
     pub fn tick(&mut self, node_id: Uuid) {
-        *self.clocks.entry(node_id).or_insert(0) += 1;
+        let counter = self.clocks.entry(node_id).or_insert(0);
+        *counter += 1;
+        debug_assert!(
+            *counter <= crate::observation::MAX_CROSS_RUNTIME_SEQ,
+            "clock counter exceeds the cross-runtime bound"
+        );
     }
 
     pub fn update(&mut self, other: &Self) {
