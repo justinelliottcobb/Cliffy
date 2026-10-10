@@ -239,3 +239,41 @@ fn wire_emitter_rejects_out_of_domain_values() {
     ));
     assert!(legal.to_json_string().is_ok(), "the bound itself emits");
 }
+
+/// Round-6 review (breaker): clock-key UUID ALIASES must not launder an
+/// out-of-domain counter. serde's `HashMap<Uuid, _>` collapses the two
+/// spellings during parse (last-wins) — before any Vec-level validation
+/// could see the dropped counter. TS sees both string keys and throws
+/// `RangeError` on the 2^53 value. The wire domain check therefore runs on
+/// the raw `serde_json::Value` (string keys, no collapse), BEFORE typed
+/// parsing. Both alias orders tested.
+#[test]
+fn wire_validation_precedes_clock_alias_collapse() {
+    for (first, second) in [
+        (
+            "AAAAAAAA-0000-0000-0000-000000000001",
+            "aaaaaaaa-0000-0000-0000-000000000001",
+        ),
+        (
+            "aaaaaaaa-0000-0000-0000-000000000001",
+            "AAAAAAAA-0000-0000-0000-000000000001",
+        ),
+    ] {
+        let wire = format!(
+            r#"[{{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{{"clocks":{{"{first}":9007199254740992,"{second}":0}}}},"payload":{{"Scalar":1.0}},"grant_ref":null}}]"#
+        );
+        assert!(
+            ObservationSet::from_json_str(&wire).is_err(),
+            "alias-laundered out-of-domain clock counter must be rejected (order: {first} first)"
+        );
+    }
+
+    // In-domain aliases still parse (last-wins collapse, as natively).
+    let ok = r#"[{"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{"AAAAAAAA-0000-0000-0000-000000000001":1,"aaaaaaaa-0000-0000-0000-000000000001":2}},"payload":{"Scalar":1.0},"grant_ref":null}]"#;
+    let set = ObservationSet::from_json_str(ok).expect("in-domain aliases parse");
+    let obs = set.iter().next().expect("one observation");
+    assert_eq!(
+        obs.clock.clocks.values().copied().collect::<Vec<_>>(),
+        vec![2]
+    );
+}

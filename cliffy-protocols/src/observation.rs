@@ -383,23 +383,40 @@ impl ObservationSet {
     /// `WireError::Json` on malformed JSON; `WireError::OutOfDomain` when
     /// a seq or clock counter exceeds `MAX_CROSS_RUNTIME_SEQ`.
     pub fn from_json_str(text: &str) -> Result<Self, WireError> {
-        // Parse the raw Vec first: validation must see EVERY record —
-        // building the set first would let a duplicate key launder an
-        // out-of-domain record that the TS port rejects (round 4).
-        let observations: Vec<Observation> = serde_json::from_str(text).map_err(WireError::Json)?;
-        for observation in &observations {
-            if observation.seq > MAX_CROSS_RUNTIME_SEQ
-                || observation
-                    .clock
-                    .clocks
-                    .values()
-                    .any(|&c| c > MAX_CROSS_RUNTIME_SEQ)
-            {
-                return Err(WireError::OutOfDomain);
+        // Domain validation runs on the raw Value, where keys are STRINGS:
+        // typed parsing collapses clock-key UUID aliases (HashMap<Uuid, _>
+        // last-wins) and the typed Vec shares the observation-key collapse
+        // hazard — the TS port validates every record pre-collapse and
+        // throws RangeError on the same bytes (rounds 4 and 6). Value
+        // objects preserve distinct string keys, so every counter is seen.
+        let value: serde_json::Value = serde_json::from_str(text).map_err(WireError::Json)?;
+        if let Some(observations) = value.as_array() {
+            for observation in observations {
+                if observation
+                    .get("seq")
+                    .and_then(serde_json::Value::as_u64)
+                    .is_some_and(|seq| seq > MAX_CROSS_RUNTIME_SEQ)
+                {
+                    return Err(WireError::OutOfDomain);
+                }
+                if let Some(clocks) = observation
+                    .get("clock")
+                    .and_then(|c| c.get("clocks"))
+                    .and_then(serde_json::Value::as_object)
+                {
+                    for counter in clocks.values() {
+                        if counter.as_u64().is_some_and(|c| c > MAX_CROSS_RUNTIME_SEQ) {
+                            return Err(WireError::OutOfDomain);
+                        }
+                    }
+                }
             }
         }
-        // Last-wins duplicate collapse, mirroring BTreeMap::insert (and
-        // the TS fromWire's per-record insert).
+        // Typed parse (schema errors surface here), then the last-wins
+        // duplicate collapse, mirroring BTreeMap::insert (and the TS
+        // fromWire's per-record insert) — validation saw every record.
+        let observations: Vec<Observation> =
+            serde_json::from_value(value).map_err(WireError::Json)?;
         let mut set = Self::new();
         for observation in observations {
             set.observations.insert(observation.key(), observation);
