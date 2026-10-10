@@ -96,7 +96,7 @@ pub use delta::{
 pub use lattice::{ComponentLattice, GeometricLattice};
 pub use observation::{
     GrantRef, Observation, ObservationKey, ObservationPayload, ObservationSet, RotorObservation,
-    VectorObservation,
+    VectorObservation, WireError,
 };
 pub use projection::{
     from_amari_rotor, rotor_consensus, rotor_consensus_with_weights, scalar_mean, vector_mean,

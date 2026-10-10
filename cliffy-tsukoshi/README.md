@@ -933,7 +933,8 @@ class CollaborativeCounter {
 | `insert(observation)` | Add an observation (last-wins on duplicate key) |
 | `merge(other)` | Union-merge (first-wins on duplicate key) — the entire CRDT |
 | `entries()` | Iterate in canonical (participant, seq) order |
-| `toWire()` / `ObservationSet.fromWire()` | JSON serialization (Rust-compatible format) |
+| `toWire()` / `ObservationSet.fromWire()` | Structural wire (object array; `JSON.stringify` of it loses the -0 sign) |
+| `toWireJson()` / `ObservationSet.fromWireJson()` | Canonical wire JSON text — bit-faithful (serde-compatible; twins Rust's `to_json_string`/`from_json_str`) |
 
 Free-function projections: `scalarMean(set)`, `vectorMean(set)`, `rotorConsensus(set)`.
 

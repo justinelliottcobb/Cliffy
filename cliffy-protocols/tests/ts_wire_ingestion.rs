@@ -175,3 +175,29 @@ fn supported_wire_api_validates_and_parses_bit_exact() {
     let reloaded = ObservationSet::from_json_str(&text).expect("reload");
     assert_eq!(reloaded.len(), 1);
 }
+
+/// Round-4 review: validation must see EVERY wire record, including ones
+/// a duplicate key would collapse — parse to Vec, validate all, THEN build
+/// the last-wins set. (The TS port validates during per-record insert and
+/// throws `RangeError` on this exact input.)
+#[test]
+fn wire_validation_precedes_duplicate_collapse() {
+    let dup_hides_violation = r#"[
+      {"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{"aaaaaaaa-0000-0000-0000-000000000001":9007199254740992}},"payload":{"Scalar":1.0},"grant_ref":null},
+      {"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":1.0},"grant_ref":null}
+    ]"#;
+    assert!(
+        ObservationSet::from_json_str(dup_hides_violation).is_err(),
+        "a duplicate key must not launder an out-of-domain record"
+    );
+
+    // Last-wins still holds for in-domain duplicates.
+    let dup_legal = r#"[
+      {"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":1.0},"grant_ref":null},
+      {"participant_id":"aaaaaaaa-0000-0000-0000-000000000001","seq":0,"clock":{"clocks":{}},"payload":{"Scalar":2.0},"grant_ref":null}
+    ]"#;
+    let set = ObservationSet::from_json_str(dup_legal).expect("in-domain dups parse");
+    assert_eq!(set.len(), 1);
+    let mean = cliffy_protocols::projection::scalar_mean(&set).expect("scalar");
+    assert_eq!(mean.to_bits(), 2.0f64.to_bits(), "last-wins");
+}

@@ -22,8 +22,8 @@
  *   here. Anything else throws TypeError, mirroring serde's rejection.
  * - seq: an integer in [0, MAX_CROSS_RUNTIME_SEQ] (2^53 − 1). f64 cannot
  *   represent larger integers; ingesting one would silently collide
- *   distinct Rust keys. Throws RangeError, matching the Rust-side
- *   MAX_CROSS_RUNTIME_SEQ contract (debug_assert there, hard error here).
+ *   distinct Rust keys. Throws RangeError, matching the Rust wire entry
+ *   point's WireError::OutOfDomain (from_json_str).
  *
  * # Ownership
  *
@@ -51,7 +51,9 @@ export type ObservationKey = readonly [participantId: string, seq: number];
 /**
  * Cross-runtime sequence bound (2^53 − 1): the largest integer exactly
  * representable as f64. Sequences beyond this cannot survive a JS runtime;
- * both sides reject them (RangeError here, debug_assert in Rust).
+ * both sides reject them at the wire (RangeError here,
+ * WireError::OutOfDomain from Rust's from_json_str). Native Rust serde
+ * keeps the full u64 domain (Rust-only persistence is unbounded).
  */
 export const MAX_CROSS_RUNTIME_SEQ = 9007199254740991; // 2**53 - 1
 
@@ -298,7 +300,14 @@ export class ObservationSet {
     }
   }
 
-  /** Wire format: a JSON array of observations in canonical key order. */
+  /**
+   * Wire format: a JSON array of observations in canonical key order.
+   *
+   * WARNING: \`JSON.stringify(set.toWire())\` LOSES the -0 sign bit (JS
+   * renders -0 as "0") and integer/float styling — for the wire, use
+   * \`toWireJson()\` (bit-faithful). \`toWire()\` is for structural
+   * inspection and in-process handoff.
+   */
   toWire(): Observation[] {
     return [...this.entries()];
   }
