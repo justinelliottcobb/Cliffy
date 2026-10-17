@@ -261,3 +261,55 @@ defect is live in our published substrate until we deliberately adopt
 4. **Sequencing**: WS0 (merging) → WS2 → **WS-A (when 0.25.0 ships)** →
    WS1 → WS3. If Amari 0.25.0 slips past WS1's completion, WS1 proceeds
    (it is protocols-layer; its U2 contract is encoding, not numerics).
+
+## 9. Workstream L — loadtest salvation (queued 2026-10-16)
+
+Source: `IA-documents/RESEARCH_REPORTS/RABBIT_HOLE_2026-10-16_Cliffy.md`
+("The Instrument That Was Never Run"). All headline findings verified
+firsthand against `develop`:
+
+- `cliffy-loadtest/src/simulator.rs` carries the fossil merge — `(a+b)*0.5`
+  under the doc comment "CRDT merge via geometric mean," the exact
+  non-semilattice doctrine the salvage executed, reimplemented inline
+  (born 2026-01-29, `cdd05fc`, untouched by the salvage window).
+- `test_simulation_convergence` asserts `check_count > 0` — the
+  vacuous-success predicate, fourth instance in this repo (annihilated-
+  replica agreement; publish workflow; loop counter; zero-test CI).
+- CI's `scale_100`/`scale_1000` lines select zero tests (the crate has no
+  `#[ignore]`d tests; the names are config constructors), wrapped in
+  `|| true` + `continue-on-error` — the scale suite has never executed.
+- `cliffy-protocols`, `cliffy-test`, and `tokio` are declared and unused;
+  the README documents an API (`Scenario::builder`, `convergence_rate`,
+  `p99_latency_ms`) that does not exist.
+- The crate wears 0.4.0 without the salvage's content; unpublished on
+  crates.io, so exposure is future-internal — Phase 2 evidence and the
+  10,000-user claim would be its first real consumers, and its numbers
+  would be wrong in the *plausible* way.
+
+### The cure (operator-approved shape; execution queued after #342/#333 merge)
+
+1. `SimulatedUser` becomes an `ObservationSet` client: users emit
+   timestamped observations; merge = union (the boring semilattice).
+   `network.rs` (topology/latency/jitter/loss) is doctrine-free plumbing
+   and survives untouched.
+2. Convergence assertions become value-oracular: after sync quiescence,
+   every replica's set equals the union of all emitted observations (SEC),
+   and projections are bit-identical across replicas. Threshold-vs-
+   reference divergence is deleted, not relaxed.
+3. Real `#[ignore]`d `scale_100`/`scale_1000` integration tests; CI lines
+   lose `|| true` and select tests that exist. A vacuity probe family
+   fossilizes all four instances (assert the selector matches >0 tests;
+   assert `converged`, not `check_count`).
+4. Wire the phantom deps: `cliffy-test` invariants on end-state,
+   `cliffy-protocols` real, `tokio` used or dropped. README reconciled to
+   the shipped API (the fictional builder API may be built deliberately
+   later, or dropped).
+5. CHANGELOG honesty line: 0.4.0's loadtest entry was version-bump-only.
+
+### Sequencing
+
+Amari-independent (no amari numerics in the cure), Rust-only (no
+interaction with #342). Order: **#342/#333 merges → WS-L → WS2 → WS-A
+(Amari 0.25) → WS1 → WS3**. WS-L goes first among Phase 2 workstreams
+because Phase 2's own evidence needs (latency under load, convergence at
+scale) consume this instrument; it must be trustworthy before it is cited.
